@@ -65,6 +65,18 @@ impl Configuration {
                 .unwrap_or(default_embolden),
         }
     }
+
+    /// The window's MSAA samples alone (`0`, `2`, `4`), keeping the mode's glyph weight: for
+    /// measuring what multisampling costs on the TV.
+    pub fn samples(mut self, samples: Option<&str>) -> Self {
+        self.sample_counts = match samples {
+            Some("0") => &[0],
+            Some("2") => &[2, 0],
+            Some("4") => &[4, 2, 0],
+            _ => self.sample_counts,
+        };
+        self
+    }
 }
 
 #[cfg(test)]
@@ -94,5 +106,21 @@ mod tests {
         let invalid = Configuration::new(TextRendering::Analytic, Some("invalid"), Some("NaN"));
         assert_eq!(invalid.sample_counts, &[0]);
         assert_eq!(invalid.embolden, 0.25);
+    }
+
+    #[test]
+    fn a_sample_override_changes_the_window_samples_and_nothing_else() {
+        let none = Configuration::new(TextRendering::Msaa, None, None).samples(Some("0"));
+        assert_eq!(none.sample_counts, &[0]);
+        assert_eq!((none.mode, none.embolden), (TextRendering::Msaa, 0.));
+        let two = Configuration::new(TextRendering::Analytic, None, None).samples(Some("2"));
+        assert_eq!(two.sample_counts, &[2, 0]);
+        assert_eq!((two.mode, two.embolden), (TextRendering::Analytic, 0.25));
+        let four = Configuration::new(TextRendering::Analytic, None, None).samples(Some("4"));
+        assert_eq!(four.sample_counts, &[4, 2, 0]);
+        let kept = Configuration::new(TextRendering::Msaa, None, None).samples(Some("3"));
+        assert_eq!(kept.sample_counts, &[4, 2, 0]);
+        let unset = Configuration::new(TextRendering::Msaa, None, None).samples(None);
+        assert_eq!(unset.sample_counts, &[4, 2, 0]);
     }
 }

@@ -23,6 +23,7 @@ mod egl_damage;
 mod font;
 mod glass;
 mod glyph_atlas;
+mod gpu_timer;
 mod homebrew_updates;
 mod i18n;
 #[path = "input-refresh.rs"]
@@ -940,6 +941,15 @@ fn run() -> Result<(), String> {
         storage::load(&preferences_path)?
     };
     let mut perf_log = preferences_path.parent().and_then(perf_log::PerfLog::open);
+    // Launch options the switch file sets for comparing on the TV: MSAA samples, partial redraw.
+    let perf_value = |key: &str| {
+        perf_log
+            .as_ref()
+            .and(preferences_path.parent())
+            .and_then(|directory| perf_log::value(directory, key))
+    };
+    let perf_msaa = perf_value("msaa=");
+    let perf_partial = perf_value("partial=");
     if webos
         && options.script.is_empty()
         && let Some(directory) = preferences_path.parent()
@@ -1104,7 +1114,8 @@ fn run() -> Result<(), String> {
         state.preferences.text_rendering,
         std::env::var("LUMA_MSAA").ok().as_deref(),
         std::env::var("LUMA_EMBOLDEN").ok().as_deref(),
-    );
+    )
+    .samples(perf_msaa.as_deref());
     eprintln!(
         "Luma text rendering: {:?}, embolden {} px",
         text_config.mode, text_config.embolden
@@ -1136,9 +1147,24 @@ fn run() -> Result<(), String> {
         renderer::Renderer::new(&assets.root.join("font.ttf"), webos, text_config.embolden)?;
     startup_stage("renderer");
     // Redraw only what changed since the back buffer's frame (LUMA_PARTIAL=0 draws in full).
-    let partial = (std::env::var("LUMA_PARTIAL").as_deref() != Ok("0"))
-        .then(egl_damage::PartialUpdate::load)
-        .flatten();
+    let partial = (std::env::var("LUMA_PARTIAL").as_deref() != Ok("0")
+        && perf_partial.as_deref() != Some("0"))
+    .then(egl_damage::PartialUpdate::load)
+    .flatten();
+    let mut gpu_timer = None;
+    if let Some(log) = &mut perf_log {
+        let timer = gpu_timer::GpuTimer::load(webos, |name| video.gl_get_proc_address(name).cast());
+        log.note(&format!(
+            "start Luma+ {} {} msaa {samples} partial {} gpu timer {}",
+            env!("CARGO_PKG_VERSION"),
+            renderer.info.renderer,
+            partial
+                .as_ref()
+                .map_or("off", egl_damage::PartialUpdate::describe),
+            timer.as_ref().map_or_else(|error| error.as_str(), |_| "on"),
+        ));
+        gpu_timer = timer.ok();
+    }
     eprintln!(
         "Luma partial redraw: {}",
         partial
@@ -2130,7 +2156,13 @@ fn run() -> Result<(), String> {
                     }
                     damage
                 });
+                if let Some(timer) = &mut gpu_timer {
+                    timer.begin();
+                }
                 renderer.render(&scene.draw, width, height, damage);
+                if let Some(timer) = &mut gpu_timer {
+                    timer.end();
+                }
                 redrawn_total += renderer.stats().redrawn_fraction;
                 if verify_damage {
                     // Full frames give the baseline difference of the two drawing paths.
@@ -2194,6 +2226,10 @@ fn run() -> Result<(), String> {
                         }
                     );
                     log.record(last_present, &label, &timing);
+                    for milliseconds in gpu_timer.iter_mut().flat_map(gpu_timer::GpuTimer::collect)
+                    {
+                        log.gpu(milliseconds);
+                    }
                 }
                 if options.profile_frames.is_some() {
                     profile.record(
