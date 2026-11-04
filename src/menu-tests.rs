@@ -382,3 +382,34 @@ fn while_the_menu_slides_only_its_strip_is_drawn_again() {
         );
     }
 }
+
+#[test]
+fn a_perf_script_opens_the_side_menu_and_skips_a_missing_today_card() {
+    let mut state = State::new(crate::model::Preferences::default());
+    state.set_inventory(crate::model::demo_inventory(), None);
+    let controls = crate::view::scene(
+        &state,
+        &crate::view::Assets {
+            root: std::path::PathBuf::new(),
+            version: "test".into(),
+            metrics: Default::default(),
+            artwork: crate::app_artwork::Service::new(false),
+        },
+        time::OffsetDateTime::UNIX_EPOCH,
+    )
+    .controls;
+    if !controls
+        .iter()
+        .any(|control| control.target == Target::TodayCard)
+    {
+        let focus = state.focus.clone();
+        assert_eq!(crate::script("today", &mut state, &controls), Ok(vec![]));
+        assert!(state.overlay.is_none());
+        assert_eq!(state.focus, focus);
+    }
+    assert_eq!(
+        crate::script("side-menu", &mut state, &controls),
+        Ok(vec![])
+    );
+    assert!(menu_open(&state));
+}

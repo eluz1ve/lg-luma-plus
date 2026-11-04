@@ -639,3 +639,12 @@ fn the_plugin_row_explains_lampas_plugin_and_back_returns_to_it() {
     assert!(state.overlay.is_none());
     assert_eq!(state.focus, Target::LampaPlugin);
 }
+
+#[test]
+fn a_perf_script_opens_today_without_walking_the_focus_there() {
+    let mut state = today_state();
+    let controls = at(&state).controls;
+    assert_ne!(state.focus, Target::TodayCard);
+    assert_eq!(crate::script("today", &mut state, &controls), Ok(vec![]));
+    assert!(matches!(state.overlay, Some(Overlay::Today { .. })));
+}
