@@ -167,7 +167,7 @@ impl GpuTimer {
     /// GPU milliseconds of the frames finished since the last call, oldest first.
     pub fn collect(&mut self) -> Vec<f64> {
         let (get_u32, get_u64) = (self.get_u32, self.get_u64);
-        let times = self.ring.collect(
+        self.ring.collect(
             |id| {
                 let mut ready = 0;
                 // SAFETY: an ended query of this timer.
@@ -186,8 +186,7 @@ impl GpuTimer {
                 unsafe { gl::GetIntegerv(GPU_DISJOINT, &mut disjoint) };
                 disjoint != 0
             },
-        );
-        times
+        )
     }
 }
 

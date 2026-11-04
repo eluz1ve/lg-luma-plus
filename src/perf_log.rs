@@ -134,10 +134,10 @@ pub fn value(directory: &Path, key: &str) -> Option<String> {
     let switch = std::fs::read_to_string(directory.join("perf")).ok()?;
     switch
         .lines()
+        .rev()
         .filter_map(|line| line.strip_prefix(key))
         .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .last()
+        .find(|value| !value.is_empty())
         .map(String::from)
 }
 
