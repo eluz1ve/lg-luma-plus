@@ -16,6 +16,8 @@ const LIMIT: u64 = 4 * 1024 * 1024;
 const IDLE: Duration = Duration::from_millis(250);
 /// A longer gap between frames missed at least one 60 Hz vsync.
 const LATE_MS: f64 = 25.;
+/// Late frames a second describes one by one.
+const LATE_LINES: usize = 8;
 
 struct Sample {
     gap: f64,
@@ -64,9 +66,7 @@ impl PerfLog {
     /// A line about the launch (how it draws), ahead of its frames.
     pub fn note(&mut self, text: &str) {
         let line = format!("t={:.1} {text}\n", self.started.elapsed().as_secs_f64());
-        if self.written <= LIMIT && self.file.write_all(line.as_bytes()).is_ok() {
-            self.written += line.len() as u64;
-        }
+        self.write(&line);
     }
 
     /// GPU milliseconds of a frame drawn recently, counted in the current second.
@@ -87,6 +87,21 @@ impl PerfLog {
             .map(|gap| gap.as_secs_f64() * 1000.);
         self.last = Some(now);
         if let Some(gap) = gap {
+            let late = self.samples.iter().filter(|s| s.gap > LATE_MS).count();
+            if gap > LATE_MS && late < LATE_LINES {
+                // The frame that ended the gap: its own work, including first-use loads.
+                let line = format!(
+                    "t={:.1} late frame {label} gap {gap:.1} compose {:.1} render {:.1} swap {:.1} glyph {:.1} vector {:.1} image {:.1}\n",
+                    now.duration_since(self.started).as_secs_f64(),
+                    frame.compose_ms,
+                    frame.render_ms,
+                    frame.swap_ms,
+                    frame.glyph_ms,
+                    frame.vector_ms,
+                    frame.image_ms,
+                );
+                self.write(&line);
+            }
             self.samples.push(Sample {
                 gap,
                 compose: frame.compose_ms,
@@ -113,7 +128,11 @@ impl PerfLog {
         );
         self.samples.clear();
         self.gpu.clear();
-        if self.file.write_all(line.as_bytes()).is_ok() {
+        self.write(&line);
+    }
+
+    fn write(&mut self, line: &str) {
+        if self.written <= LIMIT && self.file.write_all(line.as_bytes()).is_ok() {
             self.written += line.len() as u64;
         }
     }

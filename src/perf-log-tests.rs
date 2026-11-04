@@ -79,3 +79,38 @@ fn the_switch_file_may_carry_a_script_to_measure() {
     assert_eq!(skip(&directory), ["glass", "shadow"]);
     std::fs::remove_dir_all(&directory).unwrap();
 }
+
+#[test]
+fn a_late_frame_gets_its_own_line_with_its_first_use_work() {
+    let directory = std::env::temp_dir().join(format!("luma-perf-late-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(directory.join("perf"), "").unwrap();
+    let mut log = PerfLog::open(&directory).unwrap();
+    let frame = |render_ms, image_ms| Frame {
+        interval_ms: 0.,
+        compose_ms: 1.,
+        render_ms,
+        swap_ms: 2.,
+        redrawn: 1.,
+        glyph_ms: 0.,
+        vector_ms: 0.,
+        image_ms,
+    };
+    let start = std::time::Instant::now();
+    log.record(start, "Home", &frame(5., 0.));
+    log.record(start + Duration::from_millis(17), "Home", &frame(5., 0.));
+    log.record(start + Duration::from_millis(57), "Home", &frame(30., 24.));
+    drop(log);
+    let written = std::fs::read_to_string(directory.join("perf.log")).unwrap();
+    let late: Vec<_> = written
+        .lines()
+        .filter(|line| line.contains(" late frame "))
+        .collect();
+    assert_eq!(late.len(), 1, "{written}");
+    assert!(
+        late[0].ends_with(" late frame Home gap 40.0 compose 1.0 render 30.0 swap 2.0 glyph 0.0 vector 0.0 image 24.0"),
+        "{}",
+        late[0]
+    );
+    std::fs::remove_dir_all(&directory).unwrap();
+}
