@@ -117,8 +117,10 @@ try {
     console.log(`\n${variant.name}: ${variant.lines.join(', ') || 'as installed'}`);
     cli('ares-launch', ['--close', manifest.id], { allowFailure: true });
     const lines = [`script=${walk.join(',')}`, ...variant.lines];
+    // The app runs as its own user: it creates perf.log itself, since one made here would be
+    // read-only to it.
     shell(
-      `printf '%s\\n' ${lines.map(quote).join(' ')} > ${switchFile} && : > ${directory}/perf.log`,
+      `printf '%s\\n' ${lines.map(quote).join(' ')} > ${switchFile} && rm -f ${directory}/perf.log`,
     );
     cli('ares-launch', [manifest.id]);
     await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
