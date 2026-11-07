@@ -100,9 +100,9 @@ async function scenario(name, script, extra = []) {
 function contains(state, key, language) {
   assert.ok(state.ui_text.includes(messages[key][language]), `Missing rendered ${key}/${language}`);
 }
-const picker = 'settings,down,enter,down,down,enter';
-const weatherPage = 'settings,down,down,down,enter,down,down,enter';
-const inputsPage = 'settings,down,down,down,enter,down,down,down,down,enter';
+const picker = 'settings,enter,down,down,enter';
+const weatherPage = 'settings,down,down,enter,down,down,enter';
+const inputsPage = 'settings,down,down,enter,down,down,down,down,enter';
 const location = `${weatherPage},down,enter`;
 try {
   if (process.env.LUMA_SMOKE_SKIP_BUILD !== '1')
@@ -128,13 +128,13 @@ try {
   ])
     contains(german, key, 'de');
   assert.ok(german.ui_text.includes('Netflix'), 'Installed app names stay intact');
-  const persisted = await scenario('de-settings', 'settings,down');
+  const persisted = await scenario('de-settings', 'settings');
   assert.equal(persisted.preferences.language, 'de');
   contains(persisted, 'language', 'de');
 
   const chinese = await scenario(
     'zh-home',
-    `${picker},${Array(11).fill('down').join(',')},enter,home,down`,
+    `${picker},${Array(10).fill('down').join(',')},enter,home,down`,
   );
   assert.equal(chinese.preferences.language, 'zh');
   for (const key of [
@@ -149,7 +149,7 @@ try {
     contains(chinese, key, 'zh');
   assert.ok(chinese.ui_text.includes('Netflix'));
   assert.ok(chinese.ui_text.includes('10月21日星期三'));
-  const chineseSettings = await scenario('zh-settings', 'settings,down');
+  const chineseSettings = await scenario('zh-settings', 'settings');
   contains(chineseSettings, 'language', 'zh');
   contains(chineseSettings, 'appNames', 'zh');
 
@@ -194,13 +194,13 @@ try {
   const input = await scenario('zh-input-options', `${inputsPage},enter`);
   for (const key of ['stateOn', 'stateOff', 'stateAuto', 'inputWhenConnected'])
     contains(input, key, 'zh');
-  const background = await scenario('zh-background', 'settings,down,down,enter');
+  const background = await scenario('zh-background', 'settings,down,enter');
   for (const key of ['background', 'uploadWallpaper']) contains(background, key, 'zh');
   assert.deepEqual(background.focus, { Background: 3 });
   // Background thumbnails have no captions; their actions are translated in the popup.
   const backgroundOptions = await scenario(
     'zh-background-options',
-    'settings,down,down,enter,down,enter',
+    'settings,down,enter,down,enter',
   );
   assert.equal(backgroundOptions.modal, true);
   assert.equal(backgroundOptions.focus, 'UseBackground');
@@ -240,7 +240,7 @@ try {
     portuguese.ui_text.includes('Netflix'),
     'Installed app names stay intact in Portuguese',
   );
-  const portugueseSettings = await scenario('pt-settings', 'settings,down');
+  const portugueseSettings = await scenario('pt-settings', 'settings');
   assert.equal(
     portugueseSettings.preferences.language,
     'pt',
@@ -303,7 +303,7 @@ try {
   assert.ok(vietnamese.ui_text.includes('Netflix'), 'Installed app names stay intact');
   assert.equal(JSON.parse(await fs.readFile(preferences, 'utf8')).language, 'vi');
 
-  const vietnameseSettings = await scenario('vi-settings', 'settings,down');
+  const vietnameseSettings = await scenario('vi-settings', 'settings');
   assert.equal(vietnameseSettings.preferences.language, 'vi', 'Vietnamese survives a restart');
   assert.ok(vietnameseSettings.ui_text.includes('Tiếng Việt'));
   for (const key of ['language', 'appNames', 'clock']) contains(vietnameseSettings, key, 'vi');
@@ -360,7 +360,7 @@ try {
     contains(traditional, key, 'zh-tw');
   assert.ok(traditional.ui_text.includes('10月21日星期三'));
   assert.ok(traditional.ui_text.includes('Netflix'));
-  const traditionalSettings = await scenario('zh-tw-settings', 'settings,down');
+  const traditionalSettings = await scenario('zh-tw-settings', 'settings');
   assert.equal(traditionalSettings.preferences.language, 'zh-tw');
   for (const key of ['language', 'appNames', 'clock']) contains(traditionalSettings, key, 'zh-tw');
   const traditionalWeather = await scenario(

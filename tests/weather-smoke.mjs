@@ -143,7 +143,7 @@ async function scenario(name, script, frames = 210) {
 }
 const forecastCount = () => requests.filter((request) => request.path === '/v1/forecast').length;
 const searchCount = () => requests.filter((request) => request.path === '/v1/search').length;
-const weatherPage = 'settings,down,down,down,enter,down,down,enter';
+const weatherPage = 'settings,down,down,enter,down,down,enter';
 const locationPage = `${weatherPage},down,enter`;
 try {
   if (process.env.LUMA_SMOKE_SKIP_BUILD !== '1')
@@ -208,7 +208,7 @@ try {
   await fs.rm(cache);
 
   forecastMode = 'slow';
-  const removed = await scenario('remove-in-flight', `home,${locationPage},click:1716:201,home`);
+  const removed = await scenario('remove-in-flight', `home,${locationPage},click:972:268,home`);
   assert.equal(removed.preferences.weather_location, null);
   assert.equal(removed.weather.cache, null);
   await assert.rejects(fs.access(cache));
@@ -232,7 +232,7 @@ try {
   );
   const latest = await scenario(
     'latest-search',
-    `${locationPage},type:slow,back,enter,click:900:197,click:1364:726,type:Paris,back,enter,await-search,down,enter`,
+    `${locationPage},type:slow,back,enter,click:564:258,click:1364:726,type:Paris,back,enter,await-search,down,enter`,
   );
   assert.equal(latest.preferences.weather_location.name, 'Paris');
   assert.ok(latest.weather.results.length === 0);

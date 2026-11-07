@@ -45,7 +45,7 @@ try {
       'Visible vector text must remain valid across cache reuse',
     );
     assert.equal(render.last_presented.glyph_failures, 0);
-    assert.equal(render.capture.font_antialiasing, 'vector grayscale coverage');
+    assert.equal(render.capture.font_antialiasing, 'glyph atlas, exact area coverage');
     assert.equal(render.capture.missing_glyphs, 0);
     assert.equal(render.capture.missing_images, 0);
     state.render = render;
