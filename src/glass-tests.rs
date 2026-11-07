@@ -40,7 +40,7 @@ fn frost_takes_any_wallpaper_size() {
     }
 }
 
-fn wait_ready(worker: &mut Worker) -> Vec<(String, Option<RgbaImage>)> {
+fn wait_ready(worker: &mut Worker) -> Vec<Reply> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         let ready = worker.ready();
@@ -67,17 +67,52 @@ fn the_worker_makes_each_copy_once_off_the_frame() {
     assert!(worker.pending());
     let ready = wait_ready(&mut worker);
     assert_eq!(ready.len(), 1);
-    assert_eq!(ready[0].0, path);
+    assert_eq!(ready[0].path, path);
     assert_eq!(
-        ready[0].1.as_ref().map(RgbaImage::dimensions),
+        ready[0].copy.as_ref().map(RgbaImage::dimensions),
         Some((480, 270))
     );
+    assert!(ready[0].whole.is_none());
     assert!(!worker.pending());
     // A wallpaper that cannot be read gives no copy, once.
     let missing = directory.join("missing.jpg").to_string_lossy().into_owned();
     worker.request(&missing);
     let ready = wait_ready(&mut worker);
     assert_eq!(ready.len(), 1);
-    assert!(ready[0].1.is_none());
+    assert!(ready[0].copy.is_none());
+    std::fs::remove_dir_all(&directory).unwrap();
+}
+
+#[test]
+fn a_wallpaper_asked_for_whole_comes_back_decoded_with_its_copy() {
+    let directory = std::env::temp_dir().join(format!("luma-whole-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("wall.png");
+    RgbaImage::from_pixel(64, 36, Rgba([40, 90, 160, 255]))
+        .save(&path)
+        .unwrap();
+    let path = path.to_string_lossy().into_owned();
+    let mut worker = Worker::default();
+    // Its copy asked for first, by a pane over it; then the whole of it, ahead of a fade.
+    worker.request(&path);
+    worker.request_whole(&path);
+    worker.request_whole(&path);
+    let mut replies = Vec::new();
+    while worker.pending() {
+        replies.extend(wait_ready(&mut worker));
+    }
+    let whole: Vec<_> = replies
+        .iter()
+        .filter(|reply| reply.whole.is_some())
+        .collect();
+    assert_eq!(whole.len(), 1);
+    assert_eq!(
+        whole[0].whole.as_ref().map(RgbaImage::dimensions),
+        Some((64, 36))
+    );
+    assert_eq!(
+        whole[0].copy.as_ref().map(RgbaImage::dimensions),
+        Some((480, 270))
+    );
     std::fs::remove_dir_all(&directory).unwrap();
 }

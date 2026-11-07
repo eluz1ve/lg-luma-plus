@@ -1,7 +1,7 @@
 //! Glass: chrome drawn over one blurred copy of the wallpaper, made once when the wallpaper
 //! loads, never per frame.
 use image::{Rgba, RgbaImage};
-use std::{collections::HashSet, sync::mpsc, thread};
+use std::{collections::HashMap, sync::mpsc, thread};
 
 /// The copy's size: a quarter of 1080p each way, enough for a blur this soft.
 pub const WIDTH: u32 = 480;
@@ -26,30 +26,56 @@ pub fn frost(image: &RgbaImage) -> RgbaImage {
 }
 
 /// A wallpaper's copy, made off the GL thread: decoding a wallpaper and blurring it takes the
-/// TV several frames. Each path is asked for once until its reply is taken.
+/// TV several frames. Each path is asked for once until its reply is taken; asked for whole, the
+/// decoded wallpaper comes back with it, so it is not decoded on the GL thread mid-fade.
 #[derive(Default)]
 pub struct Worker {
-    requests: Option<mpsc::Sender<String>>,
-    replies: Option<mpsc::Receiver<(String, Option<RgbaImage>)>>,
-    pending: HashSet<String>,
+    requests: Option<mpsc::Sender<(String, bool)>>,
+    replies: Option<mpsc::Receiver<Reply>>,
+    /// Paths asked for, and whether whole.
+    pending: HashMap<String, bool>,
+}
+
+/// A wallpaper's copy, `None` when it could not be read, and the wallpaper itself when asked.
+pub struct Reply {
+    pub path: String,
+    pub copy: Option<RgbaImage>,
+    pub whole: Option<RgbaImage>,
+    asked_whole: bool,
 }
 
 impl Worker {
     pub fn request(&mut self, path: &str) {
-        if !self.pending.insert(path.into()) {
-            return;
+        self.ask(path, false);
+    }
+
+    pub fn request_whole(&mut self, path: &str) {
+        self.ask(path, true);
+    }
+
+    fn ask(&mut self, path: &str, whole: bool) {
+        match self.pending.get(path) {
+            Some(asked) if *asked || !whole => return,
+            _ => {}
         }
+        self.pending.insert(path.into(), whole);
         if self.requests.is_none() {
-            let (requests, inbox) = mpsc::channel::<String>();
+            let (requests, inbox) = mpsc::channel::<(String, bool)>();
             let (outbox, replies) = mpsc::channel();
             let spawned = thread::Builder::new()
                 .name("luma-glass".into())
                 .spawn(move || {
-                    for path in inbox {
-                        let copy = image::open(&path)
-                            .ok()
-                            .map(|image| frost(&image.into_rgba8()));
-                        if outbox.send((path, copy)).is_err() {
+                    for (path, asked_whole) in inbox {
+                        let image = image::open(&path).ok().map(|image| image.into_rgba8());
+                        let copy = image.as_ref().map(frost);
+                        let whole = image.filter(|_| asked_whole);
+                        let reply = Reply {
+                            path,
+                            copy,
+                            whole,
+                            asked_whole,
+                        };
+                        if outbox.send(reply).is_err() {
                             break;
                         }
                     }
@@ -62,7 +88,7 @@ impl Worker {
             self.replies = Some(replies);
         }
         if let Some(requests) = &self.requests {
-            let _ = requests.send(path.into());
+            let _ = requests.send((path.into(), whole));
         }
     }
 
@@ -70,14 +96,17 @@ impl Worker {
         !self.pending.is_empty()
     }
 
-    /// The copies made since the last call; `None` for a wallpaper that could not be read.
-    pub fn ready(&mut self) -> Vec<(String, Option<RgbaImage>)> {
+    /// The replies since the last call.
+    pub fn ready(&mut self) -> Vec<Reply> {
         let Some(replies) = &self.replies else {
             return Vec::new();
         };
         let ready: Vec<_> = replies.try_iter().collect();
-        for (path, _) in &ready {
-            self.pending.remove(path);
+        for reply in &ready {
+            // A copy alone does not answer a request for the whole wallpaper still on its way.
+            if self.pending.get(&reply.path) == Some(&reply.asked_whole) {
+                self.pending.remove(&reply.path);
+            }
         }
         ready
     }

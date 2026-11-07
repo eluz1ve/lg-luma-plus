@@ -51,6 +51,8 @@ const press = (key, count, settle) =>
 // the whole walk takes about 90 s.
 const walk = [
   ...pause(20),
+  // Launch may fade to Apple TV's still or the next wallpaper; let it finish, as a viewer does.
+  'await-wallpaper',
   ...press('right', 4, 6),
   ...press('left', 4, 6),
   'side-menu',

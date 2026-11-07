@@ -166,6 +166,14 @@ pub fn same_scene(a: &[Draw], b: &[Draw]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same(a, b))
 }
 
+/// The first command where two scenes differ, for telling what changed.
+pub fn first_difference(a: &[Draw], b: &[Draw]) -> Option<usize> {
+    a.iter()
+        .zip(b)
+        .position(|(a, b)| !same(a, b))
+        .or_else(|| (a.len() != b.len()).then(|| a.len().min(b.len())))
+}
+
 fn same(a: &Draw, b: &Draw) -> bool {
     let rect = |a: &Rect, b: &Rect| a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
     match (a, b) {

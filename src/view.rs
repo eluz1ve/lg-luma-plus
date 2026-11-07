@@ -242,6 +242,18 @@ pub struct Scene {
     /// How many leading commands are the page with its header, under whatever is drawn over
     /// it; while they stay the same, the renderer lays them down as one picture.
     pub ground: usize,
+    /// The new wallpaper's opacity while it fades in over the old one.
+    pub wallpaper_fade: Option<f32>,
+}
+
+/// The wallpapers a scene lies on while one fades into the next: both, or either end alone.
+/// Everything over them is laid on as `over`, which is linear in what lies below, so the fade
+/// is the mix of its two ends: the renderer draws those once and mixes them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Wallpapers {
+    Fading,
+    Previous,
+    Current,
 }
 
 /// A part of Home that settings change.
@@ -274,6 +286,7 @@ impl Scene {
             preview: None,
             backdrop: Vec::new(),
             ground: 0,
+            wallpaper_fade: None,
         }
     }
     fn shape(&mut self, rect: Rect, radius: f32, fill: Color) {
@@ -881,15 +894,38 @@ pub fn recents_replaces_page(state: &State) -> bool {
 }
 
 pub fn scene(state: &State, assets: &Assets, now: OffsetDateTime) -> Scene {
+    scene_on(state, assets, now, Wallpapers::Fading)
+}
+
+/// The wallpaper Home fades in, while one fades.
+pub fn fading_wallpaper(state: &State, assets: &Assets) -> Option<String> {
+    state
+        .previous_background
+        .as_ref()
+        .map(|_| assets.background(state, &state.background_key()))
+}
+
+pub fn scene_on(
+    state: &State,
+    assets: &Assets,
+    now: OffsetDateTime,
+    wallpapers: Wallpapers,
+) -> Scene {
     let mut out = Scene::new();
     let key = state.background_key();
     let current = assets.background(state, &key);
     // Glass blurs the wallpaper as drawn, its gradient too, so a pane is no lighter than the
     // ground around it.
     let behind = |key: &str| assets.background(state, key);
-    if let Some((previous, start)) = &state.previous_background {
+    if let Some((previous, start)) = &state.previous_background
+        && wallpapers == Wallpapers::Fading
+    {
         out.image(assets.background(state, previous), SCREEN, 0., false);
-        let alpha = (start.elapsed().as_secs_f32() / state.background_fade).min(1.);
+        let alpha = if state.wallpaper_waiting {
+            0.
+        } else {
+            (start.elapsed().as_secs_f32() / state.background_fade).min(1.)
+        };
         out.draw.push(Draw::TintedImage(
             current,
             SCREEN,
@@ -898,6 +934,12 @@ pub fn scene(state: &State, assets: &Assets, now: OffsetDateTime) -> Scene {
             [1., 1., 1., alpha],
         ));
         out.backdrop = vec![(behind(previous), 1.), (behind(&key), alpha)];
+        out.wallpaper_fade = Some(alpha);
+    } else if let Some((previous, _)) = &state.previous_background
+        && wallpapers == Wallpapers::Previous
+    {
+        out.image(assets.background(state, previous), SCREEN, 0., false);
+        out.backdrop = vec![(behind(previous), 1.)];
     } else {
         out.image(current, SCREEN, 0., false);
         out.backdrop = vec![(behind(&key), 1.)];

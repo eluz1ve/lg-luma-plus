@@ -306,6 +306,37 @@ impl Scrim {
     }
 }
 
+/// A framebuffer drawing into a new `width` × `height` texture, laid down pixel for pixel;
+/// none when the GPU cannot draw into one.
+fn picture_target(width: u32, height: u32) -> Option<(GLuint, Texture)> {
+    let picture = texture(width, height, &[]);
+    let mut framebuffer = 0;
+    let complete = unsafe {
+        gl::BindTexture(gl::TEXTURE_2D, picture.id);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+        let mut window = 0;
+        gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut window);
+        gl::GenFramebuffers(1, &mut framebuffer);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
+        gl::FramebufferTexture2D(
+            gl::FRAMEBUFFER,
+            gl::COLOR_ATTACHMENT0,
+            gl::TEXTURE_2D,
+            picture.id,
+            0,
+        );
+        let complete = gl::CheckFramebufferStatus(gl::FRAMEBUFFER) == gl::FRAMEBUFFER_COMPLETE;
+        gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
+        complete
+    };
+    if !complete {
+        unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+        return None;
+    }
+    Some((framebuffer, picture))
+}
+
 /// Fills over a pixel p, `t` of the way down them, as p * m + k: each maps p to
 /// p * (1 - a) + c * a.
 fn fold(scrims: &[Scrim], t: f32) -> ([f32; 3], [f32; 3]) {
@@ -409,6 +440,8 @@ fn snap_rect(rect: Rect, scale: f32) -> Rect {
 pub struct Renderer {
     program: GLuint,
     vector_program: GLuint,
+    /// Lays a wallpaper fade's two pictures in one pass; 0 when it did not link.
+    mix_program: GLuint,
     text_embolden: f32,
     gles: bool,
     buffer: GLuint,
@@ -444,6 +477,9 @@ pub struct Renderer {
     /// Every layer drawn whole, as the scene lists them (`layers`): the reference the damage
     /// check compares against, and the TV's A/B.
     pub plain: bool,
+    // A wallpaper fade's two ends, each as a picture, and the scene each holds.
+    fade_targets: [Option<(GLuint, Texture)>; 2],
+    fade_held: [Option<Vec<Draw>>; 2],
     frame: u64,
     stats: RenderStats,
     pub info: GraphicsInfo,
@@ -509,6 +545,13 @@ impl Renderer {
                 return Err(error);
             }
         };
+        let mix_program = link(
+            &(vertex_prefix.clone() + include_str!("shaders/mix.vert")),
+            &(fragment_prefix.clone() + include_str!("shaders/mix.frag")),
+            &[c"a_position"],
+        )
+        .inspect_err(|error| eprintln!("Luma wallpaper fade shader: {error}"))
+        .unwrap_or(0);
         let mut buffer = 0;
         let mut vao = 0;
         unsafe {
@@ -535,6 +578,7 @@ impl Renderer {
         Ok(Self {
             program,
             vector_program,
+            mix_program,
             text_embolden,
             gles,
             buffer,
@@ -559,6 +603,8 @@ impl Renderer {
             ground_target: None,
             ground_unsupported: false,
             plain: false,
+            fade_targets: [None, None],
+            fade_held: [None, None],
             ground_batch: None,
             clip: None,
             fade: None,
@@ -1132,20 +1178,9 @@ impl Renderer {
         self.folded_image(path, rect, radius, contain, tint, &[]);
     }
 
-    fn folded_image(
-        &mut self,
-        path: &str,
-        mut rect: Rect,
-        radius: f32,
-        contain: bool,
-        tint: Color,
-        scrims: &[Scrim],
-    ) {
-        if path.ends_with(".lvec") {
-            self.vector_image(path, rect, contain, tint);
-            return;
-        }
-        let path = if self.stats.viewport.scale > 1.
+    /// The file drawn for `path`: a wallpaper's double-size copy on a high-density screen.
+    fn wallpaper_variant(&mut self, path: &str) -> String {
+        if self.stats.viewport.scale > 1.
             && self.info.max_texture_size >= 3840
             && Path::new(path)
                 .parent()
@@ -1169,7 +1204,23 @@ impl Renderer {
                 .clone()
         } else {
             path.into()
-        };
+        }
+    }
+
+    fn folded_image(
+        &mut self,
+        path: &str,
+        mut rect: Rect,
+        radius: f32,
+        contain: bool,
+        tint: Color,
+        scrims: &[Scrim],
+    ) {
+        if path.ends_with(".lvec") {
+            self.vector_image(path, rect, contain, tint);
+            return;
+        }
+        let path = self.wallpaper_variant(path);
         if path.ends_with("@2x.jpg") {
             self.stats.high_resolution_wallpaper = true;
         }
@@ -1213,13 +1264,22 @@ impl Renderer {
     pub fn receive_glass(&mut self) -> bool {
         let ready = self.glass_worker.ready();
         let arrived = !ready.is_empty();
-        for (path, copy) in ready {
-            let copy = copy.map(|copy| texture(copy.width(), copy.height(), copy.as_raw()));
-            self.textures.insert(glass_key(&path), copy);
+        for reply in ready {
+            let copy = reply
+                .copy
+                .map(|copy| texture(copy.width(), copy.height(), copy.as_raw()));
+            self.textures.insert(glass_key(&reply.path), copy);
+            if let Some(whole) = reply.whole
+                && !self.textures.contains_key(&reply.path)
+            {
+                let whole = texture(whole.width(), whole.height(), whole.as_raw());
+                self.textures.insert(reply.path, Some(whole));
+            }
         }
         if arrived {
-            // Same commands, new pixels: the page's picture showed the panes without them.
+            // Same commands, new pixels: the pictures showed the panes without them.
             self.ground.forget();
+            self.fade_held = [None, None];
         }
         arrived
     }
@@ -1619,7 +1679,7 @@ impl Renderer {
             }
             let command = &commands[index];
             index += 1;
-            if profile_skip(command) {
+            if profile_skip(command) || layers::invisible(command) {
                 continue;
             }
             if let Some(path) = plain_wallpaper(command)
@@ -1903,58 +1963,22 @@ impl Renderer {
         if let Some((framebuffer, _)) = self.ground_target.take() {
             unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
         }
-        let picture = texture(width, height, &[]);
-        let mut framebuffer = 0;
-        let complete = unsafe {
-            // Laid down pixel for pixel.
-            gl::BindTexture(gl::TEXTURE_2D, picture.id);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            let mut window = 0;
-            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut window);
-            gl::GenFramebuffers(1, &mut framebuffer);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0,
-                gl::TEXTURE_2D,
-                picture.id,
-                0,
-            );
-            let complete = gl::CheckFramebufferStatus(gl::FRAMEBUFFER) == gl::FRAMEBUFFER_COMPLETE;
-            gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
-            complete
-        };
-        if !complete {
-            unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+        let Some(target) = picture_target(width, height) else {
             eprintln!("Luma: no framebuffer for the page under overlays; it is drawn each frame");
             self.ground_unsupported = true;
             return None;
-        }
-        let id = picture.id;
-        self.ground_target = Some((framebuffer, picture));
+        };
+        let id = target.1.id;
+        self.ground_target = Some(target);
         Some(id)
     }
 
-    /// Draws a still scene into the page's picture ahead of time, so the first frame of an
-    /// overlay opened over it already lays the picture down.
-    pub fn prime_ground(&mut self, page: &[Draw], width: u32, height: u32) {
-        if page.is_empty() || self.ground_unsupported || self.ground.holds(page) {
-            return;
-        }
+    /// Draws `commands` whole into `framebuffer`, a picture of the drawable `width` × `height`,
+    /// leaving this frame's own batches and stats as they were.
+    fn draw_picture(&mut self, framebuffer: GLuint, commands: &[Draw], width: u32, height: u32) {
         let viewport = Viewport::new(Size::new(width, height));
         let stats = self.stats.clone();
-        if self
-            .ground_target((viewport.width as u32, viewport.height as u32))
-            .is_none()
-        {
-            return;
-        }
-        self.build(page, width, height, None, None);
-        let Some((framebuffer, _)) = &self.ground_target else {
-            return;
-        };
-        let framebuffer = *framebuffer;
+        self.build(commands, width, height, None, None);
         unsafe {
             if self.vao != 0 {
                 gl::BindVertexArray(self.vao);
@@ -1980,10 +2004,225 @@ impl Renderer {
             );
             gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
         }
-        self.ground.filled(page);
         self.vertices.clear();
         self.batches.clear();
         self.stats = stats;
+    }
+
+    /// Whether the wallpaper at `path` is on the GPU (or could not be read). When not, it is
+    /// decoded off the GL thread, so a fade to it never waits on a decode mid-frame.
+    pub fn wallpaper_ready(&mut self, path: &str) -> bool {
+        let path = self.wallpaper_variant(path);
+        if self.textures.contains_key(&path) {
+            return true;
+        }
+        self.glass_worker.request_whole(&path);
+        false
+    }
+
+    /// Draws one more end of a wallpaper fade into its picture: `ends` are the scene on the old
+    /// wallpaper alone and on the new one alone. True once both pictures hold them, or when the
+    /// fade is drawn as it is instead.
+    pub fn prime_fade(&mut self, ends: [&[Draw]; 2], width: u32, height: u32) -> bool {
+        if self.plain || self.ground_unsupported {
+            return true;
+        }
+        let viewport = Viewport::new(Size::new(width, height));
+        let size = (viewport.width as u32, viewport.height as u32);
+        for (end, commands) in ends.into_iter().enumerate() {
+            if self.fade_holds(end, commands, size) {
+                continue;
+            }
+            if self.fade_targets[end]
+                .as_ref()
+                .is_none_or(|(_, texture)| (texture.width, texture.height) != size)
+            {
+                if let Some((framebuffer, _)) = self.fade_targets[end].take() {
+                    unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+                }
+                let Some(target) = picture_target(size.0, size.1) else {
+                    self.ground_unsupported = true;
+                    return true;
+                };
+                self.fade_targets[end] = Some(target);
+            }
+            let Some((framebuffer, _)) = &self.fade_targets[end] else {
+                return true;
+            };
+            self.draw_picture(*framebuffer, commands, width, height);
+            self.fade_held[end] = Some(commands.to_vec());
+            break;
+        }
+        (0..2).all(|end| self.fade_holds(end, ends[end], size))
+    }
+
+    fn fade_holds(&self, end: usize, commands: &[Draw], size: (u32, u32)) -> bool {
+        self.fade_targets[end]
+            .as_ref()
+            .is_some_and(|(_, texture)| (texture.width, texture.height) == size)
+            && self.fade_held[end]
+                .as_deref()
+                .is_some_and(|held| crate::damage::same_scene(held, commands))
+    }
+
+    /// Draws a frame of a wallpaper fade as the mix of its ends' pictures, `alpha` of the way to
+    /// the new one: two layers instead of the whole scene on two wallpapers. False, drawing
+    /// nothing, unless both pictures hold `ends`.
+    pub fn render_fade(&mut self, ends: [&[Draw]; 2], alpha: f32, width: u32, height: u32) -> bool {
+        let started = Instant::now();
+        let viewport = Viewport::new(Size::new(width, height));
+        let size = (viewport.width as u32, viewport.height as u32);
+        if self.plain || !(0..2).all(|end| self.fade_holds(end, ends[end], size)) {
+            return false;
+        }
+        let pictures = [0, 1].map(|end| {
+            self.fade_targets[end]
+                .as_ref()
+                .map_or(0, |(_, texture)| texture.id)
+        });
+        self.stats = RenderStats::new(Size::new(width, height));
+        self.frame += 1;
+        self.vertices.clear();
+        self.batches.clear();
+        self.clip = None;
+        self.fade = None;
+        self.batch_floor = 0;
+        if self.mix_program != 0 {
+            self.mix_pictures(pictures, alpha, width, height);
+            self.stats.draw_calls = 1;
+        } else {
+            self.lay_pictures(pictures, alpha, width, height);
+            self.stats.draw_calls = self.batches.len();
+        }
+        self.stats.redrawn_fraction = 1.;
+        self.stats.ground_laid = true;
+        self.stats.cpu_submission_ms = started.elapsed().as_secs_f64() * 1000.;
+        true
+    }
+
+    /// The new picture over the old at `alpha`, mixed in one pass: half the fragments of two
+    /// layers, which keeps a fade inside a 60 Hz frame on the TV.
+    fn mix_pictures(&mut self, pictures: [GLuint; 2], alpha: f32, width: u32, height: u32) {
+        let Viewport {
+            x: vx,
+            y: vy,
+            width: vw,
+            height: vh,
+            ..
+        } = self.stats.viewport;
+        let corners: [f32; 8] = [-1., -1., 1., -1., -1., 1., 1., 1.];
+        unsafe {
+            if self.vao != 0 {
+                gl::BindVertexArray(self.vao);
+            }
+            gl::Viewport(0, 0, width as i32, height as i32);
+            scissor(None);
+            gl::ClearColor(0.04, 0.04, 0.05, 1.);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Viewport(vx, vy, vw, vh);
+            gl::UseProgram(self.mix_program);
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                size_of_val(&corners) as isize,
+                corners.as_ptr().cast(),
+                gl::DYNAMIC_DRAW,
+            );
+            for index in 1..5 {
+                gl::DisableVertexAttribArray(index);
+            }
+            gl::EnableVertexAttribArray(0);
+            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 8, std::ptr::null());
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, pictures[1]);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, pictures[0]);
+            gl::Uniform1i(
+                gl::GetUniformLocation(self.mix_program, c"u_from".as_ptr()),
+                0,
+            );
+            gl::Uniform1i(
+                gl::GetUniformLocation(self.mix_program, c"u_to".as_ptr()),
+                1,
+            );
+            gl::Uniform1f(
+                gl::GetUniformLocation(self.mix_program, c"u_alpha".as_ptr()),
+                alpha.clamp(0., 1.),
+            );
+            // Opaque pictures, every pixel written once: nothing to blend with.
+            gl::Disable(gl::BLEND);
+            gl::DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
+            gl::Enable(gl::BLEND);
+        }
+    }
+
+    /// The two pictures as two layers, when the mixing shader is missing.
+    fn lay_pictures(&mut self, pictures: [GLuint; 2], alpha: f32, width: u32, height: u32) {
+        let screen = Rect::new(0., 0., 1920., 1080.);
+        // A framebuffer's rows run bottom up; the plain texture path.
+        self.quad(screen, [0., 1., 1., 0.], -1., 0., [1.; 4], pictures[0]);
+        self.quad(
+            screen,
+            [0., 1., 1., 0.],
+            -1.,
+            0.,
+            [1., 1., 1., alpha],
+            pictures[1],
+        );
+        let Viewport {
+            x: vx,
+            y: vy,
+            width: vw,
+            height: vh,
+            ..
+        } = self.stats.viewport;
+        unsafe {
+            if self.vao != 0 {
+                gl::BindVertexArray(self.vao);
+            }
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (self.vertices.len() * size_of::<f32>()) as isize,
+                self.vertices.as_ptr().cast(),
+                gl::DYNAMIC_DRAW,
+            );
+            gl::Viewport(0, 0, width as i32, height as i32);
+            scissor(None);
+            gl::ClearColor(0.04, 0.04, 0.05, 1.);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            self.draw_batches(0..self.batches.len(), [vx, vy, vw, vh], None);
+        }
+    }
+
+    /// No fade runs: its pictures are let go.
+    pub fn forget_fade(&mut self) {
+        self.fade_held = [None, None];
+        for target in &mut self.fade_targets {
+            if let Some((framebuffer, _)) = target.take() {
+                unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+            }
+        }
+    }
+
+    /// Draws a still scene into the page's picture ahead of time, so the first frame of an
+    /// overlay opened over it already lays the picture down.
+    pub fn prime_ground(&mut self, page: &[Draw], width: u32, height: u32) {
+        if page.is_empty() || self.ground_unsupported || self.ground.holds(page) {
+            return;
+        }
+        let viewport = Viewport::new(Size::new(width, height));
+        if self
+            .ground_target((viewport.width as u32, viewport.height as u32))
+            .is_none()
+        {
+            return;
+        }
+        let Some((framebuffer, _)) = &self.ground_target else {
+            return;
+        };
+        self.draw_picture(*framebuffer, page, width, height);
+        self.ground.filled(page);
     }
 
     /// Issues `batches[range]`, the logical screen mapped to `viewport` (drawable pixels, origin
@@ -2354,7 +2593,14 @@ impl Drop for Renderer {
             gl::DeleteBuffers(1, &self.buffer);
             gl::DeleteProgram(self.program);
             gl::DeleteProgram(self.vector_program);
-            if let Some((framebuffer, _)) = &self.ground_target {
+            if self.mix_program != 0 {
+                gl::DeleteProgram(self.mix_program);
+            }
+            for (framebuffer, _) in self
+                .ground_target
+                .iter()
+                .chain(self.fade_targets.iter().flatten())
+            {
                 gl::DeleteFramebuffers(1, framebuffer);
             }
             if self.vao != 0 {

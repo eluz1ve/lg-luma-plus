@@ -106,6 +106,16 @@ pub fn rounded_apart(
     Some((parts, corners))
 }
 
+/// Whether `command` leaves every pixel as it was: drawn at no opacity.
+pub fn invisible(command: &Draw) -> bool {
+    match command {
+        Draw::TintedImage(.., tint) | Draw::Glass(.., tint) => tint[3] <= 0.,
+        Draw::Shape(.., color) | Draw::Shadow(.., color) => color[3] <= 0.,
+        Draw::RoundedGradient(_, _, top, bottom) => top[3] <= 0. && bottom[3] <= 0.,
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 #[path = "layers-tests.rs"]
 mod tests;

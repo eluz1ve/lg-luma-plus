@@ -12,6 +12,13 @@ pub fn startup_due(enabled: bool, pending: bool, catalog_ready: bool, elapsed: D
     enabled && pending && (catalog_ready || elapsed >= Duration::from_secs(3))
 }
 
+/// Whether Home has settled enough for a change to fade in: no apps or app artwork still
+/// `arriving` and the screen unchanged for `still_for`, so the fade's two ends stay the same and
+/// are drawn once. Past 8 s after launch it changes anyway.
+pub fn settled(arriving: bool, still_for: Duration, since_launch: Duration) -> bool {
+    (!arriving && still_for >= Duration::from_millis(500)) || since_launch >= Duration::from_secs(8)
+}
+
 pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<bool, D::Error> {
     Ok(match serde_json::Value::deserialize(deserializer)? {
         serde_json::Value::Bool(enabled) => enabled,
@@ -67,6 +74,19 @@ mod tests {
         assert!(!startup_due(true, true, false, Duration::from_secs(2)));
         assert!(startup_due(true, true, true, Duration::ZERO));
         assert!(startup_due(true, true, false, Duration::from_secs(3)));
+    }
+
+    #[test]
+    fn a_change_waits_for_home_to_settle_unless_it_never_does() {
+        let (moment, a_while) = (Duration::from_millis(100), Duration::from_millis(500));
+        let launch = Duration::from_secs(2);
+        // The app list or its icons still arriving.
+        assert!(!settled(true, a_while, launch));
+        // None in flight, but the screen changed a moment ago: the next ones may not be asked
+        // for yet.
+        assert!(!settled(false, moment, launch));
+        assert!(settled(false, a_while, launch));
+        assert!(settled(true, moment, Duration::from_secs(8)));
     }
 
     #[test]

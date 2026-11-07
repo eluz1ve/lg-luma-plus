@@ -338,3 +338,20 @@ fn two_scenes_are_the_same_only_command_for_command() {
     ));
     assert!(!same_scene(&scene, &scene[..2]));
 }
+
+#[test]
+fn the_first_difference_between_scenes_is_found_command_for_command() {
+    let shape = |x: f32| Draw::Shape(Rect::new(x, 0., 10., 10.), 0., 0., [1.; 4]);
+    assert_eq!(
+        first_difference(&[shape(0.), shape(1.)], &[shape(0.), shape(1.)]),
+        None
+    );
+    assert_eq!(
+        first_difference(&[shape(0.), shape(1.)], &[shape(0.), shape(2.)]),
+        Some(1)
+    );
+    assert_eq!(
+        first_difference(&[shape(0.)], &[shape(0.), shape(2.)]),
+        Some(1)
+    );
+}

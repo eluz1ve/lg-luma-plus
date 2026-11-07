@@ -407,6 +407,10 @@ pub struct State {
     pub pointer: bool,
     pub pressed: Option<Target>,
     pub previous_background: Option<(String, Instant)>,
+    /// The renderer holds each wallpaper fade until it is ready for it (`wallpaper_waiting`).
+    pub hold_fades: bool,
+    /// A fade held on the old wallpaper, its clock stopped, until the renderer releases it.
+    pub wallpaper_waiting: bool,
     /// The frame a dynamic wallpaper shows, for the wallpaper it was chosen for, and when.
     pub dynamic_frame: Option<(String, usize, i64)>,
     pub background_fade: f32,
@@ -483,6 +487,8 @@ impl State {
             pointer: false,
             pressed: None,
             previous_background: None,
+            hold_fades: false,
+            wallpaper_waiting: false,
             dynamic_frame: None,
             background_fade: BACKGROUND_FADE,
             wallpapers: vec![],
@@ -630,9 +636,11 @@ impl State {
         {
             self.dirty = true;
         }
-        if let Some((_, start)) = &self.previous_background {
+        if let Some((_, start)) = &mut self.previous_background {
             self.dirty = true;
-            if self.preferences.reduced_motion
+            if self.wallpaper_waiting {
+                *start = Instant::now();
+            } else if self.preferences.reduced_motion
                 || start.elapsed().as_secs_f32() >= self.background_fade
             {
                 self.previous_background = None;
@@ -719,11 +727,16 @@ impl State {
     }
 
     pub fn animating(&self) -> bool {
+        self.animating_besides_wallpaper() || self.previous_background.is_some()
+    }
+
+    /// Whether anything but a wallpaper fade moves: a fade waits for it, as it changes both of
+    /// the fade's ends.
+    pub fn animating_besides_wallpaper(&self) -> bool {
         ((self.recents_open() || self.recents.visibility > 0.)
             && (self.recents.visibility != if self.recents_open() { 1. } else { 0. }
                 || self.recents.cards_animating(self.pointer)))
             || self.motion.animating()
-            || self.previous_background.is_some()
             || self.panel_started.is_some()
             || self.menu_motion.is_some()
             || self.today_motion.is_some()
@@ -1651,7 +1664,8 @@ impl State {
     pub fn sync_dynamic_wallpaper(&mut self, now: time::OffsetDateTime) {
         use crate::dynamic_wallpaper::{FADE, choose, sun};
         let unix = now.unix_timestamp();
-        let id = &self.preferences.background;
+        let id = self.preferences.background.clone();
+        let id = &id;
         let Some(item) = self.wallpapers.iter().find(|item| item.id == *id) else {
             self.dynamic_frame = None;
             return;
@@ -1686,13 +1700,29 @@ impl State {
             && !self.preferences.reduced_motion
             && self.previous_background.is_none()
         {
-            self.previous_background = Some((self.background_key(), Instant::now()));
-            self.background_fade = FADE;
+            self.fade_wallpaper_from(self.background_key(), FADE);
         }
         self.dirty |= same
             .as_ref()
             .is_none_or(|(_, previous, _)| *previous != frame);
         self.dynamic_frame = Some((id.clone(), frame, unix));
+    }
+
+    /// Fades from the wallpaper `shown` to whichever is chosen now, over `fade` seconds; held
+    /// on `shown` first when the renderer holds fades.
+    fn fade_wallpaper_from(&mut self, shown: String, fade: f32) {
+        self.previous_background = Some((shown, Instant::now()));
+        self.background_fade = fade;
+        self.wallpaper_waiting = self.hold_fades;
+    }
+
+    /// The renderer is ready for the held fade: it runs from now.
+    pub fn release_wallpaper_fade(&mut self) {
+        self.wallpaper_waiting = false;
+        if let Some((_, start)) = &mut self.previous_background {
+            *start = Instant::now();
+        }
+        self.dirty = true;
     }
 
     /// The Apple TV place the rotation is on, shown or not.
@@ -1729,8 +1759,7 @@ impl State {
         }
         let key = self.background_key();
         if key != shown && !self.preferences.reduced_motion {
-            self.previous_background = Some((shown, Instant::now()));
-            self.background_fade = CYCLE_FADE;
+            self.fade_wallpaper_from(shown, CYCLE_FADE);
         }
         self.dirty = true;
     }
@@ -1752,8 +1781,7 @@ impl State {
         if self.preferences.reduced_motion {
             self.previous_background = None;
         } else {
-            self.previous_background = Some((shown, Instant::now()));
-            self.background_fade = CYCLE_FADE;
+            self.fade_wallpaper_from(shown, CYCLE_FADE);
         }
         self.aerials_request = true;
         self.dirty = true;
@@ -1780,8 +1808,7 @@ impl State {
         if self.preferences.reduced_motion {
             self.previous_background = None;
         } else {
-            self.previous_background = Some((self.background_key(), Instant::now()));
-            self.background_fade = CYCLE_FADE;
+            self.fade_wallpaper_from(self.background_key(), CYCLE_FADE);
         }
         self.preferences.background = id;
         self.dirty = true;
@@ -3505,8 +3532,7 @@ impl State {
                     return self.back();
                 }
                 if !self.preferences.reduced_motion && self.preferences.background != id {
-                    self.previous_background = Some((self.background_key(), Instant::now()));
-                    self.background_fade = BACKGROUND_FADE;
+                    self.fade_wallpaper_from(self.background_key(), BACKGROUND_FADE);
                 }
                 // The TV's splash can only be a packaged picture.
                 self.preferences.splash_background = Some(

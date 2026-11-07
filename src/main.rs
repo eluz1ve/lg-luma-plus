@@ -507,6 +507,7 @@ fn script(
         "await-upload" => vec![],
         "await-tile-editor" => vec![],
         "await-cs2" => vec![],
+        "await-wallpaper" => vec![],
         _ => return Err(format!("Unknown scripted action: {action}")),
     })
 }
@@ -528,6 +529,54 @@ fn compose(state: &mut State, assets: &view::Assets, now: OffsetDateTime) -> vie
     } else {
         scene
     };
+    view::home_preview(&mut scene, state, assets, now);
+    scene
+}
+
+/// A draw command's kind and place, for the perf log.
+fn describe(command: &renderer::Draw) -> String {
+    use renderer::Draw;
+    let kind = match command {
+        Draw::Shape(..) => "shape",
+        Draw::RoundedGradient(..) => "gradient",
+        Draw::Shadow(..) => "shadow",
+        Draw::Text(..) => "text",
+        Draw::Image(..) | Draw::TintedImage(..) => "image",
+        Draw::AppImage(..) => "app artwork",
+        Draw::Picture(..) => "picture",
+        Draw::Cover(..) => "cover",
+        Draw::Glass(..) => "glass",
+        Draw::Clip(_) => "clip",
+        Draw::EdgeFade(_) | Draw::EdgeFadeX(_) => "fade",
+    };
+    let key = match command {
+        Draw::AppImage(image, .., tint)
+        | Draw::Picture(image, .., tint)
+        | Draw::Cover(image, .., tint) => {
+            format!(" {} alpha {:.2}", image.key, tint[3])
+        }
+        Draw::Text(_, _, style, color, _) => {
+            format!(" size {:.1} alpha {:.2}", style.size, color[3])
+        }
+        _ => String::new(),
+    };
+    match damage::bounds(command) {
+        Some(rect) => format!(
+            "{kind} at {:.0},{:.0} {:.0}x{:.0}{key}",
+            rect.x, rect.y, rect.w, rect.h
+        ),
+        None => format!("{kind}{key}"),
+    }
+}
+
+/// A wallpaper fade's end alone, on the old wallpaper or the new one, as `compose` lays it out.
+fn compose_end(
+    state: &mut State,
+    assets: &view::Assets,
+    now: OffsetDateTime,
+    wallpapers: view::Wallpapers,
+) -> view::Scene {
+    let mut scene = view::scene_on(state, assets, now, wallpapers);
     view::home_preview(&mut scene, state, assets, now);
     scene
 }
@@ -1001,6 +1050,8 @@ fn run() -> Result<(), String> {
         options.test_update_version.is_some(),
     );
     let mut state = State::new(initial_preferences);
+    // Each wallpaper fade waits until its new wallpaper is decoded and its ends are drawn.
+    state.hold_fades = true;
     // Lampa's CUB sign-in, kept beside the preferences and never in them.
     let cub_path = preferences_path.with_file_name("cub.json");
     if preferences_path.with_file_name("perf").exists() {
@@ -1221,6 +1272,11 @@ fn run() -> Result<(), String> {
     let mut full_report = (0usize, 0usize, 0usize, 0u8);
     let mut redrawn_total = 0.;
     let mut ground_laid = 0usize;
+    let mut fade_held_since: Option<Instant> = None;
+    // For the perf log: a fade's frames held, laid from its ends and in all, and what first
+    // changed in its new end from one frame to the next.
+    let mut fade_record: Option<(usize, usize, usize, Option<String>, usize)> = None;
+    let mut fade_last: Option<Vec<renderer::Draw>> = None;
     let mut profile = diagnostics::Profile::default();
     let mut presented = 0usize;
     let mut captured = None;
@@ -1342,6 +1398,8 @@ fn run() -> Result<(), String> {
     let mut queued_event = None;
     let mut text_active = false;
     let mut initial_focus = options.script.is_empty();
+    // Until the first app list comes (or stops being retried), Home has no tiles yet.
+    let mut apps_listed = false;
     let mut startup_cycle_pending = state.preferences.wallpaper_cycle;
     let mut wallpapers_scanned = false;
     let launched = Instant::now();
@@ -1471,6 +1529,11 @@ fn run() -> Result<(), String> {
             && state.moving.is_none()
             && state.deleting_wallpaper.is_none()
             && !state.animating()
+            && wallpaper_cycle::settled(
+                !apps_listed || assets.artwork.pending(),
+                last_present.elapsed(),
+                launched.elapsed(),
+            )
             && (startup_cycle
                 || wallpaper_cycle::due(
                     state.preferences.wallpaper_cycle,
@@ -1512,6 +1575,7 @@ fn run() -> Result<(), String> {
                         state.preferences.language,
                     );
                     state.set_inventory(inventory, warning);
+                    apps_listed = true;
                     // Decode every installed icon now, on the artwork worker, rather than when
                     // the Apps page first shows it: a long-running Home then opens Apps ready.
                     assets.artwork.prefetch(
@@ -1532,7 +1596,9 @@ fn run() -> Result<(), String> {
                     initial_focus = false;
                 }
                 Response::Inventory(Err(error)) => {
-                    if let Some(delay) = state.inventory_failed(error) {
+                    let retry = state.inventory_failed(error);
+                    apps_listed |= retry.is_none();
+                    if let Some(delay) = retry {
                         eprintln!(
                             "Luma TV inventory: retry {} in {} s",
                             state.inventory_failures,
@@ -2062,6 +2128,7 @@ fn run() -> Result<(), String> {
                     || (action == "await-crypto" && state.crypto.fetching())
                     || (action == "await-recents" && state.recents.pending.is_some())
                     || (action == "await-cs2" && state.cs2.fetching())
+                    || (action == "await-wallpaper" && state.previous_background.is_some())
                     || (action == "await-upload"
                         && matches!(state.overlay, Some(Overlay::WallpaperUpload))
                         && state.wallpaper_upload.is_none())
@@ -2169,6 +2236,12 @@ fn run() -> Result<(), String> {
         if ((state.dirty || options.profile_frames.is_some()) && visible) || final_frame {
             let compose_started = Instant::now();
             scene = compose(&mut state, &assets, now);
+            // A wallpaper fade is the mix of its two ends, which the renderer draws once.
+            let fade_ends = scene.wallpaper_fade.map(|alpha| {
+                let from = compose_end(&mut state, &assets, now, view::Wallpapers::Previous);
+                let to = compose_end(&mut state, &assets, now, view::Wallpapers::Current);
+                (from, to, alpha)
+            });
             let compose_ms = compose_started.elapsed().as_secs_f64() * 1000.;
             let (width, height) = window.drawable_size();
             if width > 0 && height > 0 {
@@ -2207,13 +2280,85 @@ fn run() -> Result<(), String> {
                         height,
                     );
                 }
-                renderer.render(
-                    &scene.draw,
-                    width,
-                    height,
-                    damage,
-                    if ground { scene.ground } else { 0 },
-                );
+                if state.wallpaper_waiting {
+                    let since = *fade_held_since.get_or_insert_with(Instant::now);
+                    let decoded = view::fading_wallpaper(&state, &assets)
+                        .is_none_or(|path| renderer.wallpaper_ready(&path));
+                    // At launch Apple TV's still arrives before the apps, their icons and the focus
+                    // lifting the first tile; its fade waits for them, or its ends would change
+                    // under it.
+                    let arriving = !apps_listed
+                        || assets.artwork.pending()
+                        || state.animating_besides_wallpaper();
+                    let ready = decoded
+                        && !arriving
+                        && fade_ends.as_ref().is_none_or(|(from, to, _)| {
+                            renderer.prime_fade([&from.draw, &to.draw], width, height)
+                        });
+                    // A page that keeps changing never lets both ends be drawn; the fade then
+                    // runs as it is.
+                    if ready || since.elapsed() > Duration::from_secs(3) {
+                        state.release_wallpaper_fade();
+                        fade_held_since = None;
+                        if let Some(log) = &mut perf_log {
+                            log.note(&format!(
+                                "wallpaper fade held {} ms, {}",
+                                since.elapsed().as_millis(),
+                                if ready { "ready" } else { "gave up" }
+                            ));
+                        }
+                    }
+                }
+                if fade_ends.is_none() {
+                    renderer.forget_fade();
+                    if let (Some((held, laid, frames, changed, changes)), Some(log)) =
+                        (fade_record.take(), &mut perf_log)
+                    {
+                        log.note(&format!(
+                            "wallpaper fade: {held} frames held, {laid} of {frames} laid from its ends, {changes} changed, first {}",
+                            changed.as_deref().unwrap_or("none")
+                        ));
+                    }
+                    fade_last = None;
+                }
+                let laid = !state.wallpaper_waiting
+                    && fade_ends.as_ref().is_some_and(|(from, to, alpha)| {
+                        renderer.render_fade([&from.draw, &to.draw], *alpha, width, height)
+                    });
+                if perf_log.is_some()
+                    && let Some((_, to, _)) = &fade_ends
+                {
+                    let record = fade_record.get_or_insert((0, 0, 0, None, 0));
+                    record.0 += usize::from(state.wallpaper_waiting);
+                    record.1 += usize::from(laid);
+                    record.2 += 1;
+                    // Changes while the fade is held only delay it; those after cost its ends.
+                    if !state.wallpaper_waiting
+                        && let Some(last) = &fade_last
+                        && let Some(index) = damage::first_difference(last, &to.draw)
+                    {
+                        record.4 += 1;
+                        if record.3.is_none() {
+                            record.3 = Some(format!(
+                                "at command {index} of {} (was {}): {} from {}",
+                                to.draw.len(),
+                                last.len(),
+                                to.draw.get(index).map_or("none".into(), describe),
+                                last.get(index).map_or("none".into(), describe)
+                            ));
+                        }
+                    }
+                    fade_last = Some(to.draw.clone());
+                }
+                if !laid {
+                    renderer.render(
+                        &scene.draw,
+                        width,
+                        height,
+                        damage,
+                        if ground { scene.ground } else { 0 },
+                    );
+                }
                 if let Some(timer) = &mut gpu_timer {
                     timer.end();
                 }

@@ -118,3 +118,50 @@ fn a_rounded_rect_parts_into_rows_clear_of_its_corners_and_the_corners() {
     // Too round to leave an interior.
     assert!(rounded_apart(60., 60., 34., 16).is_none());
 }
+
+#[test]
+fn a_layer_with_no_opacity_changes_no_pixel() {
+    let screen = Rect::new(0., 0., 1920., 1080.);
+    let path = String::from("wallpapers/forest.jpg");
+    assert!(invisible(&Draw::TintedImage(
+        path.clone(),
+        screen,
+        0.,
+        false,
+        [1., 1., 1., 0.]
+    )));
+    assert!(!invisible(&Draw::TintedImage(
+        path.clone(),
+        screen,
+        0.,
+        false,
+        [1., 1., 1., 0.01]
+    )));
+    assert!(invisible(&Draw::Glass(
+        path.clone(),
+        screen,
+        34.,
+        screen,
+        [1., 1., 1., 0.]
+    )));
+    assert!(invisible(&Draw::Shape(screen, 0., 0., [0., 0., 0., 0.])));
+    assert!(invisible(&Draw::Shadow(
+        screen,
+        34.,
+        100.,
+        [0., 0., 0., 0.]
+    )));
+    assert!(invisible(&Draw::RoundedGradient(
+        screen,
+        0.,
+        [0.; 4],
+        [1., 1., 1., 0.]
+    )));
+    assert!(!invisible(&Draw::RoundedGradient(
+        screen,
+        0.,
+        [0.; 4],
+        [1., 1., 1., 0.1]
+    )));
+    assert!(!invisible(&Draw::Image(path, screen, 0., false)));
+}

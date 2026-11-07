@@ -1,5 +1,6 @@
 use super::*;
 use crate::{model::BACKGROUNDS, renderer::Draw, wallpapers::Wallpaper};
+use std::time::{Duration, Instant};
 
 fn custom(index: u32) -> Wallpaper {
     Wallpaper {
@@ -1108,4 +1109,80 @@ fn apple_tv_in_use_can_be_moved_to_its_next_place_at_once() {
     state.focus = Target::NextAerial;
     assert!(state.activate().is_empty());
     assert_eq!(state.preferences.background, "summit");
+}
+
+fn fade_end(state: &State, wallpapers: view::Wallpapers) -> view::Scene {
+    let assets = view::Assets {
+        root: std::path::PathBuf::new(),
+        version: "test".into(),
+        metrics: std::collections::BTreeMap::new(),
+        artwork: crate::app_artwork::Service::new(false),
+    };
+    view::scene_on(state, &assets, time::OffsetDateTime::UNIX_EPOCH, wallpapers)
+}
+
+#[test]
+fn a_fade_the_renderer_holds_waits_on_the_old_wallpaper_then_runs_whole() {
+    let mut state = ready();
+    state.hold_fades = true;
+    state.preferences.background = "forest".into();
+    assert!(state.cycle_wallpaper(100));
+    assert!(state.wallpaper_waiting);
+    // The new wallpaper is not drawn yet, so the renderer need not decode it mid-frame.
+    let held = scene(&state);
+    assert!(matches!(&held.draw[1], Draw::TintedImage(_, _, _, _, tint) if tint[3] == 0.));
+    assert_eq!(held.wallpaper_fade, Some(0.));
+    // However long it waits, the fade does not run out.
+    state.previous_background.as_mut().unwrap().1 = Instant::now() - Duration::from_secs(10);
+    state.animate(0.016);
+    assert!(state.previous_background.is_some());
+    // Released, it runs from its start.
+    state.release_wallpaper_fade();
+    assert!(!state.wallpaper_waiting);
+    assert!(
+        scene(&state)
+            .wallpaper_fade
+            .is_some_and(|alpha| alpha < 0.1)
+    );
+    // Without a renderer to hold them, fades start at once.
+    let mut state = ready();
+    state.preferences.background = "forest".into();
+    assert!(state.cycle_wallpaper(100));
+    assert!(!state.wallpaper_waiting);
+}
+
+#[test]
+fn a_fade_has_two_ends_each_on_one_wallpaper() {
+    let mut state = ready();
+    state.preferences.background = "forest".into();
+    let before = scene(&state);
+    assert!(state.cycle_wallpaper(100));
+    let after = state.preferences.background.clone();
+    let fading = scene(&state);
+    assert!(fading.wallpaper_fade.is_some());
+    assert_eq!(fading.backdrop.len(), 2);
+    let from = fade_end(&state, view::Wallpapers::Previous);
+    let to = fade_end(&state, view::Wallpapers::Current);
+    for end in [&from, &to] {
+        assert!(end.wallpaper_fade.is_none());
+        assert_eq!(end.backdrop.len(), 1);
+        assert!(!matches!(&end.draw[1], Draw::TintedImage(..)));
+    }
+    // The fade starts from the screen as it was.
+    assert_eq!(from.backdrop, before.backdrop);
+    assert!(matches!(&to.draw[0], Draw::Image(path, ..) if path.contains(&after)));
+}
+
+#[test]
+fn a_held_fade_waits_for_what_else_moves_but_not_for_itself() {
+    let mut state = ready();
+    state.hold_fades = true;
+    state.preferences.background = "forest".into();
+    assert!(!state.animating_besides_wallpaper());
+    assert!(state.cycle_wallpaper(100));
+    assert!(state.animating());
+    assert!(!state.animating_besides_wallpaper());
+    // The menu opening over Home changes both of the fade's ends.
+    state.menu_motion = Some((Instant::now(), true));
+    assert!(state.animating_besides_wallpaper());
 }
