@@ -71,6 +71,21 @@ impl Viewport {
     pub fn text_scale(self) -> f32 {
         self.height as f32 / 1080.
     }
+    /// The size to keep a picture stretched over `width`×`height` logical units at, when it
+    /// is larger than the pixels it covers (never below 1080p): sampling a bigger texture
+    /// down every frame costs the GPU memory traffic for detail the screen cannot show.
+    pub fn fitted_texture(self, image: Size, width: f32, height: f32) -> Option<Size> {
+        let scale = self.scale.max(1.);
+        let target = Size::new(
+            (width * scale).round() as u32,
+            (height * scale).round() as u32,
+        );
+        (image.width >= target.width
+            && image.height >= target.height
+            && u64::from(image.width) * u64::from(image.height)
+                > u64::from(target.width) * u64::from(target.height) * 11 / 10)
+            .then_some(target)
+    }
 }
 
 #[cfg(test)]
@@ -93,5 +108,27 @@ mod tests {
         }
         assert!(!Size::HD.is_4k());
         assert!(Size::UHD.is_4k());
+    }
+    #[test]
+    fn a_full_screen_picture_is_kept_at_the_size_it_covers() {
+        let hd = Viewport::new(Size::HD);
+        let still = Size::new(3840, 2160);
+        assert_eq!(hd.fitted_texture(still, 1920., 1080.), Some(Size::HD));
+        assert_eq!(
+            hd.fitted_texture(Size::new(2560, 1696), 1920., 1080.),
+            Some(Size::HD)
+        );
+        assert_eq!(hd.fitted_texture(Size::HD, 1920., 1080.), None);
+        // Never upscaled on one axis to shrink the other.
+        assert_eq!(hd.fitted_texture(Size::new(1600, 1200), 1920., 1080.), None);
+        assert_eq!(
+            Viewport::new(Size::UHD).fitted_texture(still, 1920., 1080.),
+            None
+        );
+        // A small window still keeps 1080p, for screenshots taken at that size.
+        assert_eq!(
+            Viewport::new(Size::new(1280, 720)).fitted_texture(still, 1920., 1080.),
+            Some(Size::HD)
+        );
     }
 }
