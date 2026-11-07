@@ -85,8 +85,10 @@ const cli = (tool, toolArgs, { allowFailure = false, capture = false } = {}) => 
     throw new Error(`${tool} failed: ${(result.stderr || '').trim()}`);
   return result.stdout || '';
 };
-// Only the app's own perf files are touched; nothing else there is read.
-const shell = (command) => cli('ares-novacom', ['--run', command], { capture: true });
+// Only the app's own perf files are touched; nothing else there is read. ares-novacom prints
+// "[Info] Set target device : …" ahead of the command's own output.
+const shell = (command) =>
+  cli('ares-novacom', ['--run', command], { capture: true }).replace(/^\[Info\] .*\n/, '');
 const quote = (text) => `'${text.replaceAll("'", `'\\''`)}'`;
 
 const directory = shell(
