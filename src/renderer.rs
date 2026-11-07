@@ -1080,19 +1080,7 @@ impl Renderer {
         if !self.textures.contains_key(&path) {
             let loaded = match image::open(&path) {
                 Ok(image) => {
-                    let mut image = image.into_rgba8();
-                    // A wallpaper larger than the screen (an Apple TV still is 4K) is kept at
-                    // the screen's size; the TV's GPU spent ~10 ms a frame sampling it down.
-                    if !contain
-                        && full_screen(&rect)
-                        && let Some(size) = self.stats.viewport.fitted_texture(
-                            crate::raster::Size::new(image.width(), image.height()),
-                            rect.w,
-                            rect.h,
-                        )
-                    {
-                        image = image::imageops::thumbnail(&image, size.width, size.height);
-                    }
+                    let image = image.into_rgba8();
                     Some(texture(image.width(), image.height(), image.as_raw()))
                 }
                 Err(error) => {
