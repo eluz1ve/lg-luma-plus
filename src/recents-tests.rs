@@ -1026,3 +1026,20 @@ fn empty_recents_has_no_explanatory_subtitle() {
         .collect();
     assert_eq!(texts, ["No recent apps"]);
 }
+
+#[test]
+fn the_page_under_a_recents_crossfade_still_ends_with_its_header() {
+    let mut state = ready();
+    let home = scene(&state);
+    state.open_recents();
+    state.recents.visibility = 0.5;
+    let crossfade = scene(&state);
+    // Recents' backdrop is moved under the page, onto the wallpaper.
+    assert!(crossfade.ground > home.ground);
+    let end =
+        |draw: &crate::renderer::Draw| crate::damage::bounds(draw).map(|r| [r.x, r.y, r.w, r.h]);
+    assert_eq!(
+        end(&home.draw[home.ground - 1]),
+        end(&crossfade.draw[crossfade.ground - 1])
+    );
+}

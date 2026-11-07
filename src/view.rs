@@ -1076,6 +1076,8 @@ pub fn scene(state: &State, assets: &Assets, now: OffsetDateTime) -> Scene {
             .count();
         let moved: Vec<_> = out.draw.drain(start..start + fills).collect();
         out.draw.splice(content_start..content_start, moved);
+        // They now lie under the page, which still ends with its header.
+        out.ground += fills;
         if !state.recents_open() {
             out.controls = parent_controls;
             out.modal = parent_modal;
