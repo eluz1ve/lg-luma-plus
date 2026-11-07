@@ -1,7 +1,8 @@
 //! On-TV frame timing, for measuring where no debugger reaches: while a `perf` file sits beside
 //! the preferences, each second that drew frames appends one line to `perf.log` there. A
 //! `script=` line in that file plays remote presses at launch, as `--script` does, and
-//! `msaa=`/`partial=`/`ground=` lines change how the next launch draws, for comparing on the TV.
+//! `msaa=`/`partial=`/`ground=`/`layers=` lines change how the next launch draws, for comparing
+//! on the TV.
 use crate::diagnostics::Frame;
 use std::{
     fs::File,

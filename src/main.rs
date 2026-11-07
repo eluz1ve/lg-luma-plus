@@ -29,6 +29,7 @@ mod homebrew_updates;
 mod i18n;
 #[path = "input-refresh.rs"]
 mod input_refresh;
+mod layers;
 mod layout;
 #[cfg(all(feature = "webos", target_os = "linux", target_arch = "arm"))]
 mod luna;
@@ -981,6 +982,10 @@ fn run() -> Result<(), String> {
     // The page under overlays as one picture (LUMA_GROUND=0 draws it each frame).
     let ground = std::env::var("LUMA_GROUND").as_deref() != Ok("0")
         && perf_value("ground=").as_deref() != Some("0");
+    // Layers drawn only where they show, and fills folded into the glass under them
+    // (LUMA_LAYERS=0 draws every layer whole).
+    let layers = std::env::var("LUMA_LAYERS").as_deref() != Ok("0")
+        && perf_value("layers=").as_deref() != Some("0");
     if webos
         && options.script.is_empty()
         && let Some(directory) = preferences_path.parent()
@@ -1176,6 +1181,7 @@ fn run() -> Result<(), String> {
     }
     let mut renderer =
         renderer::Renderer::new(&assets.root.join("font.ttf"), webos, text_config.embolden)?;
+    renderer.plain = !layers;
     startup_stage("renderer");
     // Redraw only what changed since the back buffer's frame (LUMA_PARTIAL=0 draws in full).
     let partial = (std::env::var("LUMA_PARTIAL").as_deref() != Ok("0")
@@ -1186,13 +1192,14 @@ fn run() -> Result<(), String> {
     if let Some(log) = &mut perf_log {
         let timer = gpu_timer::GpuTimer::load(webos, |name| video.gl_get_proc_address(name).cast());
         log.note(&format!(
-            "start Luma+ {} {} msaa {samples} partial {} ground {} gpu timer {}",
+            "start Luma+ {} {} msaa {samples} partial {} ground {} layers {} gpu timer {}",
             env!("CARGO_PKG_VERSION"),
             renderer.info.renderer,
             partial
                 .as_ref()
                 .map_or("off", egl_damage::PartialUpdate::describe),
             if ground { "on" } else { "off" },
+            if layers { "on" } else { "off" },
             timer.as_ref().map_or_else(|error| error.as_str(), |_| "on"),
         ));
         gpu_timer = timer.ok();

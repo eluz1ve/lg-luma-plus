@@ -3,6 +3,7 @@
 use crate::{
     font::Font,
     glyph_atlas::{self, Contours, Shelves},
+    layers,
     raster::{Size, Viewport},
     state::Rect,
     vector,
@@ -189,6 +190,8 @@ pub struct RenderStats {
     pub redrawn_fraction: f64,
     /// The page under an overlay was laid down as its picture.
     pub ground_laid: bool,
+    /// Layers drawn only in part, or folded into the glass under them.
+    pub spared_layers: usize,
 }
 impl RenderStats {
     fn new(target: Size) -> Self {
@@ -220,6 +223,7 @@ impl RenderStats {
             cpu_submission_ms: 0.,
             redrawn_fraction: 1.,
             ground_laid: false,
+            spared_layers: 0,
         }
     }
 }
@@ -276,16 +280,19 @@ enum Scrim {
 impl Scrim {
     fn of(command: &Draw) -> Option<Self> {
         match command {
-            Draw::Shape(rect, radius, border, color)
-                if full_screen(rect) && *radius <= 0. && *border <= 0. =>
-            {
-                Some(Self::Flat(*color))
-            }
-            Draw::RoundedGradient(rect, radius, top, bottom)
+            Draw::Shape(rect, radius, ..) | Draw::RoundedGradient(rect, radius, ..)
                 if full_screen(rect) && *radius <= 0. =>
             {
-                Some(Self::Gradient(*top, *bottom))
+                Self::fill(command)
             }
+            _ => None,
+        }
+    }
+    /// A borderless fill as it changes a pixel from its top (0) to its bottom (1).
+    fn fill(command: &Draw) -> Option<Self> {
+        match command {
+            Draw::Shape(_, _, border, color) if *border <= 0. => Some(Self::Flat(*color)),
+            Draw::RoundedGradient(_, _, top, bottom) => Some(Self::Gradient(*top, *bottom)),
             _ => None,
         }
     }
@@ -297,6 +304,20 @@ impl Scrim {
             }
         }
     }
+}
+
+/// Fills over a pixel p, `t` of the way down them, as p * m + k: each maps p to
+/// p * (1 - a) + c * a.
+fn fold(scrims: &[Scrim], t: f32) -> ([f32; 3], [f32; 3]) {
+    let (mut m, mut k) = ([1f32; 3], [0f32; 3]);
+    for scrim in scrims {
+        let color = scrim.at(t);
+        for i in 0..3 {
+            m[i] *= 1. - color[3];
+            k[i] = k[i] * (1. - color[3]) + color[i] * color[3];
+        }
+    }
+    (m, k)
 }
 
 /// Limits drawing to `area` (drawable pixels, origin bottom-left), or lifts the limit.
@@ -420,6 +441,9 @@ pub struct Renderer {
     ground_unsupported: bool,
     // This frame's batch laying the picture down; the page's batches come before it.
     ground_batch: Option<usize>,
+    /// Every layer drawn whole, as the scene lists them (`layers`): the reference the damage
+    /// check compares against, and the TV's A/B.
+    pub plain: bool,
     frame: u64,
     stats: RenderStats,
     pub info: GraphicsInfo,
@@ -534,6 +558,7 @@ impl Renderer {
             ground: crate::ground::Ground::default(),
             ground_target: None,
             ground_unsupported: false,
+            plain: false,
             ground_batch: None,
             clip: None,
             fade: None,
@@ -685,31 +710,81 @@ impl Renderer {
         texture: GLuint,
         backdrop: Option<[[u8; 3]; 2]>,
     ) {
-        if rect.w <= 0. || rect.h <= 0. {
+        let whole = [[0., 0., 1., 1.]];
+        self.quad_parts(rect, &whole, uv, radius, border, colors, texture, backdrop);
+    }
+
+    /// `parts` of a quad (fractions of `rect` once snapped), each drawn as that part of the
+    /// whole quad: its shape, texture and gradient.
+    #[allow(clippy::too_many_arguments)]
+    fn quad_parts(
+        &mut self,
+        rect: Rect,
+        parts: &[layers::Part],
+        uv: [f32; 4],
+        radius: f32,
+        border: f32,
+        colors: [Color; 2],
+        texture: GLuint,
+        backdrop: Option<[[u8; 3]; 2]>,
+    ) {
+        if rect.w <= 0. || rect.h <= 0. || parts.is_empty() {
             return;
         }
         let rect = self.snap(rect);
         let start = self.vertices.len() / 14;
-        for (x, y) in [(0., 0.), (1., 0.), (0., 1.), (0., 1.), (1., 0.), (1., 1.)] {
-            let color = colors[y as usize];
-            self.vertices.extend_from_slice(&[
-                rect.x + x * rect.w,
-                rect.y + y * rect.h,
-                uv[0] + x * (uv[2] - uv[0]),
-                uv[1] + y * (uv[3] - uv[1]),
-                color[0],
-                color[1],
-                color[2],
-                color[3],
-                (x - 0.5) * rect.w,
-                (y - 0.5) * rect.h,
-                rect.w / 2.,
-                rect.h / 2.,
-                radius,
-                border,
-            ]);
+        for [left, top, right, bottom] in parts {
+            for (x, y) in [
+                (left, top),
+                (right, top),
+                (left, bottom),
+                (left, bottom),
+                (right, top),
+                (right, bottom),
+            ] {
+                let color: Color =
+                    std::array::from_fn(|i| colors[0][i] + (colors[1][i] - colors[0][i]) * y);
+                self.vertices.extend_from_slice(&[
+                    rect.x + x * rect.w,
+                    rect.y + y * rect.h,
+                    uv[0] + x * (uv[2] - uv[0]),
+                    uv[1] + y * (uv[3] - uv[1]),
+                    color[0],
+                    color[1],
+                    color[2],
+                    color[3],
+                    (x - 0.5) * rect.w,
+                    (y - 0.5) * rect.h,
+                    rect.w / 2.,
+                    rect.h / 2.,
+                    radius,
+                    border,
+                ]);
+            }
         }
-        self.paint_batch(start, 6, texture, backdrop);
+        self.paint_batch(start, parts.len() * 6, texture, backdrop);
+    }
+
+    /// The parts of `quad` left to draw once `hidden` is left out, or all of it.
+    fn around(&mut self, quad: Rect, hidden: Option<Rect>) -> Vec<layers::Part> {
+        match hidden.and_then(|hidden| layers::hole_in(self.snap(quad), hidden)) {
+            Some(hole) => {
+                self.stats.spared_layers += 1;
+                layers::around(hole)
+            }
+            None => vec![[0., 0., 1., 1.]],
+        }
+    }
+
+    /// What `next`, drawn right after, hides of the layers before it: inside an opaque glass
+    /// whose copy is ready.
+    fn hidden_by(&self, next: Option<&Draw>) -> Option<Rect> {
+        if self.plain || self.fade.is_some() {
+            return None;
+        }
+        let next = next.filter(|next| !profile_skip(next))?;
+        let (path, hidden) = layers::under_glass(next)?;
+        matches!(self.textures.get(&glass_key(path)), Some(Some(_))).then_some(hidden)
     }
 
     /// Appends `count` paint vertices from `start`, merged into the previous batch when it uses
@@ -762,17 +837,7 @@ impl Renderer {
     /// `flipped` reads the texture bottom up, as a framebuffer's rows run.
     fn folded_quad(&mut self, rect: Rect, texture: GLuint, scrims: &[Scrim], flipped: bool) {
         const STRIPS: usize = 16;
-        let fold = |t: f32| {
-            let (mut m, mut k) = ([1f32; 3], [0f32; 3]);
-            for scrim in scrims {
-                let color = scrim.at(t);
-                for i in 0..3 {
-                    m[i] *= 1. - color[3];
-                    k[i] = k[i] * (1. - color[3]) + color[i] * color[3];
-                }
-            }
-            (m, k)
-        };
+        let fold = |t: f32| fold(scrims, t);
         let start = self.vertices.len() / 14;
         for strip in 0..STRIPS {
             let rows = [
@@ -1190,6 +1255,93 @@ impl Renderer {
         self.quad(rect, uv, plain_radius(radius), 0., tint, id);
     }
 
+    /// An opaque glass with `fills` over exactly its shape, in one pass: its interior clear of
+    /// the corners as the glass's copy times m plus k, as fills fold into a wallpaper; only the
+    /// corners are drawn layer by layer. False, drawing nothing, when its copy is not ready or
+    /// the corners leave no interior.
+    fn folded_glass(
+        &mut self,
+        path: &str,
+        rect: Rect,
+        radius: f32,
+        source: Rect,
+        fills: &[Draw],
+    ) -> bool {
+        let Some(Some(texture)) = self.textures.get_mut(&glass_key(path)) else {
+            return false;
+        };
+        texture.frame = self.frame;
+        let id = texture.id;
+        let scrims: Vec<_> = fills.iter().filter_map(Scrim::fill).collect();
+        if source.w <= 0. || source.h <= 0. || scrims.len() != fills.len() {
+            return false;
+        }
+        let snapped = self.snap(rect);
+        let Some((rows, corners)) = layers::rounded_apart(snapped.w, snapped.h, radius, 16) else {
+            return false;
+        };
+        let uv = [
+            (rect.x - source.x) / source.w,
+            (rect.y - source.y) / source.h,
+            (rect.x + rect.w - source.x) / source.w,
+            (rect.y + rect.h - source.y) / source.h,
+        ];
+        let start = self.vertices.len() / 14;
+        for [left, top, right, bottom] in &rows {
+            for (x, y) in [
+                (left, top),
+                (right, top),
+                (left, bottom),
+                (left, bottom),
+                (right, top),
+                (right, bottom),
+            ] {
+                let (m, k) = fold(&scrims, *y);
+                self.vertices.extend_from_slice(&[
+                    snapped.x + x * snapped.w,
+                    snapped.y + y * snapped.h,
+                    uv[0] + x * (uv[2] - uv[0]),
+                    uv[1] + y * (uv[3] - uv[1]),
+                    m[0],
+                    m[1],
+                    m[2],
+                    1.,
+                    k[0],
+                    k[1],
+                    k[2],
+                    0.,
+                    -2.,
+                    0.,
+                ]);
+            }
+        }
+        self.paint_batch(start, rows.len() * 6, id, None);
+        let white = self.white.id;
+        let colors = |color: Color| [color, color];
+        self.quad_parts(
+            rect,
+            &corners,
+            uv,
+            plain_radius(radius),
+            0.,
+            colors([1.; 4]),
+            id,
+            None,
+        );
+        for fill in fills {
+            let (fill_radius, colors) = match fill {
+                Draw::Shape(_, fill_radius, _, color) => (*fill_radius, colors(*color)),
+                Draw::RoundedGradient(_, fill_radius, top, bottom) => {
+                    (*fill_radius, [*top, *bottom])
+                }
+                _ => continue,
+            };
+            let whole = [0., 0., 1., 1.];
+            self.quad_parts(rect, &corners, whole, fill_radius, 0., colors, white, None);
+        }
+        true
+    }
+
     /// Edges on whole drawable pixels. The TV scales its 1080p graphics plane up 2x, which
     /// turns a half-covered edge pixel into a soft 2-pixel band; whole pixels stay crisp.
     /// LUMA_SNAP=0 keeps logical positions (for comparison).
@@ -1499,15 +1651,42 @@ impl Renderer {
             {
                 continue;
             }
+            // Layers may look ahead only within the page or only over it, never across.
+            let ahead = &commands[index..ground.map_or(commands.len(), |(page, _)| page)];
+            if !self.plain
+                && self.fade.is_none()
+                && let Draw::Glass(path, rect, radius, source, _) = command
+            {
+                let fills = layers::fills_over_glass(command, ahead);
+                let fills = ahead[..fills]
+                    .iter()
+                    .take_while(|fill| !profile_skip(fill))
+                    .count();
+                if fills > 0 && self.folded_glass(path, *rect, *radius, *source, &ahead[..fills]) {
+                    self.stats.spared_layers += fills;
+                    index += fills;
+                    continue;
+                }
+            }
             match command {
-                Draw::Shape(rect, radius, border, color) => self.quad(
-                    *rect,
-                    [0., 0., 1., 1.],
-                    *radius,
-                    *border,
-                    *color,
-                    self.white.id,
-                ),
+                Draw::Shape(rect, radius, border, color) => {
+                    // A border's inside is left alone.
+                    let inside = (*border > 0. && !self.plain)
+                        .then(|| layers::inside_border(*rect, *radius, *border));
+                    let parts = self.around(*rect, inside);
+                    let colors = [*color, *color];
+                    let white = self.white.id;
+                    self.quad_parts(
+                        *rect,
+                        &parts,
+                        [0., 0., 1., 1.],
+                        *radius,
+                        *border,
+                        colors,
+                        white,
+                        None,
+                    );
+                }
                 Draw::RoundedGradient(rect, radius, top, bottom) => self.gradient_quad(
                     *rect,
                     [0., 0., 1., 1.],
@@ -1517,14 +1696,23 @@ impl Renderer {
                     self.white.id,
                     None,
                 ),
-                Draw::Shadow(rect, radius, blur, color) => self.quad(
-                    rect.inset(-*blur),
-                    [0., 0., 1., 1.],
-                    *radius,
-                    -*blur,
-                    *color,
-                    self.white.id,
-                ),
+                Draw::Shadow(rect, radius, blur, color) => {
+                    // A glass right over it hides most of it.
+                    let quad = rect.inset(-*blur);
+                    let parts = self.around(quad, self.hidden_by(ahead.first()));
+                    let colors = [*color, *color];
+                    let white = self.white.id;
+                    self.quad_parts(
+                        quad,
+                        &parts,
+                        [0., 0., 1., 1.],
+                        *radius,
+                        -*blur,
+                        colors,
+                        white,
+                        None,
+                    );
+                }
                 Draw::Text(text, rect, size, color, centered) => {
                     self.text(text, *rect, *size, *color, *centered)
                 }
@@ -2081,7 +2269,10 @@ impl Renderer {
             }
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffers[0]);
         }
+        // The reference draws every layer whole, as the scene lists them.
+        let plain = std::mem::replace(&mut self.plain, true);
         self.render(commands, width, height, None, 0);
+        self.plain = plain;
         unsafe {
             gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffers[0]);
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, framebuffers[1]);

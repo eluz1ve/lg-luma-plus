@@ -8,7 +8,8 @@
 //   node tools/tv-perf.mjs [--device lgtv] [--seconds 110] [variant ...]
 //
 // Variants: base (as installed), msaa0, msaa2, nopartial, empty (draws nothing: the compositor
-// and swap alone), or any `name=line;line` for custom switch-file lines.
+// and swap alone), nocache (the page under overlays drawn each frame), flat (every layer drawn
+// whole), or any `name=line;line` for custom switch-file lines.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -33,6 +34,8 @@ const known = {
   msaa2: ['msaa=2'],
   nopartial: ['partial=0'],
   empty: ['skip=all'],
+  nocache: ['ground=0'],
+  flat: ['layers=0'],
 };
 const variants = (args.length ? args : ['base', 'msaa0', 'nopartial', 'empty']).map((name) => {
   const custom = name.match(/^([\w-]+)=(.+)$/);
