@@ -11,6 +11,8 @@
     function params() {
         try {
             return JSON.parse((window.PalmSystem && window.PalmSystem.launchParams) || '{}') || {};
+            // Lampa runs on old TV browsers: no optional catch binding.
+            // oxlint-disable-next-line no-unused-vars
         } catch (e) {
             return {};
         }

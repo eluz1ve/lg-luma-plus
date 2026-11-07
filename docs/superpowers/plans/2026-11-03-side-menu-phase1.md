@@ -5,6 +5,7 @@
 **Goal:** The tab bar and the TV-settings button leave the screen. A glass menu on the left takes their place, opened by Home and by Left at the left edge.
 
 **Architecture:**
+
 - The menu is a modal overlay, `Overlay::Menu { restore }`. Its items reuse `Target::Nav(0..=2)` (Главная, Приложения, Настройки), `Target::Input(id)` and `Target::TvSettings`.
 - One new target, `Target::MenuInputs`, folds the inputs list open and closed (`State::menu_inputs`).
 - The slide is time-based, `State::menu_motion: Option<(Instant, bool)>`, read through `State::menu_amount() -> f32` (0 is closed, 1 is open). The view shifts the page right by `56 × amount`, dims it by `0.5 × amount`, and slides the panel in from x = −430.
@@ -48,10 +49,12 @@
 ### Task 1: Menu state and keys
 
 **Files:**
+
 - Modify: `src/state.rs`
 - Create: `src/menu-tests.rs`, wired from `src/tests.rs` with `#[path = "menu-tests.rs"] mod menu_tests;`
 
 **Interfaces:**
+
 - Produces:
   - `Overlay::Menu { restore: Target }` and `Target::MenuInputs`;
   - the fields `State::menu_inputs: bool` and `State::menu_motion: Option<(Instant, bool)>`;
@@ -60,6 +63,7 @@
   - `pub fn menu_amount(&self) -> f32`, `pub fn home_key(&mut self) -> Vec<Effect>` and `pub fn relaunch_home(&mut self) -> Vec<Effect>`.
 
 Tests (each written first, then watched failing):
+
 - `home_opens_the_menu_on_the_current_page_and_home_again_closes_it`
 - `the_menu_lists_pages_then_visible_inputs_when_unfolded_then_settings`
 - `ok_on_another_page_opens_it_at_its_first_content`
@@ -75,6 +79,7 @@ Run: `cargo test --bin luma menu_tests`. Then the whole suite: the tests that ex
 ### Task 2: Menu view, without the tab bar
 
 **Files:**
+
 - Modify:
   - `src/view.rs`: drop `navigation()` and the pill and TV button from `header()`; draw the menu;
   - `src/main.rs`: drop the pill's animation;
@@ -82,12 +87,14 @@ Run: `cargo test --bin luma menu_tests`. Then the whole suite: the tests that ex
 - Create: `assets/ui-icons/home.svg` (Lucide house, stroke 1.65).
 
 **Interfaces:**
+
 - Produces:
   - `pub fn scene(state: &State, assets: &Assets, now: OffsetDateTime) -> Scene`, which replaces `scene_with_pill`;
   - `fn menu(out: &mut Scene, state: &State, assets: &Assets, now: OffsetDateTime)`;
   - `Scene::shift_x(draws, controls, dx)`.
 
 Tests:
+
 - `the_menu_draws_its_items_on_glass_over_the_dimmed_page`
 - `no_tab_bar_is_drawn`
 - `menu_items_are_clickable`

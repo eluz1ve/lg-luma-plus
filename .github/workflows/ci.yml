@@ -1,5 +1,5 @@
 name: CI
-run-name: "${{ github.event_name == 'push' && format('Main validation and release eligibility · {0}', github.event.head_commit.message) || github.event_name == 'workflow_dispatch' && format('Version/branch validation · {0} (no publication)', github.ref_name) || format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) }}"
+run-name: "${{ github.event_name == 'push' && format('Build and release · {0}', github.event.head_commit.message) || github.event_name == 'workflow_dispatch' && format('Branch validation · {0} (no publication)', github.ref_name) || format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) }}"
 
 on:
   push:
@@ -15,41 +15,41 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Every push to main is released as a build numbered by its date and time
+  # (tools/build-number.mjs). Put [skip ci] in a commit message to push without a build.
   release-gate:
-    name: Release eligibility
+    name: Build number and release eligibility
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
     outputs:
-      publish: ${{ steps.gate.outputs.result }}
-      tag: ${{ steps.version.outputs.tag }}
+      publish: ${{ steps.gate.outputs.publish }}
+      number: ${{ steps.build.outputs.number }}
+      tag: ${{ steps.build.outputs.tag }}
+      title: ${{ steps.build.outputs.title }}
     steps:
       - uses: actions/checkout@v7
-      - name: Identify app version
-        id: version
-        run: |
-          echo "tag=v$(node -p 'require("./package.json").version')" >> "$GITHUB_OUTPUT"
-      - name: Require a merged Changesets PR and a version increase
+      - name: Number this build
+        id: build
+        run: node tools/build-number.mjs
+      - name: Release pushes to main
         id: gate
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const { isReleaseMerge } = await import(`${process.env.GITHUB_WORKSPACE}/tools/release-gate.mjs`);
-            const publish = await isReleaseMerge({ github, context });
-            await core.summary
-              .addHeading(`Luma+ ${process.env.RELEASE_TAG}`)
-              .addRaw(publish
-                ? 'Release authorized: this main commit merged Version Packages with a version increase. Publication waits for checks, all four smoke suites, and the verified ARM package.'
-                : 'Validation only: this run cannot publish. Merge the Version Packages PR to start the eligible main-commit release run.')
-              .write();
-            return publish;
         env:
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          RELEASE_TITLE: ${{ steps.build.outputs.title }}
+        run: |
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          {
+            echo "## $RELEASE_TITLE"
+            if [ "$PUBLISH" = true ]; then
+              echo 'Release authorized: a push to main. Publication waits for checks, all four smoke suites, and the verified ARM package.'
+            else
+              echo 'Validation only: only pushes to main are released.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   prepare:
     name: Checks, unit tests, and shared desktop assets
+    needs: release-gate
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -68,6 +68,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           key: desktop
+      # After the cache step, whose key comes from the unnumbered Cargo files.
+      - name: Write the build's version
+        env:
+          LUMA_BUILD_NUMBER: ${{ needs.release-gate.outputs.number }}
+        run: node tools/build-number.mjs --apply
       - name: Install desktop and asset dependencies
         run: |
           apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
@@ -150,7 +155,7 @@ jobs:
 
   package:
     name: Verified ARM IPK and Homebrew feed
-    needs: prepare
+    needs: [release-gate, prepare]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -169,6 +174,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: webos-${{ hashFiles('tools/build-webos.sh', 'tools/setup-webos-sdk.mjs', 'tools/webos-runtime.mjs') }}
+      - name: Write the build's version
+        env:
+          LUMA_BUILD_NUMBER: ${{ needs.release-gate.outputs.number }}
+        run: node tools/build-number.mjs --apply
       - name: Install cross-build dependencies
         run: |
           sudo apt-get -o Acquire::Retries=3 update
@@ -227,19 +236,27 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           name: luma-release
           path: release
+      - name: List the changes since the release before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/release-notes.mjs > release-notes.md && cat release-notes.md
       - name: Publish tested release files
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ needs.package.outputs.tag }}
+          RELEASE_TITLE: ${{ needs.release-gate.outputs.title }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            printf 'Invalid release version: %s\n' "$RELEASE_TAG" >&2
+          if [[ ! "$RELEASE_TAG" =~ ^build-[0-9]{10}$ ]]; then
+            printf 'Invalid release tag: %s\n' "$RELEASE_TAG" >&2
             exit 1
           fi
 
@@ -256,7 +273,7 @@ jobs:
           if [ -n "$existing_tag" ]; then
             tagged_commit="$(gh api "repos/$GH_REPO/commits/$RELEASE_TAG" --jq '.sha')"
             if [ "$tagged_commit" != "$COMMIT_SHA" ]; then
-              printf 'Tag %s points to another commit; use a new app version.\n' "$RELEASE_TAG" >&2
+              printf 'Tag %s points to another commit; push again for a new build.\n' "$RELEASE_TAG" >&2
               exit 1
             fi
           fi
@@ -264,14 +281,15 @@ jobs:
           files=(release/*.ipk release/sha256sums release/repo.json release/description.html release/app-icon-large.png)
           if [ "$state" = true ]; then
             gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
-            gh release edit "$RELEASE_TAG" --draft=false
+            gh release edit "$RELEASE_TAG" --notes-file release-notes.md --draft=false --latest
           else
             gh release create "$RELEASE_TAG" "${files[@]}" \
               --target "$COMMIT_SHA" \
-              --generate-notes \
-              --title "Luma+ ${RELEASE_TAG#v}"
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md \
+              --latest
           fi
-          echo "### Published [$RELEASE_TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Published [$RELEASE_TITLE]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$RELEASE_TAG)" >> "$GITHUB_STEP_SUMMARY"
 
   summary:
     name: Release rollout summary
@@ -284,6 +302,7 @@ jobs:
         env:
           RESULTS: ${{ toJSON(needs) }}
           RELEASE_TAG: ${{ needs.release-gate.outputs.tag }}
+          RELEASE_TITLE: ${{ needs.release-gate.outputs.title }}
           PUBLISH: ${{ needs.release-gate.outputs.publish }}
         run: |
           node <<'NODE'
@@ -296,11 +315,11 @@ jobs:
             ? jobs.release.result === 'success' ? 'Publication job succeeded' : 'Release not published by this run'
             : gateFailed ? 'Release eligibility could not be determined. Publication is blocked.' : 'Validation only, no publication authorized';
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
-            `## Luma+ ${process.env.RELEASE_TAG} rollout`, '', status, '',
+            `## ${process.env.RELEASE_TITLE} rollout`, '', status, '',
             '| Stage | Result |', '| --- | --- |',
             ...Object.entries(jobs).map(([name, job]) => `| ${name} | ${job.result} |`), '',
             `[Run and artifacts](${repo}/actions/runs/${process.env.GITHUB_RUN_ID})`, '',
-            eligible ? `[Release page](${repo}/releases/tag/${process.env.RELEASE_TAG})` : 'Merge Version Packages to main to start the release run.', '',
+            eligible ? `[Release page](${repo}/releases/tag/${process.env.RELEASE_TAG})` : 'Push to main to release a build.', '',
             eligible && jobs.release.result !== 'success' ? 'Retry failed jobs on this original main-commit run after resolving failures. Manual dispatch does not publish.' : '',
           ].join('\n'));
           NODE

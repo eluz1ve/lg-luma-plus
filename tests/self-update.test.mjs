@@ -29,7 +29,10 @@ function run({
   // tools/package.mjs and the native helper pretty-print; the saved stock manifest has its own
   // "version" and "id", which must not be mistaken for Luma's version or the Home target.
   const json = (value) => (pretty ? `${JSON.stringify(value, null, 2)}\n` : JSON.stringify(value));
-  write(`${app}/appinfo.json`, json({ id: 'com.eluz1ve.lumaplus', version: '9.0.0', type: 'native' }));
+  write(
+    `${app}/appinfo.json`,
+    json({ id: 'com.eluz1ve.lumaplus', version: '9.0.0', type: 'native' }),
+  );
   write(
     `${homeState}/state.json`,
     json({ enabled: home, method, homeId, appDir: app, stock: { id: 'x', version: '1.0.0' } }),

@@ -2,94 +2,1607 @@
   "feed": "https://sylvan.apple.com/itunes-assets/Aerials126/v4/c0/45/d9/c045d9d0-9606-1535-62fe-189edb4f79eb/resources-atv-23J-2.tar",
   "snapshots": "https://sylvan.apple.com/Aerials/jjGqDwCNrOsVJ4of6uSVr/snapshots/",
   "pictures": [
-    {"id": "GMT026_363A_103NC_E1027_KOREA_JAPAN_NIGHT", "name": {"en": "East Asia", "de": "Ostasien", "zh": "东亚", "zh-tw": "東亞", "es": "Este de Asia", "pt": "Ásia Oriental", "it": "Asia orientale", "ru": "Восточная Азия", "pl": "Azja Wschodnia", "fr": "Asie de lʼEst", "vi": "Đông Á", "nl": "Oost-Azië", "sv": "Östasien"}},
-    {"id": "GMT110_112NC_364D_1054_AURORA_ANTARCTICA", "name": {"en": "Antarctica’s Southern Lights", "de": "Südlichter in der Antarktis", "zh": "南极洲极光", "zh-tw": "南極光", "es": "Aurora austral en la Antártida", "pt": "Aurora Austral", "it": "Aurora australe sull’Antartide", "ru": "Полярное сияние над Антарктидой", "pl": "Zorza polarna nad Antarktyką", "fr": "Aurore australe en Antarctique", "vi": "Ánh sáng phía nam của Nam Cực", "nl": "Zuiderlicht in Antarctica", "sv": "Södersken i Antarktis"}},
-    {"id": "A105_C002", "name": {"en": "Caribbean Sea", "de": "Karibisches Meer", "zh": "加勒比海", "zh-tw": "加勒比海", "es": "Mar Caribe", "pt": "Mar do Caribe", "it": "Mar dei Caraibi", "ru": "Карибское море", "pl": "Morze Karaibskie", "fr": "Mer des Caraïbes", "vi": "Biển Caribe", "nl": "Caraïbische Zee", "sv": "Karibiska havet"}},
-    {"id": "GMT306_139NC_139J_3066_CALI_TO_VEGAS", "name": {"en": "California", "de": "Kalifornien", "zh": "加州", "zh-tw": "加州", "es": "California", "pt": "Califórnia", "it": "California", "ru": "Калифорния", "pl": "Kalifornia", "fr": "Californie", "vi": "California", "nl": "Californië", "sv": "Kalifornien"}},
-    {"id": "A103_C002_0205DG", "name": {"en": "North Africa", "de": "Nordafrika", "zh": "北非", "zh-tw": "北非", "es": "Norte de África", "pt": "Norte da África", "it": "Africa settentrionale", "ru": "Северная Африка", "pl": "Afryka Północna", "fr": "Afrique du Nord", "vi": "Bắc Phi", "nl": "Noord-Afrika", "sv": "Nordafrika"}},
-    {"id": "A050_C004_1027V8", "name": {"en": "Nile Delta", "de": "Nildelta", "zh": "尼罗河三角洲", "zh-tw": "尼羅河三角洲", "es": "El delta del Nilo", "pt": "Delta do Rio Nilo", "it": "Delta del Nilo", "ru": "Дельта Нила", "pl": "Delta Nilu", "fr": "Delta du Nil", "vi": "Đồng bằng sông Nile", "nl": "Nijldelta", "sv": "Nildeltat"}},
-    {"id": "GMT308_139K_142NC_CARIBBEAN_DAY", "name": {"en": "Caribbean", "de": "Karibik", "zh": "加勒比", "zh-tw": "加勒比海", "es": "El Caribe", "pt": "Caribe", "it": "Caraibi", "ru": "Карибское море", "pl": "Karaiby", "fr": "Caraïbes", "vi": "Caribe", "nl": "Caraïben", "sv": "Karibien"}},
-    {"id": "GMT329_2_113NC_396B_1105", "name": {"en": "China Night", "de": "China bei Nacht", "zh": "中国夜色", "zh-tw": "中國夜晚", "es": "China de noche", "pt": "China à Noite", "it": "Cina di notte", "ru": "Ночь над Китаем", "pl": "Chiny w nocy", "fr": "Chine (nuit)", "vi": "Trung Quốc về đêm", "nl": "China 's nachts", "sv": "Kina på natten"}},
-    {"id": "A001_C004_1207W5", "name": {"en": "West Africa", "de": "Westafrika", "zh": "西非", "zh-tw": "西非", "es": "África Occidental", "pt": "África Ocidental", "it": "Africa occidentale", "ru": "Западная Африка", "pl": "Afryka Zachodnia", "fr": "Afrique occidentale", "vi": "Tây Phi", "nl": "West-Afrika", "sv": "Västafrika"}},
-    {"id": "A001_C001_120530", "name": {"en": "North Atlantic", "de": "Nordatlantik", "zh": "北大西洋", "zh-tw": "北大西洋", "es": "Atlántico norte", "pt": "Atlântico Norte", "it": "Atlantico settentrionale", "ru": "Северная Атлантика", "pl": "Północny Atlantyk", "fr": "Atlantique Nord", "vi": "Bắc Đại Tây Dương", "nl": "Noordelijke Atlantische Oceaan", "sv": "Nordatlanten"}},
-    {"id": "GMT314_139M_170NC_NORTH_AMERICA_AURORA", "name": {"en": "North America Aurora", "de": "Nordlichter in Nordamerika", "zh": "北美极光", "zh-tw": "北美極光", "es": "La aurora en Norteamérica", "pt": "Aurora na América do Norte", "it": "Aurora boreale in Nord America", "ru": "Север Америки, полярное сияние", "pl": "Zorza nad Ameryką Północną", "fr": "Aurore boréale en Amérique du Nord", "vi": "Cực quang Bắc Mỹ", "nl": "Dageraad in Noord-Amerika", "sv": "Norrsken över Nordamerika"}},
-    {"id": "A114_C001", "name": {"en": "Southern California", "de": "Südkalifornien", "zh": "南加州", "zh-tw": "南加州", "es": "Sur de California", "pt": "Sul da Califórnia", "it": "California meridionale", "ru": "Южная Калифорния", "pl": "Południowa Kalifornia", "fr": "Californie du Sud", "vi": "Nam California", "nl": "Zuid-Californië", "sv": "Södra Kalifornien"}},
-    {"id": "A105_C003_0212CT", "name": {"en": "New Zealand", "de": "Neuseeland", "zh": "新西兰", "zh-tw": "紐西蘭", "es": "Nueva Zelanda", "pt": "Nova Zelândia", "it": "Nuova Zelanda", "ru": "Новая Зеландия", "pl": "Nowa Zelandia", "fr": "Nouvelle-Zélande", "vi": "New Zealand", "nl": "Nieuw-Zeeland", "sv": "Nya Zeeland"}},
-    {"id": "GMT329_117NC_401C_1037_IRELAND_TO_ASIA", "name": {"en": "Europe Night", "de": "Europa bei Nacht", "zh": "欧洲夜色", "zh-tw": "歐洲夜晚", "es": "Europa de noche", "pt": "Europa à Noite", "it": "Europa di notte", "ru": "Ночь над Европой", "pl": "Europa w nocy", "fr": "Europe (nuit)", "vi": "Châu Âu về đêm", "nl": "Europa 's nachts", "sv": "Europa på natten"}},
-    {"id": "GMT060_117NC_363D_1034_AUSTRALIA", "name": {"en": "Australia", "de": "Australien", "zh": "澳大利亚", "zh-tw": "澳洲", "es": "Australia", "pt": "Austrália", "it": "Australia", "ru": "Австралия", "pl": "Australia", "fr": "Australie", "vi": "Australia", "nl": "Australië", "sv": "Australien"}},
-    {"id": "A351_C001_1213SK", "name": {"en": "South Africa", "de": "Südafrika", "zh": "南非", "zh-tw": "南非", "es": "Sudáfrica", "pt": "África do Sul", "it": "Africa meridionale", "ru": "Южная Африка", "pl": "Afryka Południowa", "fr": "Afrique du Sud", "vi": "Nam Phi", "nl": "Zuid-Afrika", "sv": "Sydafrika"}},
-    {"id": "GMT312_162NC_139M_1041_AFRICA_NIGHT", "name": {"en": "Africa", "de": "Afrika", "zh": "非洲", "zh-tw": "非洲", "es": "África", "pt": "África", "it": "Africa", "ru": "Африка", "pl": "Afryka", "fr": "Afrique", "vi": "Châu Phi", "nl": "Afrika", "sv": "Afrika"}},
-    {"id": "GMT307_136NC_134K_8277_NY_NIGHT", "name": {"en": "New York", "de": "New York", "zh": "纽约", "zh-tw": "紐約", "es": "Nueva York", "pt": "Nova York", "it": "New York", "ru": "Нью‑Йорк", "pl": "Nowy Jork", "fr": "New York", "vi": "New York", "nl": "New York", "sv": "New York"}},
-    {"id": "A108_C001", "name": {"en": "Caribbean Islands", "de": "Karibische Inseln", "zh": "加勒比海岛", "zh-tw": "加勒比海群島", "es": "Islas del Caribe", "pt": "Ilhas do Caribe", "it": "Isole dei Caraibi", "ru": "Карибские острова", "pl": "Wyspy na Morzu Karaibskim", "fr": "Îles Caraïbes", "vi": "Quần đảo Caribe", "nl": "Caraïbische eilanden", "sv": "Karibiska öar"}},
-    {"id": "A009_C001_10181A", "name": {"en": "Sahara", "de": "Sahara", "zh": "撒哈拉", "zh-tw": "撒哈拉", "es": "Sáhara", "pt": "Saara", "it": "Sahara", "ru": "Сахара", "pl": "Sahara", "fr": "Sahara", "vi": "Sahara", "nl": "Sahara", "sv": "Sahara"}},
-    {"id": "GMT329_113NC_396B_1105_ITALY_TO_ASIA", "name": {"en": "Southern Europe Night", "de": "Südeuropa bei Nacht", "zh": "南欧夜色", "zh-tw": "南歐夜晚", "es": "Sur de Europa de noche", "pt": "Sul da Europa à Noite", "it": "Europa meridionale di notte", "ru": "Ночь над Южной Европой", "pl": "Europa Południowa w nocy", "fr": "Europe du Sud (nuit)", "vi": "Nam Âu về đêm", "nl": "Zuid-Europa 's nachts", "sv": "Sydeuropa på natten"}},
-    {"id": "A083_C002_1130KZ", "name": {"en": "Middle East", "de": "Mittlerer Osten", "zh": "中东", "zh-tw": "中東", "es": "Oriente Medio", "pt": "Oriente Médio", "it": "Medio Oriente", "ru": "Ближний Восток", "pl": "Bliski Wschód", "fr": "Moyen-Orient", "vi": "Trung Đông", "nl": "Midden-Oosten", "sv": "Mellanöstern"}},
-    {"id": "LW_L001_C006", "name": {"en": "Liwa Dune Fields", "de": "Dünen von Liwa", "zh": "利瓦沙丘场", "zh-tw": "利瓦沙丘地", "es": "Desierto de dunas de Liwa", "pt": "Dunas de Liwa", "it": "Dune di Liwa", "ru": "Песчаные дюны в оазисе Лива", "pl": "Wydmy w oazie Liwa", "fr": "Champ de dunes de l’oasis de Liwa", "vi": "Cồn cát Liwa", "nl": "Duinvelden in Liwa", "sv": "Liwa sanddyner"}},
-    {"id": "C003_C003", "name": {"en": "China Silhouette", "de": "Silhouette von China", "zh": "中国剪影", "zh-tw": "中國剪影", "es": "Silueta de China", "pt": "Silhueta da China", "it": "Silhouette della Cina", "ru": "Китайский силуэт", "pl": "Zarys szczytów w Chinach", "fr": "Contours de la Chine", "vi": "Bóng mờ Trung Quốc", "nl": "Silhouet van China", "sv": "Kina silhuett"}},
-    {"id": "H007_C003", "name": {"en": "Hawaii Coastline", "de": "Küstenlinie Hawaiis", "zh": "夏威夷海岸线", "zh-tw": "夏威夷海岸線", "es": "Litoral de Hawái", "pt": "Costa do Havaí", "it": "Costa delle Hawaii", "ru": "Гавайское побережье", "pl": "Wybrzeże na Hawajach", "fr": "Côte de Hawaï", "vi": "Đường bờ biển Hawaii", "nl": "Kustlijn van Hawaï", "sv": "Hawaiis kustlinje"}},
-    {"id": "C004_C003", "name": {"en": "China’s Great Wall", "de": "Chinesische Mauer", "zh": "中国长城", "zh-tw": "中國萬里長城", "es": "Gran Muralla China", "pt": "Grande Muralha da China", "it": "Grande muraglia cinese", "ru": "Великая Китайская стена", "pl": "Wielki Mur Chiński", "fr": "Grande Muraille de Chine", "vi": "Vạn Lý Trường Thành", "nl": "Chinese Muur", "sv": "Kinesiska muren"}},
-    {"id": "H004_C009", "name": {"en": "Hawaii Clouds Light", "de": "Wolken über Hawaii – Hell", "zh": "夏威夷云层（浅色）", "zh-tw": "夏威夷雲層亮色", "es": "Nubes en Hawái (claro)", "pt": "Nuvens do Havaí (Claro)", "it": "Nuvole sulle Hawaii - Chiaro", "ru": "Гавайи: облака — светлая", "pl": "Hawajskie chmury (jasny)", "fr": "Nuages à HawaÏ (clair)", "vi": "Mây Hawaii sáng", "nl": "Wolken in Hawaiï (licht)", "sv": "Hawaii med moln, ljus"}},
-    {"id": "GL_G002_C002", "name": {"en": "Greenland Coast", "de": "Küste Grönlands", "zh": "格陵兰海岸", "zh-tw": "格陵蘭海岸", "es": "Costa de Groenlandia", "pt": "Costa da Groenlândia", "it": "Costa della Groenlandia", "ru": "Побережье Гренландии", "pl": "Wybrzeże Grenlandii", "fr": "Côte du Groenland", "vi": "Bờ biển Greenland", "nl": "Kust in Groenland", "sv": "Grönlandskusten"}},
-    {"id": "H012_C009_0", "name": {"en": "Hawaii Ocean", "de": "Ozean um Hawaii", "zh": "夏威夷洋", "zh-tw": "夏威夷海洋", "es": "Océano en Hawái", "pt": "Oceano no Havaí", "it": "Oceano delle Hawaii", "ru": "Океан на Гавайях", "pl": "Ocean na Hawajach", "fr": "Océan à Hawaï", "vi": "Đại dương Hawaii", "nl": "Oceaan in Hawaï", "sv": "Solnedgång i Hawaii"}},
-    {"id": "H005_C012", "name": {"en": "Hawaii Valley", "de": "Tal auf Hawaii", "zh": "夏威夷谷", "zh-tw": "夏威夷峽谷", "es": "Valle de Hawái", "pt": "Vale do Havaí", "it": "Valle delle Hawaii", "ru": "Долина на Гавайях", "pl": "Dolina na Hawajach", "fr": "Vallée de Hawaï", "vi": "Thung lũng Hawaii", "nl": "Vallei in Hawaï", "sv": "Hawaiidal"}},
-    {"id": "H004_C007", "name": {"en": "Hawaii Clouds Dark", "de": "Wolken über Hawaii – Dunkel", "zh": "夏威夷云层（深色）", "zh-tw": "夏威夷雲層暗色", "es": "Nubes en Hawái (oscuro)", "pt": "Nuvens do Havaí (Escuro)", "it": "Nuvole sulle Hawaii - Scuro", "ru": "Гавайи: облака — темная", "pl": "Hawajskie chmury (ciemny)", "fr": "Nuages à Hawaï (sombre)", "vi": "Mây Hawaii tối", "nl": "Wolken in Hawaiï (donker)", "sv": "Hawaii med moln, mörk"}},
-    {"id": "CH_C002_C005", "name": {"en": "China Paddy Field", "de": "Reisfeld in China", "zh": "中国稻田", "zh-tw": "中國稻田", "es": "Arrozal en China", "pt": "Arrozais na China", "it": "Risaia in Cina", "ru": "Заливное поле в Китае", "pl": "Pole ryżowe w Chinach", "fr": "Rizière chinoise", "vi": "Ruộng bậc thang Trung Quốc", "nl": "Rijstveld in China", "sv": "Kina risfält"}},
-    {"id": "LW_L001_C003", "name": {"en": "Liwa Horizon", "de": "Horizont in der Liwa-Oase", "zh": "利瓦地平线", "zh-tw": "利瓦地平線", "es": "Horizonte de Liwa", "pt": "Horizonte de Liwa", "it": "Orizzonte di Liwa", "ru": "Горизонт в оазисе Лива", "pl": "Horyzont w oazie Liwa", "fr": "Ligne d’horizon de l’oasis de Liwa", "vi": "Chân trời Liwa", "nl": "Horizon van Liwa", "sv": "Horisont i Liwa"}},
-    {"id": "CH_C007_C011", "name": {"en": "China Mountains", "de": "Berge in China", "zh": "中国的高山", "zh-tw": "中國群山", "es": "Montañas de China", "pt": "Montanhas da China", "it": "Montagne in Cina", "ru": "Горы в Китае", "pl": "Góry w Chinach", "fr": "Montagnes de Chine", "vi": "Núi Trung Quốc", "nl": "Bergen in China", "sv": "Kina berg"}},
-    {"id": "GL_G004_C010", "name": {"en": "Greenland Glacier", "de": "Gletscher in Grönland", "zh": "格陵兰大冰川", "zh-tw": "格陵蘭冰河", "es": "Glaciar de Groenlandia", "pt": "Geleira da Groenlândia", "it": "Ghiacciaio della Groenlandia", "ru": "Ледник в Гренландии", "pl": "Lodowiec na Grenlandii", "fr": "Glacier au Groenland", "vi": "Sông băng Greenland", "nl": "Gletsjer in Groenland", "sv": "Grönländsk glaciär"}},
-    {"id": "CH_C007_C004", "name": {"en": "China Mountain Cliffs", "de": "Berghänge in China", "zh": "中国的崇山峻岭", "zh-tw": "中國山壁斷崖", "es": "Desfiladeros de China", "pt": "Penhascos na China", "it": "Scogliere in Cina", "ru": "Горные утесы в Китае", "pl": "Zbocza górskie w Chinach", "fr": "Falaises de Chine", "vi": "Vách núi Trung Quốc", "nl": "Bergrotsen in China", "sv": "Kina bergsklippor"}},
-    {"id": "GL_G010_C006", "name": {"en": "Greenland Evening", "de": "Abend in Grönland", "zh": "格陵兰黄昏", "zh-tw": "格陵蘭傍晚", "es": "Groenlandia por la tarde", "pt": "Groenlândia à Noite", "it": "Groenlandia di sera", "ru": "Вечер над Гренландией", "pl": "Grenlandia wieczorem", "fr": "Groenland (soir)", "vi": "Greenland buổi tối", "nl": "Groenland 's avonds", "sv": "Grönland på kvällen"}},
-    {"id": "C001_C005", "name": {"en": "China’s Great Wall Daylight", "de": "Chinesische Mauer bei Tag", "zh": "日光下的中国长城", "zh-tw": "中國萬里長城白晝", "es": "Gran Muralla China de día", "pt": "Grande Muralha da China de Dia", "it": "Grande muraglia cinese di giorno", "ru": "Великая Китайская стена днем", "pl": "Wielki Mur Chiński za dnia", "fr": "Grande Muraille de Chine de jour", "vi": "Vạn Lý Trường Thành ban ngày", "nl": "Chinese Muur (daglicht)", "sv": "Kinesiska muren i dagsljus"}},
-    {"id": "DB_D002_C003", "name": {"en": "Dubai Skyline", "de": "Skyline von Dubai", "zh": "迪拜天际线", "zh-tw": "杜拜天際線", "es": "Silueta de la ciudad de Dubái", "pt": "Linha do Horizonte de Dubai", "it": "Panorama di Dubai", "ru": "Вид на Дубай", "pl": "Panorama Dubaju", "fr": "Skyline de Dubaï", "vi": "Đường chân trời Dubai", "nl": "Skyline van Dubai", "sv": "Dubais stadssilhuett"}},
-    {"id": "HK_H004_C013", "name": {"en": "Hong Kong Skyline", "de": "Skyline von Hongkong", "zh": "香港天际线", "zh-tw": "香港天際線", "es": "Silueta de la ciudad de Hong Kong", "pt": "Linha do Horizonte de Hong Kong", "it": "Panorama di Hong Kong", "ru": "Вид на Гонконг", "pl": "Panorama Hongkongu", "fr": "Skyline de Hong Kong", "vi": "Đường chân trời Hồng Kông", "nl": "Skyline van Hongkong", "sv": "Hongkongs stadssilhuett"}},
-    {"id": "A007_C017", "name": {"en": "San Francisco Evening", "de": "Abend in San Francisco", "zh": "旧金山黄昏", "zh-tw": "舊金山傍晚", "es": "San Francisco por la tarde", "pt": "Noite em São Francisco", "it": "San Francisco di sera", "ru": "Сан‑Франциско: вечер", "pl": "San Francisco wieczorem", "fr": "San Francisco (soir)", "vi": "San Francisco buổi tối", "nl": "San Francisco 's avonds", "sv": "San Francisco på kvällen"}},
-    {"id": "LA_A005_C009", "name": {"en": "Los Angeles Overpass", "de": "Überführung in Los Angeles", "zh": "洛杉矶立交桥", "zh-tw": "洛杉磯高架橋", "es": "Paso elevado de Los Ángeles", "pt": "Viaduto de Los Angeles", "it": "Viadotto a Los Angeles", "ru": "Дорожная развязка в Лос‑Анджелесе", "pl": "Wiadukt drogowy w Los Angeles", "fr": "Pont routier de Los Angeles", "vi": "Cầu vượt Los Angeles", "nl": "Viaduct in Los Angeles", "sv": "Vägbro i Los Angeles"}},
-    {"id": "N008_C009", "name": {"en": "New York from Above", "de": "New York von oben", "zh": "俯瞰纽约", "zh-tw": "俯瞰紐約", "es": "Vista aérea de Nueva York", "pt": "Nova York de Cima", "it": "New York dall’alto", "ru": "Вид сверху на Нью‑Йорк", "pl": "Nowy Jork z lotu ptaka", "fr": "Survol de New York", "vi": "New York từ trên cao", "nl": "New York van boven", "sv": "New York från ovan"}},
-    {"id": "A015_C018", "name": {"en": "San Francisco Night", "de": "Nacht in San Francisco", "zh": "旧金山夜色", "zh-tw": "舊金山夜晚", "es": "San Francisco de noche", "pt": "São Francisco à Noite", "it": "San Francisco di notte", "ru": "Сан‑Франциско: ночь", "pl": "San Francisco w nocy", "fr": "San Francisco (nuit)", "vi": "San Francisco về đêm", "nl": "San Francisco 's nachts", "sv": "San Francisco på natten"}},
-    {"id": "DB_D001_C005", "name": {"en": "Dubai Creek", "de": "Dubai Creek", "zh": "迪拜湾", "zh-tw": "杜拜灣", "es": "Arroyo en Dubái", "pt": "Dubai Creek", "it": "Dubai Creek", "ru": "Морской пролив в Дубае", "pl": "Zatoka Dubai Creek", "fr": "Khor Dubaï", "vi": "Lạch Dubai", "nl": "Dubaikreek", "sv": "Dubai Creek"}},
-    {"id": "N013_C004", "name": {"en": "New York Night", "de": "Nacht über New York", "zh": "纽约夜色", "zh-tw": "紐約夜晚", "es": "Nueva York de noche", "pt": "Nova York à Noite", "it": "New York di notte", "ru": "Ночь в Нью‑Йорке", "pl": "Nowy Jork w nocy", "fr": "Nuit new-yorkaise", "vi": "Đêm New York", "nl": "New York 's nachts", "sv": "Natt i New York"}},
-    {"id": "A013_C004", "name": {"en": "San Francisco’s Ferry Building", "de": "Ferry Building in San Francisco", "zh": "旧金山渡轮大厦", "zh-tw": "舊金山渡輪大廈", "es": "Ferry Building en San Francisco", "pt": "Ferry Building em São Francisco", "it": "Ferry Building di San Francisco", "ru": "Сан‑Франциско: паромный вокзал", "pl": "Ferry Building w San Francisco", "fr": "Ferry Building de San Francisco", "vi": "Tòa nhà Bến phà San Francisco", "nl": "Ferry Building van San Francisco", "sv": "San Franciscos färjebyggnad"}},
-    {"id": "L010_C006", "name": {"en": "London Skyline", "de": "Skyline von London", "zh": "伦敦天际线", "zh-tw": "倫敦天際線", "es": "Silueta de la ciudad de Londres", "pt": "Linha do Horizonte de Londres", "it": "Panorama di Londra", "ru": "Вид на Лондон", "pl": "Panorama Londynu", "fr": "Skyline de Londres", "vi": "Đường chân trời London", "nl": "Skyline van Londen", "sv": "Londons stadssilhuett"}},
-    {"id": "N008_C003", "name": {"en": "New York Skyline", "de": "Skyline von New York", "zh": "纽约天际线", "zh-tw": "紐約天際線", "es": "Silueta de la ciudad de Nueva York", "pt": "Linha do Horizonte de Nova York", "it": "Panorama di New York", "ru": "Вид на Нью‑Йорк", "pl": "Panorama Nowego Jorku", "fr": "Skyline de New York", "vi": "Đường chân trời New York", "nl": "Skyline van New York", "sv": "New Yorks stadssilhuett"}},
-    {"id": "A013_C012", "name": {"en": "San Francisco’s Golden Gate Bridge", "de": "Golden Gate Bridge in San Francisco", "zh": "旧金山金门大桥", "zh-tw": "舊金山金門大橋", "es": "Puente Golden Gate en San Francisco", "pt": "Ponte Golden Gate em São Francisco", "it": "Golden Gate Bridge di San Francisco", "ru": "Сан‑Франциско: Золотые Ворота", "pl": "Golden Gate Bridge w San Francisco", "fr": "Golden Gate Bridge de San Francisco", "vi": "Cầu Cổng Vàng San Francisco", "nl": "Golden Gate Bridge San Francisco", "sv": "San Franciscos Golden Gate-bro"}},
-    {"id": "L004_C011", "name": {"en": "London Thames", "de": "Themse in London", "zh": "伦敦泰晤士河", "zh-tw": "倫敦泰晤士河", "es": "Río Támesis en Londres", "pt": "Rio Tâmisa, em Londres", "it": "Tamigi di Londra", "ru": "Река Темза в Лондоне", "pl": "Tamiza w Londynie", "fr": "Tamise de Londres", "vi": "Sông Thames ở London", "nl": "De Theems in Londen", "sv": "Themsen i London"}},
-    {"id": "N003_C006", "name": {"en": "New York Midtown", "de": "Midtown New York", "zh": "纽约中城区", "zh-tw": "紐約中城", "es": "Centro de Nueva York", "pt": "Midtown em Nova York", "it": "Centro di New York", "ru": "Центр Нью‑Йорка", "pl": "Śródmieście Nowego Jorku", "fr": "Midtown, New York", "vi": "Trung tâm New York", "nl": "New York Midtown", "sv": "Midtown i New York"}},
-    {"id": "A012_C014", "name": {"en": "San Francisco Skyline", "de": "Skyline von San Francisco", "zh": "旧金山天际线", "zh-tw": "舊金山天際線", "es": "Silueta de la ciudad de San Francisco", "pt": "Linha do Horizonte de São Francisco", "it": "Panorama di San Francisco", "ru": "Вид на Сан‑Франциско", "pl": "Panorama San Francisco", "fr": "Skyline de San Francisco", "vi": "Đường chân trời San Francisco", "nl": "Skyline van San Francisco", "sv": "San Franciscos stadssilhuett"}},
-    {"id": "DB_D008_C010", "name": {"en": "Dubai from Above", "de": "Dubai von oben", "zh": "俯瞰迪拜", "zh-tw": "俯瞰杜拜", "es": "Vista aérea de Dubái", "pt": "Dubai de Cima", "it": "Dubai dall’alto", "ru": "Вид сверху на Дубай", "pl": "Dubaj z lotu ptaka", "fr": "Survol de Dubaï", "vi": "Dubai từ trên cao", "nl": "Dubai van boven", "sv": "Dubai från ovan"}},
-    {"id": "LA_A009_C009", "name": {"en": "Los Angeles Sunset", "de": "Sonnenuntergang in Los Angeles", "zh": "洛杉矶日落", "zh-tw": "洛杉磯日落", "es": "Puesta de sol en Los Ángeles", "pt": "Pôr do Sol em Los Angeles", "it": "Tramonto a Los Angeles", "ru": "Лос‑Анджелес: закат", "pl": "Zachód słońca w Los Angeles", "fr": "Los Angeles (coucher de soleil)", "vi": "Mặt trời lặn ở Los Angeles", "nl": "Zonsondergang in Los Angeles", "sv": "Los Angeles solnedgång"}},
-    {"id": "LA_A008_C004", "name": {"en": "Los Angeles Beach", "de": "Strand in Los Angeles", "zh": "洛杉矶海滩", "zh-tw": "洛杉磯海灘", "es": "Playa de Los Ángeles", "pt": "Praia de Los Angeles", "it": "Spiaggia di Los Angeles", "ru": "Пляж в Лос‑Анджелесе", "pl": "Plaża w Los Angeles", "fr": "Plage de Los Angeles", "vi": "Bãi biển Los Angeles", "nl": "Strand in Los Angeles", "sv": "Los Angeles strand"}},
-    {"id": "DB_D011_C010", "name": {"en": "Dubai Night", "de": "Nacht in Dubai", "zh": "迪拜夜色", "zh-tw": "杜拜夜晚", "es": "Dubái de noche", "pt": "Dubai à Noite", "it": "Dubai di notte", "ru": "Ночь над Дубаем", "pl": "Dubaj w nocy", "fr": "Dubaï (nuit)", "vi": "Dubai về đêm", "nl": "Dubai 's nachts", "sv": "Dubai på natten"}},
-    {"id": "L007_C007", "name": {"en": "London from Above", "de": "London von oben", "zh": "俯瞰伦敦", "zh-tw": "俯瞰倫敦", "es": "Vista aérea de Londres", "pt": "Londres de Cima", "it": "Londra dall’alto", "ru": "Вид сверху на Лондон", "pl": "Londyn z lotu ptaka", "fr": "Survol de Londres", "vi": "London từ trên cao", "nl": "Londen van boven", "sv": "London från ovan"}},
-    {"id": "HK_H004_C010", "name": {"en": "Hong Kong Horizon", "de": "Horizont in Hongkong", "zh": "香港地平线", "zh-tw": "香港地平線", "es": "Horizonte de Hong Kong", "pt": "Horizonte de Hong Kong", "it": "Orizzonte di Hong Kong", "ru": "Горизонт в Гонконге", "pl": "Horyzont w Hongkongu", "fr": "Ligne d’horizon de Hong Kong", "vi": "Chân trời Hồng Kông", "nl": "Horizon van Hongkong", "sv": "Horisont i Hongkong"}},
-    {"id": "LA_A006_C008", "name": {"en": "Los Angeles Airport", "de": "Flughafen in Los Angeles", "zh": "洛杉矶机场", "zh-tw": "洛杉磯機場", "es": "Aeropuerto de Los Ángeles", "pt": "Aeroporto de Los Angeles", "it": "Aeroporto di Los Angeles", "ru": "Аэропорт Лос‑Анджелеса", "pl": "Lotnisko w Los Angeles", "fr": "Aéroport de Los Angeles", "vi": "Sân bay Los Angeles", "nl": "Luchthaven in Los Angeles", "sv": "Los Angeles flygplats"}},
-    {"id": "A006_C003", "name": {"en": "San Francisco Bay", "de": "Bucht von San Francisco", "zh": "旧金山湾区", "zh-tw": "舊金山灣", "es": "Bahía de San Francisco", "pt": "Baía de São Francisco", "it": "Baia di San Francisco", "ru": "Залив Сан‑Франциско", "pl": "Zatoka San Francisco", "fr": "Baie de San Francisco", "vi": "Vịnh San Francisco", "nl": "De baai van San Francisco", "sv": "San Francisco Bay"}},
-    {"id": "DB_D001_C001", "name": {"en": "Dubai Creek Harbor", "de": "Dubai Creek Harbor", "zh": "迪拜湾码头", "zh-tw": "杜拜灣碼頭", "es": "Creek Harbor en Dubái", "pt": "Porto de Dubai Creek", "it": "Dubai Creek Harbor", "ru": "Гавань в Дубае", "pl": "Osiedle Dubai Creek Harbor", "fr": "Port du Khor Dubaï", "vi": "Bến du thuyền Lạch Dubai", "nl": "Haven van de Dubaikreek", "sv": "Dubai Creek Harbour"}},
-    {"id": "HK_B005_C011", "name": {"en": "Hong Kong Night", "de": "Nacht in Hongkong", "zh": "香港夜色", "zh-tw": "香港夜晚", "es": "Hong Kong de noche", "pt": "Hong Kong à Noite", "it": "Hong Kong di notte", "ru": "Ночь над Гонконгом", "pl": "Hongkong w nocy", "fr": "Hong Kong (nuit)", "vi": "Hồng Kông về đêm", "nl": "Hongkong 's nachts", "sv": "Hongkong på natten"}},
-    {"id": "LA_A006_C004", "name": {"en": "Los Angeles Hills", "de": "Hügel in Los Angeles", "zh": "洛杉矶山丘", "zh-tw": "洛杉磯山丘", "es": "Colinas de Los Ángeles", "pt": "Montanhas de Los Angeles", "it": "Colline di Los Angeles", "ru": "Лос‑Анджелес: холмы", "pl": "Wzgórza w Los Angeles", "fr": "Collines de Los Angeles", "vi": "Đồi ở Los Angeles", "nl": "Heuvels in Los Angeles", "sv": "Kullar i Los Angeles"}},
-    {"id": "A008_C007", "name": {"en": "San Francisco Fog", "de": "Nebel in San Francisco", "zh": "雾中旧金山", "zh-tw": "舊金山濃霧", "es": "Niebla en San Francisco", "pt": "Neblina em São Francisco", "it": "Nebbia a San Francisco", "ru": "Сан‑Франциско: туман", "pl": "Mgła w San Francisco", "fr": "Brouillard de San Francisco", "vi": "Sương mù San Francisco", "nl": "Mist in San Francisco", "sv": "Dimma i San Francisco"}},
-    {"id": "LA_A011_C003", "name": {"en": "Los Angeles Night", "de": "Nacht in Los Angeles", "zh": "洛杉矶夜色", "zh-tw": "洛杉磯夜晚", "es": "Los Ángeles de noche", "pt": "Los Angeles à Noite", "it": "Los Angeles di notte", "ru": "Лос‑Анджелес: ночь", "pl": "Los Angeles w nocy", "fr": "Los Angeles (nuit)", "vi": "Los Angeles về đêm", "nl": "Los Angeles 's nachts", "sv": "Los Angeles på natten"}},
-    {"id": "L012_C002", "name": {"en": "London Evening", "de": "Abend in London", "zh": "伦敦黄昏", "zh-tw": "倫敦傍晚", "es": "Londres por la tarde", "pt": "Londres à Noite", "it": "Londra di sera", "ru": "Вечер над Лондоном", "pl": "Londyn wieczorem", "fr": "Londres (soir)", "vi": "London buổi tối", "nl": "Londen 's avonds", "sv": "London på kvällen"}},
-    {"id": "HK_H004_C008", "name": {"en": "Hong Kong Harbor", "de": "Hafen in Hongkong", "zh": "香港港湾", "zh-tw": "香港港口", "es": "Puerto de Hong Kong", "pt": "Porto de Hong Kong", "it": "Porto di Hong Kong", "ru": "Гавань в Гонконге", "pl": "Port w Hongkongu", "fr": "Port de Hong Kong", "vi": "Cảng Hồng Kông", "nl": "Haven van Hongkong", "sv": "Hongkongs hamn"}},
-    {"id": "TH_803_A001_8", "name": {"en": "Tahiti Waves Mist", "de": "Gischt in Tahiti", "zh": "塔希提岛波浪雾", "zh-tw": "大溪地海浪薄霧", "es": "Bruma de olas en Tahití", "pt": "Bruma de Ondas do Tahiti", "it": "Foschia sulle onde a Tahiti", "ru": "Туман над волнами на Таити", "pl": "Pył wodny nad falami na Tahiti", "fr": "Embruns des vagues tahitiennes", "vi": "Sương mù sóng biển Tahiti", "nl": "Mist van golven in Tahiti", "sv": "Vågskum i Tahiti"}},
-    {"id": "B002_C011", "name": {"en": "California Dolphin Pod", "de": "Schule von Delfinen in Kalifornien", "zh": "加州海豚群", "zh-tw": "加州海豚群", "es": "Manada de delfines en California", "pt": "Grupo de Golfinhos da Califórnia", "it": "Gruppo di delfini in California", "ru": "Стая дельфинов в Калифорнии", "pl": "Gromada delfinów", "fr": "Banc de dauphins de Californie", "vi": "Đàn cá heo California", "nl": "Grote groep dolfijnen in Californië", "sv": "Delfinstim i Kalifornien"}},
-    {"id": "BO_A018_C029", "name": {"en": "Barracuda Battery", "de": "Barrakudaschwarm", "zh": "梭鱼群", "zh-tw": "金梭魚群", "es": "Banco de barracudas", "pt": "Cardume de Barracudas", "it": "Banco di barracuda", "ru": "Косяк барракуд", "pl": "Grupa barakud", "fr": "Banc de barracudas", "vi": "Đàn cá nhồng", "nl": "Grote groep barracuda's", "sv": "Barracudastim"}},
-    {"id": "U009_C004", "name": {"en": "Gray Reef Sharks", "de": "Graue Riffhaie", "zh": "灰礁鲨", "zh-tw": "黑尾真鯊", "es": "Tiburones grises", "pt": "Tubarões Cinzentos de Recifes", "it": "Squali grigi del reef", "ru": "Темноперые серые акулы", "pl": "Żarłacze rafowe", "fr": "Requins gris de récif", "vi": "Cá mập sọc trắng", "nl": "Grijze rifhaaien", "sv": "Grå revhajar"}},
-    {"id": "A014_C023", "name": {"en": "Jack School", "de": "Stachelmakrelenschwarm", "zh": "杰克鱼群", "zh-tw": "傑克魚群", "es": "Banco de jureles", "pt": "Cardume de Carangídeos", "it": "Banco di carangidi", "ru": "Косяк ставриды", "pl": "Ławica ostroboków", "fr": "Banc de madeleineaux", "vi": "Đàn cá chó", "nl": "Grote groep snoeken", "sv": "Taggmakrillstim"}},
-    {"id": "A012_C031", "name": {"en": "Sea Stars", "de": "Seesterne", "zh": "海星", "zh-tw": "海星", "es": "Estrellas de mar", "pt": "Estrelas-do-mar", "it": "Stelle marine", "ru": "Морские звезды", "pl": "Rozgwiazdy", "fr": "Étoiles de mer", "vi": "Sao biển", "nl": "Zeesterren", "sv": "Sjöstjärnor"}},
-    {"id": "A006_C008", "name": {"en": "Cownose Rays", "de": "Kuhnasenrochen", "zh": "牛鼻鲼", "zh-tw": "牛鼻鰩", "es": "Rayas", "pt": "Raias-focinho-de-boi", "it": "Razze", "ru": "Скаты-бычерылы", "pl": "Płaszczki karbogłowe", "fr": "Mourines américaines", "vi": "Cá đuối mõm bò", "nl": "Adelaarsroggen", "sv": "Komulerockor"}},
-    {"id": "KP_A010_C002", "name": {"en": "Kelp Dark", "de": "Seetang – Dunkel", "zh": "海藻（深色）", "zh-tw": "海藻暗色", "es": "Algas marinas (oscuro)", "pt": "Algas (Escuro)", "it": "Alghe laminarie - Scuro", "ru": "Водоросли — темная", "pl": "Wodorosty morskie (ciemny)", "fr": "Varech (sombre)", "vi": "Tảo bẹ tối", "nl": "Kelp (donker)", "sv": "Kelp, mörk"}},
-    {"id": "BO_A014_C008", "name": {"en": "Bumpheads", "de": "Papageifische", "zh": "隆头鹦嘴鱼", "zh-tw": "隆頭鸚哥魚", "es": "Peces loro", "pt": "Peixes-papagaios Cabeçudos", "it": "Pesci pappagallo giganti", "ru": "Шишколобые рыбы-попугаи", "pl": "Ryby z rafy koralowej", "fr": "Poissons-perroquets à bosse", "vi": "Cá mó đầu gù", "nl": "Bultkoppen", "sv": "Papegojfiskar"}},
-    {"id": "A008_C010", "name": {"en": "Red Sea Coral from Above", "de": "Korallen im roten Meer von oben", "zh": "俯瞰红海珊瑚", "zh-tw": "俯瞰紅海珊瑚", "es": "Corales del mar Rojo desde arriba", "pt": "Corais do Mar Vermelho de Cima", "it": "Corallo nel Mar Rosso dall’alto", "ru": "Кораллы Красного моря: вид сверху", "pl": "Koralowce Morza Czerwonego", "fr": "Survol du Corail de la mer Rouge", "vi": "Red Sea Coral từ phía trên", "nl": "Koraal in Rode Zee van boven", "sv": "Röd havskorall från ovan"}},
-    {"id": "SE_A016_C009", "name": {"en": "Seal Pod", "de": "Robbenkolonie", "zh": "海豹群", "zh-tw": "海豹群", "es": "Manada de focas", "pt": "Grupo de Focas", "it": "Branco di foche", "ru": "Стая тюленей", "pl": "Stado fok", "fr": "Échouerie de phoques", "vi": "Đàn hải cẩu", "nl": "Grote groep zeehonden", "sv": "Sälhjord"}},
-    {"id": "TH_804_A001_8", "name": {"en": "Tahiti Coast", "de": "Tahitis Küste", "zh": "塔希提岛海岸", "zh-tw": "大溪地海岸", "es": "Costa de Tahití", "pt": "Costa do Tahiti", "it": "Costa di Tahiti", "ru": "Побережье Таити", "pl": "Wybrzeże Tahiti", "fr": "Côte de Tahiti", "vi": "Bờ biển Tahiti", "nl": "Kust in Tahiti", "sv": "Tahitikust"}},
-    {"id": "PA_A001_C007", "name": {"en": "Palau Jellies Dark", "de": "Quallen in Palau – Dunkel", "zh": "帕劳水母（深色）", "zh-tw": "帛琉水母暗色", "es": "Medusas en Palaos (oscuro)", "pt": "Medusas de Palau (Escuro)", "it": "Meduse a Palau - Scuro", "ru": "Медузы Палау — темная", "pl": "Palauskie meduzy (ciemny)", "fr": "Méduses des Palaos (sombre)", "vi": "Sứa Palau tối", "nl": "Kwallen in Palau (donker)", "sv": "Maneter i Palauöarna, mörk"}},
-    {"id": "A004_C012", "name": {"en": "Alaskan Jellies Dark", "de": "Quallen in Alaska – Dunkel", "zh": "阿拉斯加水母（深色）", "zh-tw": "阿拉斯加水母暗色", "es": "Medusas en Alaska (oscuro)", "pt": "Medusas do Alasca (Escuro)", "it": "Meduse in Alaska - Scuro", "ru": "Медузы Аляски — темная", "pl": "Alaskańskie meduzy (ciemny)", "fr": "Méduses d’Alaska (sombre)", "vi": "Sứa Alaska tối", "nl": "Kwallen in Alaska (donker)", "sv": "Röda brännmaneter, mörk"}},
-    {"id": "A003_C014", "name": {"en": "Alaskan Jellies Light", "de": "Quallen in Alaska – Hell", "zh": "阿拉斯加水母（浅色）", "zh-tw": "阿拉斯加水母亮色", "es": "Medusas en Alaska (claro)", "pt": "Medusas do Alasca (Claro)", "it": "Meduse in Alaska - Chiaro", "ru": "Медузы Аляски — светлая", "pl": "Alaskańskie meduzy (jasny)", "fr": "Méduses d’Alaska (clair)", "vi": "Sứa Alaska sáng", "nl": "Kwallen in Alaska (licht)", "sv": "Röda brännmaneter, ljus"}},
-    {"id": "A009_C007", "name": {"en": "Costa Rica Dolphin Pod", "de": "Schule von Delfinen in Costa Rica", "zh": "哥斯达黎加海豚群", "zh-tw": "哥斯大黎加海豚群", "es": "Manada de delfines en Costa Rica", "pt": "Grupo de Golfinhos na Costa Rica", "it": "Gruppo di delfini in Costa Rica", "ru": "Стая дельфинов в Коста-Рике", "pl": "Kostarykańskie delfiny", "fr": "Banc de dauphins du Costa Rica", "vi": "Đàn cá heo Costa Rica", "nl": "Grote groep dolfijnen in Costa Rica", "sv": "Delfinstim i Costa Rica"}},
-    {"id": "D004_L014", "name": {"en": "Humpback Whale", "de": "Buckelwal", "zh": "座头鲸", "zh-tw": "座頭鯨", "es": "Ballena jorobada", "pt": "Baleia-jubarte", "it": "Megattera", "ru": "Горбатый кит", "pl": "Humbaki", "fr": "Baleine à bosse", "vi": "Cá voi lưng gù", "nl": "Bultruggen", "sv": "Knölval"}},
-    {"id": "PA_A002_C009", "name": {"en": "Palau Jellies Blue", "de": "Quallen in Palau – Blau", "zh": "帕劳水母（蓝色）", "zh-tw": "帛琉水母藍色", "es": "Medusas en Palaos azul", "pt": "Medusas de Palau (Azul)", "it": "Meduse a Palau - Blu", "ru": "Медузы Палау — синяя", "pl": "Palauskie meduzy (niebieski)", "fr": "Méduses des Palaos (bleu)", "vi": "Sứa Palau lam", "nl": "Kwallen in Palau (blauw)", "sv": "Maneter i Palauöarna, blå"}},
-    {"id": "A016_C002", "name": {"en": "California Kelp Forest", "de": "Algenwald in Kalifornien", "zh": "加州海藻林", "zh-tw": "加州海藻林", "es": "Bosque de algas en California", "pt": "Floresta de Algas da Califórnia", "it": "Foresta di laminarie in California", "ru": "Водоросли у берегов Калифорнии", "pl": "Kalifornijski las wodorostów", "fr": "Forêt de varech en Californie", "vi": "Rừng tảo bẹ California", "nl": "Kelpwoud in Californië", "sv": "Kelpskog i Kalifornien"}},
-    {"id": "PA_A010_C007", "name": {"en": "Palau Jellies Light", "de": "Quallen in Palau – Hell", "zh": "帕劳水母（浅色）", "zh-tw": "帛琉水母亮色", "es": "Medusas en Palaos (claro)", "pt": "Medusas de Palau (Claro)", "it": "Meduse a Palau - Chiaro", "ru": "Медузы Палау — светлая", "pl": "Palauskie meduzy (jasny)", "fr": "Méduses des Palaos (clair)", "vi": "Sứa Palau sáng", "nl": "Kwallen in Palau (licht)", "sv": "Maneter i Palauöarna, ljus"}},
-    {"id": "PA_A004_C003", "name": {"en": "Palau Coral Colors", "de": "Bunte Korallen in Palau", "zh": "帕劳珊瑚（彩色）", "zh-tw": "帛琉珊瑚彩色", "es": "Coral de colores en Palaos", "pt": "Coral de Palau (Colorido)", "it": "Corallo a Palau - Colori", "ru": "Кораллы Палау — цветная", "pl": "Kolory palauskich koralowców", "fr": "Corail des Palaos (couleurs)", "vi": "Màu san hô Palau", "nl": "Koraalkleuren in Palau", "sv": "Korallrev i Palauöarna, färger"}}
+    {
+      "id": "GMT026_363A_103NC_E1027_KOREA_JAPAN_NIGHT",
+      "name": {
+        "en": "East Asia",
+        "de": "Ostasien",
+        "zh": "东亚",
+        "zh-tw": "東亞",
+        "es": "Este de Asia",
+        "pt": "Ásia Oriental",
+        "it": "Asia orientale",
+        "ru": "Восточная Азия",
+        "pl": "Azja Wschodnia",
+        "fr": "Asie de lʼEst",
+        "vi": "Đông Á",
+        "nl": "Oost-Azië",
+        "sv": "Östasien"
+      }
+    },
+    {
+      "id": "GMT110_112NC_364D_1054_AURORA_ANTARCTICA",
+      "name": {
+        "en": "Antarctica’s Southern Lights",
+        "de": "Südlichter in der Antarktis",
+        "zh": "南极洲极光",
+        "zh-tw": "南極光",
+        "es": "Aurora austral en la Antártida",
+        "pt": "Aurora Austral",
+        "it": "Aurora australe sull’Antartide",
+        "ru": "Полярное сияние над Антарктидой",
+        "pl": "Zorza polarna nad Antarktyką",
+        "fr": "Aurore australe en Antarctique",
+        "vi": "Ánh sáng phía nam của Nam Cực",
+        "nl": "Zuiderlicht in Antarctica",
+        "sv": "Södersken i Antarktis"
+      }
+    },
+    {
+      "id": "A105_C002",
+      "name": {
+        "en": "Caribbean Sea",
+        "de": "Karibisches Meer",
+        "zh": "加勒比海",
+        "zh-tw": "加勒比海",
+        "es": "Mar Caribe",
+        "pt": "Mar do Caribe",
+        "it": "Mar dei Caraibi",
+        "ru": "Карибское море",
+        "pl": "Morze Karaibskie",
+        "fr": "Mer des Caraïbes",
+        "vi": "Biển Caribe",
+        "nl": "Caraïbische Zee",
+        "sv": "Karibiska havet"
+      }
+    },
+    {
+      "id": "GMT306_139NC_139J_3066_CALI_TO_VEGAS",
+      "name": {
+        "en": "California",
+        "de": "Kalifornien",
+        "zh": "加州",
+        "zh-tw": "加州",
+        "es": "California",
+        "pt": "Califórnia",
+        "it": "California",
+        "ru": "Калифорния",
+        "pl": "Kalifornia",
+        "fr": "Californie",
+        "vi": "California",
+        "nl": "Californië",
+        "sv": "Kalifornien"
+      }
+    },
+    {
+      "id": "A103_C002_0205DG",
+      "name": {
+        "en": "North Africa",
+        "de": "Nordafrika",
+        "zh": "北非",
+        "zh-tw": "北非",
+        "es": "Norte de África",
+        "pt": "Norte da África",
+        "it": "Africa settentrionale",
+        "ru": "Северная Африка",
+        "pl": "Afryka Północna",
+        "fr": "Afrique du Nord",
+        "vi": "Bắc Phi",
+        "nl": "Noord-Afrika",
+        "sv": "Nordafrika"
+      }
+    },
+    {
+      "id": "A050_C004_1027V8",
+      "name": {
+        "en": "Nile Delta",
+        "de": "Nildelta",
+        "zh": "尼罗河三角洲",
+        "zh-tw": "尼羅河三角洲",
+        "es": "El delta del Nilo",
+        "pt": "Delta do Rio Nilo",
+        "it": "Delta del Nilo",
+        "ru": "Дельта Нила",
+        "pl": "Delta Nilu",
+        "fr": "Delta du Nil",
+        "vi": "Đồng bằng sông Nile",
+        "nl": "Nijldelta",
+        "sv": "Nildeltat"
+      }
+    },
+    {
+      "id": "GMT308_139K_142NC_CARIBBEAN_DAY",
+      "name": {
+        "en": "Caribbean",
+        "de": "Karibik",
+        "zh": "加勒比",
+        "zh-tw": "加勒比海",
+        "es": "El Caribe",
+        "pt": "Caribe",
+        "it": "Caraibi",
+        "ru": "Карибское море",
+        "pl": "Karaiby",
+        "fr": "Caraïbes",
+        "vi": "Caribe",
+        "nl": "Caraïben",
+        "sv": "Karibien"
+      }
+    },
+    {
+      "id": "GMT329_2_113NC_396B_1105",
+      "name": {
+        "en": "China Night",
+        "de": "China bei Nacht",
+        "zh": "中国夜色",
+        "zh-tw": "中國夜晚",
+        "es": "China de noche",
+        "pt": "China à Noite",
+        "it": "Cina di notte",
+        "ru": "Ночь над Китаем",
+        "pl": "Chiny w nocy",
+        "fr": "Chine (nuit)",
+        "vi": "Trung Quốc về đêm",
+        "nl": "China 's nachts",
+        "sv": "Kina på natten"
+      }
+    },
+    {
+      "id": "A001_C004_1207W5",
+      "name": {
+        "en": "West Africa",
+        "de": "Westafrika",
+        "zh": "西非",
+        "zh-tw": "西非",
+        "es": "África Occidental",
+        "pt": "África Ocidental",
+        "it": "Africa occidentale",
+        "ru": "Западная Африка",
+        "pl": "Afryka Zachodnia",
+        "fr": "Afrique occidentale",
+        "vi": "Tây Phi",
+        "nl": "West-Afrika",
+        "sv": "Västafrika"
+      }
+    },
+    {
+      "id": "A001_C001_120530",
+      "name": {
+        "en": "North Atlantic",
+        "de": "Nordatlantik",
+        "zh": "北大西洋",
+        "zh-tw": "北大西洋",
+        "es": "Atlántico norte",
+        "pt": "Atlântico Norte",
+        "it": "Atlantico settentrionale",
+        "ru": "Северная Атлантика",
+        "pl": "Północny Atlantyk",
+        "fr": "Atlantique Nord",
+        "vi": "Bắc Đại Tây Dương",
+        "nl": "Noordelijke Atlantische Oceaan",
+        "sv": "Nordatlanten"
+      }
+    },
+    {
+      "id": "GMT314_139M_170NC_NORTH_AMERICA_AURORA",
+      "name": {
+        "en": "North America Aurora",
+        "de": "Nordlichter in Nordamerika",
+        "zh": "北美极光",
+        "zh-tw": "北美極光",
+        "es": "La aurora en Norteamérica",
+        "pt": "Aurora na América do Norte",
+        "it": "Aurora boreale in Nord America",
+        "ru": "Север Америки, полярное сияние",
+        "pl": "Zorza nad Ameryką Północną",
+        "fr": "Aurore boréale en Amérique du Nord",
+        "vi": "Cực quang Bắc Mỹ",
+        "nl": "Dageraad in Noord-Amerika",
+        "sv": "Norrsken över Nordamerika"
+      }
+    },
+    {
+      "id": "A114_C001",
+      "name": {
+        "en": "Southern California",
+        "de": "Südkalifornien",
+        "zh": "南加州",
+        "zh-tw": "南加州",
+        "es": "Sur de California",
+        "pt": "Sul da Califórnia",
+        "it": "California meridionale",
+        "ru": "Южная Калифорния",
+        "pl": "Południowa Kalifornia",
+        "fr": "Californie du Sud",
+        "vi": "Nam California",
+        "nl": "Zuid-Californië",
+        "sv": "Södra Kalifornien"
+      }
+    },
+    {
+      "id": "A105_C003_0212CT",
+      "name": {
+        "en": "New Zealand",
+        "de": "Neuseeland",
+        "zh": "新西兰",
+        "zh-tw": "紐西蘭",
+        "es": "Nueva Zelanda",
+        "pt": "Nova Zelândia",
+        "it": "Nuova Zelanda",
+        "ru": "Новая Зеландия",
+        "pl": "Nowa Zelandia",
+        "fr": "Nouvelle-Zélande",
+        "vi": "New Zealand",
+        "nl": "Nieuw-Zeeland",
+        "sv": "Nya Zeeland"
+      }
+    },
+    {
+      "id": "GMT329_117NC_401C_1037_IRELAND_TO_ASIA",
+      "name": {
+        "en": "Europe Night",
+        "de": "Europa bei Nacht",
+        "zh": "欧洲夜色",
+        "zh-tw": "歐洲夜晚",
+        "es": "Europa de noche",
+        "pt": "Europa à Noite",
+        "it": "Europa di notte",
+        "ru": "Ночь над Европой",
+        "pl": "Europa w nocy",
+        "fr": "Europe (nuit)",
+        "vi": "Châu Âu về đêm",
+        "nl": "Europa 's nachts",
+        "sv": "Europa på natten"
+      }
+    },
+    {
+      "id": "GMT060_117NC_363D_1034_AUSTRALIA",
+      "name": {
+        "en": "Australia",
+        "de": "Australien",
+        "zh": "澳大利亚",
+        "zh-tw": "澳洲",
+        "es": "Australia",
+        "pt": "Austrália",
+        "it": "Australia",
+        "ru": "Австралия",
+        "pl": "Australia",
+        "fr": "Australie",
+        "vi": "Australia",
+        "nl": "Australië",
+        "sv": "Australien"
+      }
+    },
+    {
+      "id": "A351_C001_1213SK",
+      "name": {
+        "en": "South Africa",
+        "de": "Südafrika",
+        "zh": "南非",
+        "zh-tw": "南非",
+        "es": "Sudáfrica",
+        "pt": "África do Sul",
+        "it": "Africa meridionale",
+        "ru": "Южная Африка",
+        "pl": "Afryka Południowa",
+        "fr": "Afrique du Sud",
+        "vi": "Nam Phi",
+        "nl": "Zuid-Afrika",
+        "sv": "Sydafrika"
+      }
+    },
+    {
+      "id": "GMT312_162NC_139M_1041_AFRICA_NIGHT",
+      "name": {
+        "en": "Africa",
+        "de": "Afrika",
+        "zh": "非洲",
+        "zh-tw": "非洲",
+        "es": "África",
+        "pt": "África",
+        "it": "Africa",
+        "ru": "Африка",
+        "pl": "Afryka",
+        "fr": "Afrique",
+        "vi": "Châu Phi",
+        "nl": "Afrika",
+        "sv": "Afrika"
+      }
+    },
+    {
+      "id": "GMT307_136NC_134K_8277_NY_NIGHT",
+      "name": {
+        "en": "New York",
+        "de": "New York",
+        "zh": "纽约",
+        "zh-tw": "紐約",
+        "es": "Nueva York",
+        "pt": "Nova York",
+        "it": "New York",
+        "ru": "Нью‑Йорк",
+        "pl": "Nowy Jork",
+        "fr": "New York",
+        "vi": "New York",
+        "nl": "New York",
+        "sv": "New York"
+      }
+    },
+    {
+      "id": "A108_C001",
+      "name": {
+        "en": "Caribbean Islands",
+        "de": "Karibische Inseln",
+        "zh": "加勒比海岛",
+        "zh-tw": "加勒比海群島",
+        "es": "Islas del Caribe",
+        "pt": "Ilhas do Caribe",
+        "it": "Isole dei Caraibi",
+        "ru": "Карибские острова",
+        "pl": "Wyspy na Morzu Karaibskim",
+        "fr": "Îles Caraïbes",
+        "vi": "Quần đảo Caribe",
+        "nl": "Caraïbische eilanden",
+        "sv": "Karibiska öar"
+      }
+    },
+    {
+      "id": "A009_C001_10181A",
+      "name": {
+        "en": "Sahara",
+        "de": "Sahara",
+        "zh": "撒哈拉",
+        "zh-tw": "撒哈拉",
+        "es": "Sáhara",
+        "pt": "Saara",
+        "it": "Sahara",
+        "ru": "Сахара",
+        "pl": "Sahara",
+        "fr": "Sahara",
+        "vi": "Sahara",
+        "nl": "Sahara",
+        "sv": "Sahara"
+      }
+    },
+    {
+      "id": "GMT329_113NC_396B_1105_ITALY_TO_ASIA",
+      "name": {
+        "en": "Southern Europe Night",
+        "de": "Südeuropa bei Nacht",
+        "zh": "南欧夜色",
+        "zh-tw": "南歐夜晚",
+        "es": "Sur de Europa de noche",
+        "pt": "Sul da Europa à Noite",
+        "it": "Europa meridionale di notte",
+        "ru": "Ночь над Южной Европой",
+        "pl": "Europa Południowa w nocy",
+        "fr": "Europe du Sud (nuit)",
+        "vi": "Nam Âu về đêm",
+        "nl": "Zuid-Europa 's nachts",
+        "sv": "Sydeuropa på natten"
+      }
+    },
+    {
+      "id": "A083_C002_1130KZ",
+      "name": {
+        "en": "Middle East",
+        "de": "Mittlerer Osten",
+        "zh": "中东",
+        "zh-tw": "中東",
+        "es": "Oriente Medio",
+        "pt": "Oriente Médio",
+        "it": "Medio Oriente",
+        "ru": "Ближний Восток",
+        "pl": "Bliski Wschód",
+        "fr": "Moyen-Orient",
+        "vi": "Trung Đông",
+        "nl": "Midden-Oosten",
+        "sv": "Mellanöstern"
+      }
+    },
+    {
+      "id": "LW_L001_C006",
+      "name": {
+        "en": "Liwa Dune Fields",
+        "de": "Dünen von Liwa",
+        "zh": "利瓦沙丘场",
+        "zh-tw": "利瓦沙丘地",
+        "es": "Desierto de dunas de Liwa",
+        "pt": "Dunas de Liwa",
+        "it": "Dune di Liwa",
+        "ru": "Песчаные дюны в оазисе Лива",
+        "pl": "Wydmy w oazie Liwa",
+        "fr": "Champ de dunes de l’oasis de Liwa",
+        "vi": "Cồn cát Liwa",
+        "nl": "Duinvelden in Liwa",
+        "sv": "Liwa sanddyner"
+      }
+    },
+    {
+      "id": "C003_C003",
+      "name": {
+        "en": "China Silhouette",
+        "de": "Silhouette von China",
+        "zh": "中国剪影",
+        "zh-tw": "中國剪影",
+        "es": "Silueta de China",
+        "pt": "Silhueta da China",
+        "it": "Silhouette della Cina",
+        "ru": "Китайский силуэт",
+        "pl": "Zarys szczytów w Chinach",
+        "fr": "Contours de la Chine",
+        "vi": "Bóng mờ Trung Quốc",
+        "nl": "Silhouet van China",
+        "sv": "Kina silhuett"
+      }
+    },
+    {
+      "id": "H007_C003",
+      "name": {
+        "en": "Hawaii Coastline",
+        "de": "Küstenlinie Hawaiis",
+        "zh": "夏威夷海岸线",
+        "zh-tw": "夏威夷海岸線",
+        "es": "Litoral de Hawái",
+        "pt": "Costa do Havaí",
+        "it": "Costa delle Hawaii",
+        "ru": "Гавайское побережье",
+        "pl": "Wybrzeże na Hawajach",
+        "fr": "Côte de Hawaï",
+        "vi": "Đường bờ biển Hawaii",
+        "nl": "Kustlijn van Hawaï",
+        "sv": "Hawaiis kustlinje"
+      }
+    },
+    {
+      "id": "C004_C003",
+      "name": {
+        "en": "China’s Great Wall",
+        "de": "Chinesische Mauer",
+        "zh": "中国长城",
+        "zh-tw": "中國萬里長城",
+        "es": "Gran Muralla China",
+        "pt": "Grande Muralha da China",
+        "it": "Grande muraglia cinese",
+        "ru": "Великая Китайская стена",
+        "pl": "Wielki Mur Chiński",
+        "fr": "Grande Muraille de Chine",
+        "vi": "Vạn Lý Trường Thành",
+        "nl": "Chinese Muur",
+        "sv": "Kinesiska muren"
+      }
+    },
+    {
+      "id": "H004_C009",
+      "name": {
+        "en": "Hawaii Clouds Light",
+        "de": "Wolken über Hawaii – Hell",
+        "zh": "夏威夷云层（浅色）",
+        "zh-tw": "夏威夷雲層亮色",
+        "es": "Nubes en Hawái (claro)",
+        "pt": "Nuvens do Havaí (Claro)",
+        "it": "Nuvole sulle Hawaii - Chiaro",
+        "ru": "Гавайи: облака — светлая",
+        "pl": "Hawajskie chmury (jasny)",
+        "fr": "Nuages à HawaÏ (clair)",
+        "vi": "Mây Hawaii sáng",
+        "nl": "Wolken in Hawaiï (licht)",
+        "sv": "Hawaii med moln, ljus"
+      }
+    },
+    {
+      "id": "GL_G002_C002",
+      "name": {
+        "en": "Greenland Coast",
+        "de": "Küste Grönlands",
+        "zh": "格陵兰海岸",
+        "zh-tw": "格陵蘭海岸",
+        "es": "Costa de Groenlandia",
+        "pt": "Costa da Groenlândia",
+        "it": "Costa della Groenlandia",
+        "ru": "Побережье Гренландии",
+        "pl": "Wybrzeże Grenlandii",
+        "fr": "Côte du Groenland",
+        "vi": "Bờ biển Greenland",
+        "nl": "Kust in Groenland",
+        "sv": "Grönlandskusten"
+      }
+    },
+    {
+      "id": "H012_C009_0",
+      "name": {
+        "en": "Hawaii Ocean",
+        "de": "Ozean um Hawaii",
+        "zh": "夏威夷洋",
+        "zh-tw": "夏威夷海洋",
+        "es": "Océano en Hawái",
+        "pt": "Oceano no Havaí",
+        "it": "Oceano delle Hawaii",
+        "ru": "Океан на Гавайях",
+        "pl": "Ocean na Hawajach",
+        "fr": "Océan à Hawaï",
+        "vi": "Đại dương Hawaii",
+        "nl": "Oceaan in Hawaï",
+        "sv": "Solnedgång i Hawaii"
+      }
+    },
+    {
+      "id": "H005_C012",
+      "name": {
+        "en": "Hawaii Valley",
+        "de": "Tal auf Hawaii",
+        "zh": "夏威夷谷",
+        "zh-tw": "夏威夷峽谷",
+        "es": "Valle de Hawái",
+        "pt": "Vale do Havaí",
+        "it": "Valle delle Hawaii",
+        "ru": "Долина на Гавайях",
+        "pl": "Dolina na Hawajach",
+        "fr": "Vallée de Hawaï",
+        "vi": "Thung lũng Hawaii",
+        "nl": "Vallei in Hawaï",
+        "sv": "Hawaiidal"
+      }
+    },
+    {
+      "id": "H004_C007",
+      "name": {
+        "en": "Hawaii Clouds Dark",
+        "de": "Wolken über Hawaii – Dunkel",
+        "zh": "夏威夷云层（深色）",
+        "zh-tw": "夏威夷雲層暗色",
+        "es": "Nubes en Hawái (oscuro)",
+        "pt": "Nuvens do Havaí (Escuro)",
+        "it": "Nuvole sulle Hawaii - Scuro",
+        "ru": "Гавайи: облака — темная",
+        "pl": "Hawajskie chmury (ciemny)",
+        "fr": "Nuages à Hawaï (sombre)",
+        "vi": "Mây Hawaii tối",
+        "nl": "Wolken in Hawaiï (donker)",
+        "sv": "Hawaii med moln, mörk"
+      }
+    },
+    {
+      "id": "CH_C002_C005",
+      "name": {
+        "en": "China Paddy Field",
+        "de": "Reisfeld in China",
+        "zh": "中国稻田",
+        "zh-tw": "中國稻田",
+        "es": "Arrozal en China",
+        "pt": "Arrozais na China",
+        "it": "Risaia in Cina",
+        "ru": "Заливное поле в Китае",
+        "pl": "Pole ryżowe w Chinach",
+        "fr": "Rizière chinoise",
+        "vi": "Ruộng bậc thang Trung Quốc",
+        "nl": "Rijstveld in China",
+        "sv": "Kina risfält"
+      }
+    },
+    {
+      "id": "LW_L001_C003",
+      "name": {
+        "en": "Liwa Horizon",
+        "de": "Horizont in der Liwa-Oase",
+        "zh": "利瓦地平线",
+        "zh-tw": "利瓦地平線",
+        "es": "Horizonte de Liwa",
+        "pt": "Horizonte de Liwa",
+        "it": "Orizzonte di Liwa",
+        "ru": "Горизонт в оазисе Лива",
+        "pl": "Horyzont w oazie Liwa",
+        "fr": "Ligne d’horizon de l’oasis de Liwa",
+        "vi": "Chân trời Liwa",
+        "nl": "Horizon van Liwa",
+        "sv": "Horisont i Liwa"
+      }
+    },
+    {
+      "id": "CH_C007_C011",
+      "name": {
+        "en": "China Mountains",
+        "de": "Berge in China",
+        "zh": "中国的高山",
+        "zh-tw": "中國群山",
+        "es": "Montañas de China",
+        "pt": "Montanhas da China",
+        "it": "Montagne in Cina",
+        "ru": "Горы в Китае",
+        "pl": "Góry w Chinach",
+        "fr": "Montagnes de Chine",
+        "vi": "Núi Trung Quốc",
+        "nl": "Bergen in China",
+        "sv": "Kina berg"
+      }
+    },
+    {
+      "id": "GL_G004_C010",
+      "name": {
+        "en": "Greenland Glacier",
+        "de": "Gletscher in Grönland",
+        "zh": "格陵兰大冰川",
+        "zh-tw": "格陵蘭冰河",
+        "es": "Glaciar de Groenlandia",
+        "pt": "Geleira da Groenlândia",
+        "it": "Ghiacciaio della Groenlandia",
+        "ru": "Ледник в Гренландии",
+        "pl": "Lodowiec na Grenlandii",
+        "fr": "Glacier au Groenland",
+        "vi": "Sông băng Greenland",
+        "nl": "Gletsjer in Groenland",
+        "sv": "Grönländsk glaciär"
+      }
+    },
+    {
+      "id": "CH_C007_C004",
+      "name": {
+        "en": "China Mountain Cliffs",
+        "de": "Berghänge in China",
+        "zh": "中国的崇山峻岭",
+        "zh-tw": "中國山壁斷崖",
+        "es": "Desfiladeros de China",
+        "pt": "Penhascos na China",
+        "it": "Scogliere in Cina",
+        "ru": "Горные утесы в Китае",
+        "pl": "Zbocza górskie w Chinach",
+        "fr": "Falaises de Chine",
+        "vi": "Vách núi Trung Quốc",
+        "nl": "Bergrotsen in China",
+        "sv": "Kina bergsklippor"
+      }
+    },
+    {
+      "id": "GL_G010_C006",
+      "name": {
+        "en": "Greenland Evening",
+        "de": "Abend in Grönland",
+        "zh": "格陵兰黄昏",
+        "zh-tw": "格陵蘭傍晚",
+        "es": "Groenlandia por la tarde",
+        "pt": "Groenlândia à Noite",
+        "it": "Groenlandia di sera",
+        "ru": "Вечер над Гренландией",
+        "pl": "Grenlandia wieczorem",
+        "fr": "Groenland (soir)",
+        "vi": "Greenland buổi tối",
+        "nl": "Groenland 's avonds",
+        "sv": "Grönland på kvällen"
+      }
+    },
+    {
+      "id": "C001_C005",
+      "name": {
+        "en": "China’s Great Wall Daylight",
+        "de": "Chinesische Mauer bei Tag",
+        "zh": "日光下的中国长城",
+        "zh-tw": "中國萬里長城白晝",
+        "es": "Gran Muralla China de día",
+        "pt": "Grande Muralha da China de Dia",
+        "it": "Grande muraglia cinese di giorno",
+        "ru": "Великая Китайская стена днем",
+        "pl": "Wielki Mur Chiński za dnia",
+        "fr": "Grande Muraille de Chine de jour",
+        "vi": "Vạn Lý Trường Thành ban ngày",
+        "nl": "Chinese Muur (daglicht)",
+        "sv": "Kinesiska muren i dagsljus"
+      }
+    },
+    {
+      "id": "DB_D002_C003",
+      "name": {
+        "en": "Dubai Skyline",
+        "de": "Skyline von Dubai",
+        "zh": "迪拜天际线",
+        "zh-tw": "杜拜天際線",
+        "es": "Silueta de la ciudad de Dubái",
+        "pt": "Linha do Horizonte de Dubai",
+        "it": "Panorama di Dubai",
+        "ru": "Вид на Дубай",
+        "pl": "Panorama Dubaju",
+        "fr": "Skyline de Dubaï",
+        "vi": "Đường chân trời Dubai",
+        "nl": "Skyline van Dubai",
+        "sv": "Dubais stadssilhuett"
+      }
+    },
+    {
+      "id": "HK_H004_C013",
+      "name": {
+        "en": "Hong Kong Skyline",
+        "de": "Skyline von Hongkong",
+        "zh": "香港天际线",
+        "zh-tw": "香港天際線",
+        "es": "Silueta de la ciudad de Hong Kong",
+        "pt": "Linha do Horizonte de Hong Kong",
+        "it": "Panorama di Hong Kong",
+        "ru": "Вид на Гонконг",
+        "pl": "Panorama Hongkongu",
+        "fr": "Skyline de Hong Kong",
+        "vi": "Đường chân trời Hồng Kông",
+        "nl": "Skyline van Hongkong",
+        "sv": "Hongkongs stadssilhuett"
+      }
+    },
+    {
+      "id": "A007_C017",
+      "name": {
+        "en": "San Francisco Evening",
+        "de": "Abend in San Francisco",
+        "zh": "旧金山黄昏",
+        "zh-tw": "舊金山傍晚",
+        "es": "San Francisco por la tarde",
+        "pt": "Noite em São Francisco",
+        "it": "San Francisco di sera",
+        "ru": "Сан‑Франциско: вечер",
+        "pl": "San Francisco wieczorem",
+        "fr": "San Francisco (soir)",
+        "vi": "San Francisco buổi tối",
+        "nl": "San Francisco 's avonds",
+        "sv": "San Francisco på kvällen"
+      }
+    },
+    {
+      "id": "LA_A005_C009",
+      "name": {
+        "en": "Los Angeles Overpass",
+        "de": "Überführung in Los Angeles",
+        "zh": "洛杉矶立交桥",
+        "zh-tw": "洛杉磯高架橋",
+        "es": "Paso elevado de Los Ángeles",
+        "pt": "Viaduto de Los Angeles",
+        "it": "Viadotto a Los Angeles",
+        "ru": "Дорожная развязка в Лос‑Анджелесе",
+        "pl": "Wiadukt drogowy w Los Angeles",
+        "fr": "Pont routier de Los Angeles",
+        "vi": "Cầu vượt Los Angeles",
+        "nl": "Viaduct in Los Angeles",
+        "sv": "Vägbro i Los Angeles"
+      }
+    },
+    {
+      "id": "N008_C009",
+      "name": {
+        "en": "New York from Above",
+        "de": "New York von oben",
+        "zh": "俯瞰纽约",
+        "zh-tw": "俯瞰紐約",
+        "es": "Vista aérea de Nueva York",
+        "pt": "Nova York de Cima",
+        "it": "New York dall’alto",
+        "ru": "Вид сверху на Нью‑Йорк",
+        "pl": "Nowy Jork z lotu ptaka",
+        "fr": "Survol de New York",
+        "vi": "New York từ trên cao",
+        "nl": "New York van boven",
+        "sv": "New York från ovan"
+      }
+    },
+    {
+      "id": "A015_C018",
+      "name": {
+        "en": "San Francisco Night",
+        "de": "Nacht in San Francisco",
+        "zh": "旧金山夜色",
+        "zh-tw": "舊金山夜晚",
+        "es": "San Francisco de noche",
+        "pt": "São Francisco à Noite",
+        "it": "San Francisco di notte",
+        "ru": "Сан‑Франциско: ночь",
+        "pl": "San Francisco w nocy",
+        "fr": "San Francisco (nuit)",
+        "vi": "San Francisco về đêm",
+        "nl": "San Francisco 's nachts",
+        "sv": "San Francisco på natten"
+      }
+    },
+    {
+      "id": "DB_D001_C005",
+      "name": {
+        "en": "Dubai Creek",
+        "de": "Dubai Creek",
+        "zh": "迪拜湾",
+        "zh-tw": "杜拜灣",
+        "es": "Arroyo en Dubái",
+        "pt": "Dubai Creek",
+        "it": "Dubai Creek",
+        "ru": "Морской пролив в Дубае",
+        "pl": "Zatoka Dubai Creek",
+        "fr": "Khor Dubaï",
+        "vi": "Lạch Dubai",
+        "nl": "Dubaikreek",
+        "sv": "Dubai Creek"
+      }
+    },
+    {
+      "id": "N013_C004",
+      "name": {
+        "en": "New York Night",
+        "de": "Nacht über New York",
+        "zh": "纽约夜色",
+        "zh-tw": "紐約夜晚",
+        "es": "Nueva York de noche",
+        "pt": "Nova York à Noite",
+        "it": "New York di notte",
+        "ru": "Ночь в Нью‑Йорке",
+        "pl": "Nowy Jork w nocy",
+        "fr": "Nuit new-yorkaise",
+        "vi": "Đêm New York",
+        "nl": "New York 's nachts",
+        "sv": "Natt i New York"
+      }
+    },
+    {
+      "id": "A013_C004",
+      "name": {
+        "en": "San Francisco’s Ferry Building",
+        "de": "Ferry Building in San Francisco",
+        "zh": "旧金山渡轮大厦",
+        "zh-tw": "舊金山渡輪大廈",
+        "es": "Ferry Building en San Francisco",
+        "pt": "Ferry Building em São Francisco",
+        "it": "Ferry Building di San Francisco",
+        "ru": "Сан‑Франциско: паромный вокзал",
+        "pl": "Ferry Building w San Francisco",
+        "fr": "Ferry Building de San Francisco",
+        "vi": "Tòa nhà Bến phà San Francisco",
+        "nl": "Ferry Building van San Francisco",
+        "sv": "San Franciscos färjebyggnad"
+      }
+    },
+    {
+      "id": "L010_C006",
+      "name": {
+        "en": "London Skyline",
+        "de": "Skyline von London",
+        "zh": "伦敦天际线",
+        "zh-tw": "倫敦天際線",
+        "es": "Silueta de la ciudad de Londres",
+        "pt": "Linha do Horizonte de Londres",
+        "it": "Panorama di Londra",
+        "ru": "Вид на Лондон",
+        "pl": "Panorama Londynu",
+        "fr": "Skyline de Londres",
+        "vi": "Đường chân trời London",
+        "nl": "Skyline van Londen",
+        "sv": "Londons stadssilhuett"
+      }
+    },
+    {
+      "id": "N008_C003",
+      "name": {
+        "en": "New York Skyline",
+        "de": "Skyline von New York",
+        "zh": "纽约天际线",
+        "zh-tw": "紐約天際線",
+        "es": "Silueta de la ciudad de Nueva York",
+        "pt": "Linha do Horizonte de Nova York",
+        "it": "Panorama di New York",
+        "ru": "Вид на Нью‑Йорк",
+        "pl": "Panorama Nowego Jorku",
+        "fr": "Skyline de New York",
+        "vi": "Đường chân trời New York",
+        "nl": "Skyline van New York",
+        "sv": "New Yorks stadssilhuett"
+      }
+    },
+    {
+      "id": "A013_C012",
+      "name": {
+        "en": "San Francisco’s Golden Gate Bridge",
+        "de": "Golden Gate Bridge in San Francisco",
+        "zh": "旧金山金门大桥",
+        "zh-tw": "舊金山金門大橋",
+        "es": "Puente Golden Gate en San Francisco",
+        "pt": "Ponte Golden Gate em São Francisco",
+        "it": "Golden Gate Bridge di San Francisco",
+        "ru": "Сан‑Франциско: Золотые Ворота",
+        "pl": "Golden Gate Bridge w San Francisco",
+        "fr": "Golden Gate Bridge de San Francisco",
+        "vi": "Cầu Cổng Vàng San Francisco",
+        "nl": "Golden Gate Bridge San Francisco",
+        "sv": "San Franciscos Golden Gate-bro"
+      }
+    },
+    {
+      "id": "L004_C011",
+      "name": {
+        "en": "London Thames",
+        "de": "Themse in London",
+        "zh": "伦敦泰晤士河",
+        "zh-tw": "倫敦泰晤士河",
+        "es": "Río Támesis en Londres",
+        "pt": "Rio Tâmisa, em Londres",
+        "it": "Tamigi di Londra",
+        "ru": "Река Темза в Лондоне",
+        "pl": "Tamiza w Londynie",
+        "fr": "Tamise de Londres",
+        "vi": "Sông Thames ở London",
+        "nl": "De Theems in Londen",
+        "sv": "Themsen i London"
+      }
+    },
+    {
+      "id": "N003_C006",
+      "name": {
+        "en": "New York Midtown",
+        "de": "Midtown New York",
+        "zh": "纽约中城区",
+        "zh-tw": "紐約中城",
+        "es": "Centro de Nueva York",
+        "pt": "Midtown em Nova York",
+        "it": "Centro di New York",
+        "ru": "Центр Нью‑Йорка",
+        "pl": "Śródmieście Nowego Jorku",
+        "fr": "Midtown, New York",
+        "vi": "Trung tâm New York",
+        "nl": "New York Midtown",
+        "sv": "Midtown i New York"
+      }
+    },
+    {
+      "id": "A012_C014",
+      "name": {
+        "en": "San Francisco Skyline",
+        "de": "Skyline von San Francisco",
+        "zh": "旧金山天际线",
+        "zh-tw": "舊金山天際線",
+        "es": "Silueta de la ciudad de San Francisco",
+        "pt": "Linha do Horizonte de São Francisco",
+        "it": "Panorama di San Francisco",
+        "ru": "Вид на Сан‑Франциско",
+        "pl": "Panorama San Francisco",
+        "fr": "Skyline de San Francisco",
+        "vi": "Đường chân trời San Francisco",
+        "nl": "Skyline van San Francisco",
+        "sv": "San Franciscos stadssilhuett"
+      }
+    },
+    {
+      "id": "DB_D008_C010",
+      "name": {
+        "en": "Dubai from Above",
+        "de": "Dubai von oben",
+        "zh": "俯瞰迪拜",
+        "zh-tw": "俯瞰杜拜",
+        "es": "Vista aérea de Dubái",
+        "pt": "Dubai de Cima",
+        "it": "Dubai dall’alto",
+        "ru": "Вид сверху на Дубай",
+        "pl": "Dubaj z lotu ptaka",
+        "fr": "Survol de Dubaï",
+        "vi": "Dubai từ trên cao",
+        "nl": "Dubai van boven",
+        "sv": "Dubai från ovan"
+      }
+    },
+    {
+      "id": "LA_A009_C009",
+      "name": {
+        "en": "Los Angeles Sunset",
+        "de": "Sonnenuntergang in Los Angeles",
+        "zh": "洛杉矶日落",
+        "zh-tw": "洛杉磯日落",
+        "es": "Puesta de sol en Los Ángeles",
+        "pt": "Pôr do Sol em Los Angeles",
+        "it": "Tramonto a Los Angeles",
+        "ru": "Лос‑Анджелес: закат",
+        "pl": "Zachód słońca w Los Angeles",
+        "fr": "Los Angeles (coucher de soleil)",
+        "vi": "Mặt trời lặn ở Los Angeles",
+        "nl": "Zonsondergang in Los Angeles",
+        "sv": "Los Angeles solnedgång"
+      }
+    },
+    {
+      "id": "LA_A008_C004",
+      "name": {
+        "en": "Los Angeles Beach",
+        "de": "Strand in Los Angeles",
+        "zh": "洛杉矶海滩",
+        "zh-tw": "洛杉磯海灘",
+        "es": "Playa de Los Ángeles",
+        "pt": "Praia de Los Angeles",
+        "it": "Spiaggia di Los Angeles",
+        "ru": "Пляж в Лос‑Анджелесе",
+        "pl": "Plaża w Los Angeles",
+        "fr": "Plage de Los Angeles",
+        "vi": "Bãi biển Los Angeles",
+        "nl": "Strand in Los Angeles",
+        "sv": "Los Angeles strand"
+      }
+    },
+    {
+      "id": "DB_D011_C010",
+      "name": {
+        "en": "Dubai Night",
+        "de": "Nacht in Dubai",
+        "zh": "迪拜夜色",
+        "zh-tw": "杜拜夜晚",
+        "es": "Dubái de noche",
+        "pt": "Dubai à Noite",
+        "it": "Dubai di notte",
+        "ru": "Ночь над Дубаем",
+        "pl": "Dubaj w nocy",
+        "fr": "Dubaï (nuit)",
+        "vi": "Dubai về đêm",
+        "nl": "Dubai 's nachts",
+        "sv": "Dubai på natten"
+      }
+    },
+    {
+      "id": "L007_C007",
+      "name": {
+        "en": "London from Above",
+        "de": "London von oben",
+        "zh": "俯瞰伦敦",
+        "zh-tw": "俯瞰倫敦",
+        "es": "Vista aérea de Londres",
+        "pt": "Londres de Cima",
+        "it": "Londra dall’alto",
+        "ru": "Вид сверху на Лондон",
+        "pl": "Londyn z lotu ptaka",
+        "fr": "Survol de Londres",
+        "vi": "London từ trên cao",
+        "nl": "Londen van boven",
+        "sv": "London från ovan"
+      }
+    },
+    {
+      "id": "HK_H004_C010",
+      "name": {
+        "en": "Hong Kong Horizon",
+        "de": "Horizont in Hongkong",
+        "zh": "香港地平线",
+        "zh-tw": "香港地平線",
+        "es": "Horizonte de Hong Kong",
+        "pt": "Horizonte de Hong Kong",
+        "it": "Orizzonte di Hong Kong",
+        "ru": "Горизонт в Гонконге",
+        "pl": "Horyzont w Hongkongu",
+        "fr": "Ligne d’horizon de Hong Kong",
+        "vi": "Chân trời Hồng Kông",
+        "nl": "Horizon van Hongkong",
+        "sv": "Horisont i Hongkong"
+      }
+    },
+    {
+      "id": "LA_A006_C008",
+      "name": {
+        "en": "Los Angeles Airport",
+        "de": "Flughafen in Los Angeles",
+        "zh": "洛杉矶机场",
+        "zh-tw": "洛杉磯機場",
+        "es": "Aeropuerto de Los Ángeles",
+        "pt": "Aeroporto de Los Angeles",
+        "it": "Aeroporto di Los Angeles",
+        "ru": "Аэропорт Лос‑Анджелеса",
+        "pl": "Lotnisko w Los Angeles",
+        "fr": "Aéroport de Los Angeles",
+        "vi": "Sân bay Los Angeles",
+        "nl": "Luchthaven in Los Angeles",
+        "sv": "Los Angeles flygplats"
+      }
+    },
+    {
+      "id": "A006_C003",
+      "name": {
+        "en": "San Francisco Bay",
+        "de": "Bucht von San Francisco",
+        "zh": "旧金山湾区",
+        "zh-tw": "舊金山灣",
+        "es": "Bahía de San Francisco",
+        "pt": "Baía de São Francisco",
+        "it": "Baia di San Francisco",
+        "ru": "Залив Сан‑Франциско",
+        "pl": "Zatoka San Francisco",
+        "fr": "Baie de San Francisco",
+        "vi": "Vịnh San Francisco",
+        "nl": "De baai van San Francisco",
+        "sv": "San Francisco Bay"
+      }
+    },
+    {
+      "id": "DB_D001_C001",
+      "name": {
+        "en": "Dubai Creek Harbor",
+        "de": "Dubai Creek Harbor",
+        "zh": "迪拜湾码头",
+        "zh-tw": "杜拜灣碼頭",
+        "es": "Creek Harbor en Dubái",
+        "pt": "Porto de Dubai Creek",
+        "it": "Dubai Creek Harbor",
+        "ru": "Гавань в Дубае",
+        "pl": "Osiedle Dubai Creek Harbor",
+        "fr": "Port du Khor Dubaï",
+        "vi": "Bến du thuyền Lạch Dubai",
+        "nl": "Haven van de Dubaikreek",
+        "sv": "Dubai Creek Harbour"
+      }
+    },
+    {
+      "id": "HK_B005_C011",
+      "name": {
+        "en": "Hong Kong Night",
+        "de": "Nacht in Hongkong",
+        "zh": "香港夜色",
+        "zh-tw": "香港夜晚",
+        "es": "Hong Kong de noche",
+        "pt": "Hong Kong à Noite",
+        "it": "Hong Kong di notte",
+        "ru": "Ночь над Гонконгом",
+        "pl": "Hongkong w nocy",
+        "fr": "Hong Kong (nuit)",
+        "vi": "Hồng Kông về đêm",
+        "nl": "Hongkong 's nachts",
+        "sv": "Hongkong på natten"
+      }
+    },
+    {
+      "id": "LA_A006_C004",
+      "name": {
+        "en": "Los Angeles Hills",
+        "de": "Hügel in Los Angeles",
+        "zh": "洛杉矶山丘",
+        "zh-tw": "洛杉磯山丘",
+        "es": "Colinas de Los Ángeles",
+        "pt": "Montanhas de Los Angeles",
+        "it": "Colline di Los Angeles",
+        "ru": "Лос‑Анджелес: холмы",
+        "pl": "Wzgórza w Los Angeles",
+        "fr": "Collines de Los Angeles",
+        "vi": "Đồi ở Los Angeles",
+        "nl": "Heuvels in Los Angeles",
+        "sv": "Kullar i Los Angeles"
+      }
+    },
+    {
+      "id": "A008_C007",
+      "name": {
+        "en": "San Francisco Fog",
+        "de": "Nebel in San Francisco",
+        "zh": "雾中旧金山",
+        "zh-tw": "舊金山濃霧",
+        "es": "Niebla en San Francisco",
+        "pt": "Neblina em São Francisco",
+        "it": "Nebbia a San Francisco",
+        "ru": "Сан‑Франциско: туман",
+        "pl": "Mgła w San Francisco",
+        "fr": "Brouillard de San Francisco",
+        "vi": "Sương mù San Francisco",
+        "nl": "Mist in San Francisco",
+        "sv": "Dimma i San Francisco"
+      }
+    },
+    {
+      "id": "LA_A011_C003",
+      "name": {
+        "en": "Los Angeles Night",
+        "de": "Nacht in Los Angeles",
+        "zh": "洛杉矶夜色",
+        "zh-tw": "洛杉磯夜晚",
+        "es": "Los Ángeles de noche",
+        "pt": "Los Angeles à Noite",
+        "it": "Los Angeles di notte",
+        "ru": "Лос‑Анджелес: ночь",
+        "pl": "Los Angeles w nocy",
+        "fr": "Los Angeles (nuit)",
+        "vi": "Los Angeles về đêm",
+        "nl": "Los Angeles 's nachts",
+        "sv": "Los Angeles på natten"
+      }
+    },
+    {
+      "id": "L012_C002",
+      "name": {
+        "en": "London Evening",
+        "de": "Abend in London",
+        "zh": "伦敦黄昏",
+        "zh-tw": "倫敦傍晚",
+        "es": "Londres por la tarde",
+        "pt": "Londres à Noite",
+        "it": "Londra di sera",
+        "ru": "Вечер над Лондоном",
+        "pl": "Londyn wieczorem",
+        "fr": "Londres (soir)",
+        "vi": "London buổi tối",
+        "nl": "Londen 's avonds",
+        "sv": "London på kvällen"
+      }
+    },
+    {
+      "id": "HK_H004_C008",
+      "name": {
+        "en": "Hong Kong Harbor",
+        "de": "Hafen in Hongkong",
+        "zh": "香港港湾",
+        "zh-tw": "香港港口",
+        "es": "Puerto de Hong Kong",
+        "pt": "Porto de Hong Kong",
+        "it": "Porto di Hong Kong",
+        "ru": "Гавань в Гонконге",
+        "pl": "Port w Hongkongu",
+        "fr": "Port de Hong Kong",
+        "vi": "Cảng Hồng Kông",
+        "nl": "Haven van Hongkong",
+        "sv": "Hongkongs hamn"
+      }
+    },
+    {
+      "id": "TH_803_A001_8",
+      "name": {
+        "en": "Tahiti Waves Mist",
+        "de": "Gischt in Tahiti",
+        "zh": "塔希提岛波浪雾",
+        "zh-tw": "大溪地海浪薄霧",
+        "es": "Bruma de olas en Tahití",
+        "pt": "Bruma de Ondas do Tahiti",
+        "it": "Foschia sulle onde a Tahiti",
+        "ru": "Туман над волнами на Таити",
+        "pl": "Pył wodny nad falami na Tahiti",
+        "fr": "Embruns des vagues tahitiennes",
+        "vi": "Sương mù sóng biển Tahiti",
+        "nl": "Mist van golven in Tahiti",
+        "sv": "Vågskum i Tahiti"
+      }
+    },
+    {
+      "id": "B002_C011",
+      "name": {
+        "en": "California Dolphin Pod",
+        "de": "Schule von Delfinen in Kalifornien",
+        "zh": "加州海豚群",
+        "zh-tw": "加州海豚群",
+        "es": "Manada de delfines en California",
+        "pt": "Grupo de Golfinhos da Califórnia",
+        "it": "Gruppo di delfini in California",
+        "ru": "Стая дельфинов в Калифорнии",
+        "pl": "Gromada delfinów",
+        "fr": "Banc de dauphins de Californie",
+        "vi": "Đàn cá heo California",
+        "nl": "Grote groep dolfijnen in Californië",
+        "sv": "Delfinstim i Kalifornien"
+      }
+    },
+    {
+      "id": "BO_A018_C029",
+      "name": {
+        "en": "Barracuda Battery",
+        "de": "Barrakudaschwarm",
+        "zh": "梭鱼群",
+        "zh-tw": "金梭魚群",
+        "es": "Banco de barracudas",
+        "pt": "Cardume de Barracudas",
+        "it": "Banco di barracuda",
+        "ru": "Косяк барракуд",
+        "pl": "Grupa barakud",
+        "fr": "Banc de barracudas",
+        "vi": "Đàn cá nhồng",
+        "nl": "Grote groep barracuda's",
+        "sv": "Barracudastim"
+      }
+    },
+    {
+      "id": "U009_C004",
+      "name": {
+        "en": "Gray Reef Sharks",
+        "de": "Graue Riffhaie",
+        "zh": "灰礁鲨",
+        "zh-tw": "黑尾真鯊",
+        "es": "Tiburones grises",
+        "pt": "Tubarões Cinzentos de Recifes",
+        "it": "Squali grigi del reef",
+        "ru": "Темноперые серые акулы",
+        "pl": "Żarłacze rafowe",
+        "fr": "Requins gris de récif",
+        "vi": "Cá mập sọc trắng",
+        "nl": "Grijze rifhaaien",
+        "sv": "Grå revhajar"
+      }
+    },
+    {
+      "id": "A014_C023",
+      "name": {
+        "en": "Jack School",
+        "de": "Stachelmakrelenschwarm",
+        "zh": "杰克鱼群",
+        "zh-tw": "傑克魚群",
+        "es": "Banco de jureles",
+        "pt": "Cardume de Carangídeos",
+        "it": "Banco di carangidi",
+        "ru": "Косяк ставриды",
+        "pl": "Ławica ostroboków",
+        "fr": "Banc de madeleineaux",
+        "vi": "Đàn cá chó",
+        "nl": "Grote groep snoeken",
+        "sv": "Taggmakrillstim"
+      }
+    },
+    {
+      "id": "A012_C031",
+      "name": {
+        "en": "Sea Stars",
+        "de": "Seesterne",
+        "zh": "海星",
+        "zh-tw": "海星",
+        "es": "Estrellas de mar",
+        "pt": "Estrelas-do-mar",
+        "it": "Stelle marine",
+        "ru": "Морские звезды",
+        "pl": "Rozgwiazdy",
+        "fr": "Étoiles de mer",
+        "vi": "Sao biển",
+        "nl": "Zeesterren",
+        "sv": "Sjöstjärnor"
+      }
+    },
+    {
+      "id": "A006_C008",
+      "name": {
+        "en": "Cownose Rays",
+        "de": "Kuhnasenrochen",
+        "zh": "牛鼻鲼",
+        "zh-tw": "牛鼻鰩",
+        "es": "Rayas",
+        "pt": "Raias-focinho-de-boi",
+        "it": "Razze",
+        "ru": "Скаты-бычерылы",
+        "pl": "Płaszczki karbogłowe",
+        "fr": "Mourines américaines",
+        "vi": "Cá đuối mõm bò",
+        "nl": "Adelaarsroggen",
+        "sv": "Komulerockor"
+      }
+    },
+    {
+      "id": "KP_A010_C002",
+      "name": {
+        "en": "Kelp Dark",
+        "de": "Seetang – Dunkel",
+        "zh": "海藻（深色）",
+        "zh-tw": "海藻暗色",
+        "es": "Algas marinas (oscuro)",
+        "pt": "Algas (Escuro)",
+        "it": "Alghe laminarie - Scuro",
+        "ru": "Водоросли — темная",
+        "pl": "Wodorosty morskie (ciemny)",
+        "fr": "Varech (sombre)",
+        "vi": "Tảo bẹ tối",
+        "nl": "Kelp (donker)",
+        "sv": "Kelp, mörk"
+      }
+    },
+    {
+      "id": "BO_A014_C008",
+      "name": {
+        "en": "Bumpheads",
+        "de": "Papageifische",
+        "zh": "隆头鹦嘴鱼",
+        "zh-tw": "隆頭鸚哥魚",
+        "es": "Peces loro",
+        "pt": "Peixes-papagaios Cabeçudos",
+        "it": "Pesci pappagallo giganti",
+        "ru": "Шишколобые рыбы-попугаи",
+        "pl": "Ryby z rafy koralowej",
+        "fr": "Poissons-perroquets à bosse",
+        "vi": "Cá mó đầu gù",
+        "nl": "Bultkoppen",
+        "sv": "Papegojfiskar"
+      }
+    },
+    {
+      "id": "A008_C010",
+      "name": {
+        "en": "Red Sea Coral from Above",
+        "de": "Korallen im roten Meer von oben",
+        "zh": "俯瞰红海珊瑚",
+        "zh-tw": "俯瞰紅海珊瑚",
+        "es": "Corales del mar Rojo desde arriba",
+        "pt": "Corais do Mar Vermelho de Cima",
+        "it": "Corallo nel Mar Rosso dall’alto",
+        "ru": "Кораллы Красного моря: вид сверху",
+        "pl": "Koralowce Morza Czerwonego",
+        "fr": "Survol du Corail de la mer Rouge",
+        "vi": "Red Sea Coral từ phía trên",
+        "nl": "Koraal in Rode Zee van boven",
+        "sv": "Röd havskorall från ovan"
+      }
+    },
+    {
+      "id": "SE_A016_C009",
+      "name": {
+        "en": "Seal Pod",
+        "de": "Robbenkolonie",
+        "zh": "海豹群",
+        "zh-tw": "海豹群",
+        "es": "Manada de focas",
+        "pt": "Grupo de Focas",
+        "it": "Branco di foche",
+        "ru": "Стая тюленей",
+        "pl": "Stado fok",
+        "fr": "Échouerie de phoques",
+        "vi": "Đàn hải cẩu",
+        "nl": "Grote groep zeehonden",
+        "sv": "Sälhjord"
+      }
+    },
+    {
+      "id": "TH_804_A001_8",
+      "name": {
+        "en": "Tahiti Coast",
+        "de": "Tahitis Küste",
+        "zh": "塔希提岛海岸",
+        "zh-tw": "大溪地海岸",
+        "es": "Costa de Tahití",
+        "pt": "Costa do Tahiti",
+        "it": "Costa di Tahiti",
+        "ru": "Побережье Таити",
+        "pl": "Wybrzeże Tahiti",
+        "fr": "Côte de Tahiti",
+        "vi": "Bờ biển Tahiti",
+        "nl": "Kust in Tahiti",
+        "sv": "Tahitikust"
+      }
+    },
+    {
+      "id": "PA_A001_C007",
+      "name": {
+        "en": "Palau Jellies Dark",
+        "de": "Quallen in Palau – Dunkel",
+        "zh": "帕劳水母（深色）",
+        "zh-tw": "帛琉水母暗色",
+        "es": "Medusas en Palaos (oscuro)",
+        "pt": "Medusas de Palau (Escuro)",
+        "it": "Meduse a Palau - Scuro",
+        "ru": "Медузы Палау — темная",
+        "pl": "Palauskie meduzy (ciemny)",
+        "fr": "Méduses des Palaos (sombre)",
+        "vi": "Sứa Palau tối",
+        "nl": "Kwallen in Palau (donker)",
+        "sv": "Maneter i Palauöarna, mörk"
+      }
+    },
+    {
+      "id": "A004_C012",
+      "name": {
+        "en": "Alaskan Jellies Dark",
+        "de": "Quallen in Alaska – Dunkel",
+        "zh": "阿拉斯加水母（深色）",
+        "zh-tw": "阿拉斯加水母暗色",
+        "es": "Medusas en Alaska (oscuro)",
+        "pt": "Medusas do Alasca (Escuro)",
+        "it": "Meduse in Alaska - Scuro",
+        "ru": "Медузы Аляски — темная",
+        "pl": "Alaskańskie meduzy (ciemny)",
+        "fr": "Méduses d’Alaska (sombre)",
+        "vi": "Sứa Alaska tối",
+        "nl": "Kwallen in Alaska (donker)",
+        "sv": "Röda brännmaneter, mörk"
+      }
+    },
+    {
+      "id": "A003_C014",
+      "name": {
+        "en": "Alaskan Jellies Light",
+        "de": "Quallen in Alaska – Hell",
+        "zh": "阿拉斯加水母（浅色）",
+        "zh-tw": "阿拉斯加水母亮色",
+        "es": "Medusas en Alaska (claro)",
+        "pt": "Medusas do Alasca (Claro)",
+        "it": "Meduse in Alaska - Chiaro",
+        "ru": "Медузы Аляски — светлая",
+        "pl": "Alaskańskie meduzy (jasny)",
+        "fr": "Méduses d’Alaska (clair)",
+        "vi": "Sứa Alaska sáng",
+        "nl": "Kwallen in Alaska (licht)",
+        "sv": "Röda brännmaneter, ljus"
+      }
+    },
+    {
+      "id": "A009_C007",
+      "name": {
+        "en": "Costa Rica Dolphin Pod",
+        "de": "Schule von Delfinen in Costa Rica",
+        "zh": "哥斯达黎加海豚群",
+        "zh-tw": "哥斯大黎加海豚群",
+        "es": "Manada de delfines en Costa Rica",
+        "pt": "Grupo de Golfinhos na Costa Rica",
+        "it": "Gruppo di delfini in Costa Rica",
+        "ru": "Стая дельфинов в Коста-Рике",
+        "pl": "Kostarykańskie delfiny",
+        "fr": "Banc de dauphins du Costa Rica",
+        "vi": "Đàn cá heo Costa Rica",
+        "nl": "Grote groep dolfijnen in Costa Rica",
+        "sv": "Delfinstim i Costa Rica"
+      }
+    },
+    {
+      "id": "D004_L014",
+      "name": {
+        "en": "Humpback Whale",
+        "de": "Buckelwal",
+        "zh": "座头鲸",
+        "zh-tw": "座頭鯨",
+        "es": "Ballena jorobada",
+        "pt": "Baleia-jubarte",
+        "it": "Megattera",
+        "ru": "Горбатый кит",
+        "pl": "Humbaki",
+        "fr": "Baleine à bosse",
+        "vi": "Cá voi lưng gù",
+        "nl": "Bultruggen",
+        "sv": "Knölval"
+      }
+    },
+    {
+      "id": "PA_A002_C009",
+      "name": {
+        "en": "Palau Jellies Blue",
+        "de": "Quallen in Palau – Blau",
+        "zh": "帕劳水母（蓝色）",
+        "zh-tw": "帛琉水母藍色",
+        "es": "Medusas en Palaos azul",
+        "pt": "Medusas de Palau (Azul)",
+        "it": "Meduse a Palau - Blu",
+        "ru": "Медузы Палау — синяя",
+        "pl": "Palauskie meduzy (niebieski)",
+        "fr": "Méduses des Palaos (bleu)",
+        "vi": "Sứa Palau lam",
+        "nl": "Kwallen in Palau (blauw)",
+        "sv": "Maneter i Palauöarna, blå"
+      }
+    },
+    {
+      "id": "A016_C002",
+      "name": {
+        "en": "California Kelp Forest",
+        "de": "Algenwald in Kalifornien",
+        "zh": "加州海藻林",
+        "zh-tw": "加州海藻林",
+        "es": "Bosque de algas en California",
+        "pt": "Floresta de Algas da Califórnia",
+        "it": "Foresta di laminarie in California",
+        "ru": "Водоросли у берегов Калифорнии",
+        "pl": "Kalifornijski las wodorostów",
+        "fr": "Forêt de varech en Californie",
+        "vi": "Rừng tảo bẹ California",
+        "nl": "Kelpwoud in Californië",
+        "sv": "Kelpskog i Kalifornien"
+      }
+    },
+    {
+      "id": "PA_A010_C007",
+      "name": {
+        "en": "Palau Jellies Light",
+        "de": "Quallen in Palau – Hell",
+        "zh": "帕劳水母（浅色）",
+        "zh-tw": "帛琉水母亮色",
+        "es": "Medusas en Palaos (claro)",
+        "pt": "Medusas de Palau (Claro)",
+        "it": "Meduse a Palau - Chiaro",
+        "ru": "Медузы Палау — светлая",
+        "pl": "Palauskie meduzy (jasny)",
+        "fr": "Méduses des Palaos (clair)",
+        "vi": "Sứa Palau sáng",
+        "nl": "Kwallen in Palau (licht)",
+        "sv": "Maneter i Palauöarna, ljus"
+      }
+    },
+    {
+      "id": "PA_A004_C003",
+      "name": {
+        "en": "Palau Coral Colors",
+        "de": "Bunte Korallen in Palau",
+        "zh": "帕劳珊瑚（彩色）",
+        "zh-tw": "帛琉珊瑚彩色",
+        "es": "Coral de colores en Palaos",
+        "pt": "Coral de Palau (Colorido)",
+        "it": "Corallo a Palau - Colori",
+        "ru": "Кораллы Палау — цветная",
+        "pl": "Kolory palauskich koralowców",
+        "fr": "Corail des Palaos (couleurs)",
+        "vi": "Màu san hô Palau",
+        "nl": "Koraalkleuren in Palau",
+        "sv": "Korallrev i Palauöarna, färger"
+      }
+    }
   ]
 }

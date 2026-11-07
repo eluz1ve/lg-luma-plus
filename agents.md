@@ -28,15 +28,11 @@ builds or tests.
 desktop OpenGL and mock weather HTTP. Linux can use `xvfb-run -a pnpm test:smoke`. Tests must not
 contact real weather APIs or a TV. Respect any user instruction to use manual TV verification
 instead of running automated tests. Builds/lint may still be run. Do not claim hardware behavior
-from desktop checks. Add a `pnpm changeset` file for release-worthy changes and leave version
-bumps to the automated Version Packages PR. Its `pnpm version:release` command synchronizes
-`package.json`, `appinfo.json`, the root `Cargo.toml`, the `luma` entry in `Cargo.lock` and README
-IPK examples. Supporting Rust crates retain independent versions. `pnpm version:check` checks
-consistency without writing files. Code or behavior changes should use semantic versioning:
-patch for backward-compatible fixes, minor for backward-compatible features, and major for
-breaking changes. Translation updates and additional UI languages, including required font glyph
-coverage, are patch changes. Documentation-only or maintenance changes that do not need a release
-can omit a changeset.
+from desktop checks. Do not bump versions by hand: every push to `main` is released by CI as a
+build numbered by its date and time (`tools/build-number.mjs`, `development.md#releases`), and
+commit subjects become its release notes, so write them for readers of the release.
+`pnpm version:sync` synchronizes `package.json`, `appinfo.json`, the root `Cargo.toml`, the `luma`
+entry in `Cargo.lock` and README IPK examples; `pnpm version:check` checks them without writing.
 
 ## Build and identity
 
@@ -104,12 +100,7 @@ gallery to `.build/brands-gallery.png`; source restoration via `pnpm assets:bran
 `.github/workflows/ci.yml` is native-only: format/lint/workspace tests, asset generation and
 mocked desktop rendering, SDK setup, ARM cross-build, actual IPK verification/checksum/feed,
 artifacts and guarded publication. Keep existing published-version/draft/tag-commit checks.
-`.github/workflows/changeset-status.yml` maintains an informational changeset status comment on
-PRs, including forks, with semantic-version guidance for code changes. It skips the generated
-version PR. Its `pull_request_target` jobs must not install dependencies or run code from the PR.
-`.github/workflows/release-pr.yml` maintains the Changesets version PR and dispatches its CI
-checks with the built-in token. Only a merged `changeset-release/main` PR with a version increase
-can publish after the main-branch CI build passes. Ordinary PRs, other merges and manual CI runs
-still build/check/package but do not publish. See `development.md#releases` for setup and retries.
+Every push to `main` publishes a build once all checks, smoke suites and the ARM package pass;
+PRs and manual runs build/check/package but do not publish. See `development.md#releases`.
 Only create commits or PRs when explicitly requested. For PR descriptions follow the global
 `commands/pr.md` format instructions.

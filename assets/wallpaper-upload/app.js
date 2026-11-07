@@ -51,7 +51,8 @@ async function sendDynamic(selected) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120000);
   try {
-    if (selected.size > 32 * 1024 * 1024) throw new Error('Choose a dynamic wallpaper under 32 MiB.');
+    if (selected.size > 32 * 1024 * 1024)
+      throw new Error('Choose a dynamic wallpaper under 32 MiB.');
     const token = location.pathname.split('/')[1];
     const response = await fetch('dynamic', {
       method: 'POST',

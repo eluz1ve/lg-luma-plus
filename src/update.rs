@@ -349,6 +349,23 @@ pub fn newer(current: &str, candidate: &str) -> bool {
     matches!((discovery::version(current), discovery::version(candidate)), (Some(a), Some(b)) if b > a)
 }
 
+/// How a version is shown. Builds are versioned by when they were made (`tools/build-number.mjs`):
+/// 26.1108.1530 is build #2611081530, of 8 November 2026 at 15:30. Older versions show as they are.
+pub fn label(version: &str) -> String {
+    let build = discovery::version(version).filter(|&[year, date, time]| {
+        let (month, day, hour, minute) = (date / 100, date % 100, time / 100, time % 100);
+        year < 100
+            && (1..=12).contains(&month)
+            && (1..=31).contains(&day)
+            && hour < 24
+            && minute < 60
+    });
+    match build {
+        Some([year, date, time]) => format!("#{year:02}{date:04}{time:04}"),
+        None => version.to_owned(),
+    }
+}
+
 /// The Luma package of a Homebrew Channel feed, checked before anything is downloaded.
 pub fn parse_feed(feed: &Value) -> Result<Release, String> {
     let mut packages = feed["packages"]
@@ -620,6 +637,20 @@ mod tests {
         assert_eq!(terminal(&failed), Some(Err("disk full".into())));
         fs::remove_dir(first).unwrap();
         fs::remove_dir(second).unwrap();
+    }
+
+    #[test]
+    fn a_build_is_shown_by_its_number_and_older_versions_as_they_are() {
+        assert_eq!(label("26.1108.1530"), "#2611081530");
+        assert_eq!(label("27.101.5"), "#2701010005");
+        assert_eq!(label("27.101.0"), "#2701010000");
+        // A build is newer than every version before builds.
+        assert!(newer("1.0.0", "26.1108.1530"));
+        assert!(newer("26.1108.1530", "26.1108.1531"));
+        assert!(newer("26.1231.2359", "27.101.0"));
+        for version in ["1.0.0", "2.16.2", "26.1308.1530", "26.1108.2460", "26.1108"] {
+            assert_eq!(label(version), version);
+        }
     }
 
     #[test]

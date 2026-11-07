@@ -4612,7 +4612,10 @@ fn update_value(state: &State) -> String {
     match &state.update {
         InstallStatus::Idle => {
             if let Some(version) = &state.available_update {
-                language.format("installUpdate", &[("version", version)])
+                language.format(
+                    "installUpdate",
+                    &[("version", &crate::update::label(version))],
+                )
             } else {
                 language
                     .t(if state.update_status == Status::Checking {

@@ -54,7 +54,6 @@ including `armv7-unknown-linux-gnueabi` for TV builds. No browser installation i
 | `pnpm test`               | Release-tooling and Rust workspace unit tests              |
 | `pnpm test:icons`         | Mocked runtime icon reads and bundled vector checks        |
 | `pnpm test:smoke`         | Desktop rendering, mocked weather and localization checks  |
-| `pnpm changeset`          | Add a release note and requested version bump to a PR      |
 | `pnpm version:check`      | Check synchronized app release versions                    |
 
 The TV target is ARMv7 **soft-float calling convention**, `gnueabi`, not `gnueabihf`. Codegen
@@ -1057,60 +1056,32 @@ run independently.
 
 ## Releases
 
-Add a changeset to feature/fix PRs that should be included in the next app release:
+Every push to `main` is released. CI numbers the build by its date and time in Chisinau,
+`YYMMDDHHmm` (`tools/build-number.mjs`): build **#2611081530** was made on 8 November 2026 at
+15:30. Its app version is the same digits split in three, `26.1108.1530`, which webOS, Cargo and
+the updater compare as numbers, so a later build is always newer, and every build is newer than
+the 1.x releases before builds. The TV's update button shows the build number.
 
-```sh
-pnpm changeset
-```
+The release-gate job numbers the run once; the preparation and package jobs write that version
+into `package.json` and synchronize `appinfo.json`, the root `Cargo.toml`, the `luma` entry in
+`Cargo.lock` and the README IPK examples in their checkout (`node tools/build-number.mjs --apply`,
+after the Rust cache step). The repository itself keeps `1.0.0`; nothing is committed back.
 
-Select `lg-luma`, choose patch/minor/major and describe the change. Commit the generated file
-under `.changeset/` with the PR. Documentation-only and maintenance PRs that do not need a release
-can omit it. Keep the existing app version in ordinary PRs.
+After the checks, all four smoke suites and the verified ARM package pass, the release job
+publishes **Luma+ build #2611081530** under the tag `build-2611081530` with the IPK, checksums and
+Homebrew feed, as the latest release. Its notes (`tools/release-notes.mjs`) list the subjects of
+the commits since the newest published release the build descends from, oldest first, with a
+comparison link. Write commit subjects for readers of the release.
 
-`.github/workflows/changeset-status.yml` adds a Changesets status check and maintains one comment
-per PR, including fork PRs. It reports the requested release types or notes that a PR without a
-changeset will not request an app version bump. For code or behavior changes, add a changeset
-using semantic versioning: **patch** for backward-compatible fixes, **minor** for backward-compatible
-features, or **major** for breaking changes. The comment is informational, so documentation-only
-and maintenance PRs can still merge without a release changeset. It updates when a PR is opened,
-reopened, edited, marked ready or receives new commits, and skips the generated Version Packages
-PR. The workflow becomes active once it is merged into the PR's base branch. It uses
-`pull_request_target` with a read-only status job and a separate comment-writing job, without
-installing dependencies or running code from the PR.
+Pull requests and manual runs build, check and package without publishing. To push without a
+build, put `[skip ci]` in the commit message. An already published build is skipped, a draft is
+resumed, and a tag on another commit fails the run: push again for a new number. Several pushes
+waiting behind a running build are released together by the newest. To retry a failed
+publication, rerun the failed jobs of that push's CI run.
 
-After changesets merge into `main`, `.github/workflows/release-pr.yml` creates or updates the
-**Version Packages** PR on `changeset-release/main`. Changesets combines the pending notes using
-the highest requested bump. The custom `pnpm version:release` command updates `package.json`
-and `CHANGELOG.md`, then synchronizes `appinfo.json`, the root `Cargo.toml`, the `luma` entry in
-`Cargo.lock`, and the versioned IPK examples in `readme.md`. Dependency pins and supporting Rust
-crate versions are preserved. The package stays private and is never published to npm.
-
-The generated PR receives the same CI build as ordinary PRs. Since PRs created with GitHub's
-built-in token do not trigger `pull_request` workflows, the release workflow explicitly dispatches
-`ci.yml` for the version branch. Enable **Settings → Actions → General → Allow GitHub Actions to
-create and approve pull requests** in the repository. No additional token or npm secret is needed.
-
-Review and merge the version PR when ready to release. Only a main-branch push associated with
-that merged, same-repository PR and a numeric version increase can enter the publish job. It must
-also pass the existing checks, desktop smoke tests and native packaging build. Ordinary merges,
-unmerged PRs and manual CI runs do not publish. To retry a failed publication, rerun the original
-CI run for the merged version PR's main-branch commit.
-
-The Actions graph now shows **Release eligibility → shared preparation → four parallel smoke
-suites + ARM package → aggregate validation → Publish release and Homebrew feed**. Eligibility
-runs on PRs and manual dispatches too, explicitly reporting validation-only rather than leaving
-a skipped job to interpret. The **Release rollout summary** runs even when earlier jobs fail,
-listing stage results, the run/artifact link, release eligibility and retry instructions.
-The Release PR workflow also links the generated Version Packages PR and explains the rollout
-in its summary and PR body. A version-branch dispatch validates only, while the main push after
-merging is the publication candidate. Shared assets and release artifacts are always from that
-same workflow run and commit, never from a previous PR build.
-
-Publication retains the existing guards: an already-published version is skipped, a draft can be
-resumed, and a tag pointing at another commit requires a new app version. `pnpm version:check`
-checks synchronization without writing files. `pnpm version:sync` repairs metadata from the
-current `package.json` version without calculating a bump. `pnpm version:release` is reserved for
-the automated version PR.
+To build a numbered IPK locally, run `node tools/build-number.mjs --apply` before `pnpm build`
+and `node tools/package.mjs`, then restore the versioned files with `git checkout -- package.json
+appinfo.json Cargo.toml Cargo.lock readme.md`.
 
 Homebrew Channel's details page reads `packages[].shortDescription` (or `fullDescriptionUrl`),
 not `manifest.appDescription`. The feed generator writes the root app metadata description into
@@ -1153,6 +1124,7 @@ Other pages retain their existing focus treatment. Remote retargeting preserves 
 position and velocity; pointer hitboxes remain fixed. Reduced Motion snaps to the end state.
 Settled animation does not request additional frames. This is a custom prototype, not an
 upstream release or a guarantee of TV frame rate; validate on the target LG before takeover.
+
 ### Native TV helper
 
 The `tv-helper/` workspace crate ports the former `tv/*.cjs` operations. Its `luma-helper` binary

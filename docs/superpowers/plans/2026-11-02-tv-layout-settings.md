@@ -5,6 +5,7 @@
 **Goal:** Settings on the tvOS frame. A sidebar collapses to icons, the list is 820 px wide with rows that grow on focus, a live small Home preview sits on the right (a summary for System), and the wallpaper gallery has four 390 px columns.
 
 **Architecture:**
+
 - All geometry comes from new tokens in `src/layout.rs`.
 - The sidebar width and the focused row's growth ride the existing springs in `src/motion.rs` (`Lane::Sidebar`, and the focus spring with the focused Settings target as `selected`).
 - The preview is Home's own scene. `view::home_preview(&mut Scene, &mut State, …)` swaps the few view fields to Home, builds `scene_with_pill`, restores them, scales every draw into the frame and splices it in where `settings()` reserved a slot. `main::compose` calls it, and so does a test helper.
@@ -42,11 +43,13 @@
 ### Task 1: Sidebar that collapses to icons, and the page title
 
 **Files:**
+
 - Modify: `src/layout.rs` (Settings tokens), `src/motion.rs` (`Lane::Sidebar`), `src/state.rs` (`animate`, `sidebar_width`), `src/view.rs` (`settings_sidebar`, new `settings_title`, `breadcrumb`, content dim)
 - Create: `assets/ui-icons/photo.svg` (Lucide "image", same stroke attributes as `settings.svg`)
 - Create: `src/settings-layout-tests.rs` (registered in `src/tests.rs` like `home-layout-tests.rs`)
 
 **Interfaces:**
+
 - Produces in `layout.rs`:
   - `SIDEBAR_COLLAPSED = 76.`, `SIDEBAR_EXPANDED = 360.`, `SIDEBAR_ITEM = 60.`, `SIDEBAR_PITCH = 68.`
   - `LIST_X = 196.`, `LIST_WIDTH = 820.`, `LIST_TOP = 224.`
@@ -99,11 +102,12 @@ fn the_page_title_names_the_section_and_the_subpage_path() {
 }
 ```
 
-  Helpers in the file:
-  - `settings(section)`: a `ready()` state with `page = Settings` and `section` set.
-  - `settle(&mut state)`: runs `animate(1.)` three times.
-  - `sidebar_item(&state, i)`: the `Target::Sidebar(i)` control rect.
-  - `texts(&state)`: as in `home-layout-tests.rs`.
+Helpers in the file:
+
+- `settings(section)`: a `ready()` state with `page = Settings` and `section` set.
+- `settle(&mut state)`: runs `animate(1.)` three times.
+- `sidebar_item(&state, i)`: the `Target::Sidebar(i)` control rect.
+- `texts(&state)`: as in `home-layout-tests.rs`.
 
 - [ ] **Step 2: Run them, verify they fail**
 
@@ -137,6 +141,7 @@ fn the_page_title_names_the_section_and_the_subpage_path() {
 ### Task 2: The 820 px list, rows that grow on focus, descriptions
 
 **Files:**
+
 - Modify: `src/view.rs`:
   - `Row` and `row()`;
   - every Settings row site (main sections, choice subpages);
@@ -150,6 +155,7 @@ fn the_page_title_names_the_section_and_the_subpage_path() {
 - Test: `src/settings-layout-tests.rs`
 
 **Interfaces:**
+
 - Consumes: Task 1 tokens.
 - Produces:
   - `fn list_rects(state: &State, top: f32, rows: &[(Target, bool)]) -> Vec<Rect>`. The `bool` is "has a description". Each height is `ROW_HEIGHT + (ROW_GROWN - ROW_HEIGHT) * state.motion.focus(target)` when the row has a description, else `ROW_HEIGHT`. Spacing is `ROW_SPACING`, then `- state.scroll`.
@@ -245,6 +251,7 @@ fn rows_scrolled_under_the_title_are_masked_and_cannot_be_clicked() {
 ### Task 3: Live Home preview, and the System summary
 
 **Files:**
+
 - Modify: `src/view.rs`:
   - `Scene` gains `regions: Vec<(Region, Rect)>` and `preview: Option<PreviewSlot>`;
   - `home()`/`header()` push regions;
@@ -255,6 +262,7 @@ fn rows_scrolled_under_the_title_are_masked_and_cannot_be_clicked() {
 - Test: `src/settings-layout-tests.rs`
 
 **Interfaces:**
+
 - Produces:
   - `pub enum Region { Clock, Date, Greeting, Weather, Favorites, Inputs, Crypto, Cs2, Shows }`. Crypto, Cs2 and Shows push the Today card's rect when they live in it, their row's rect otherwise.
   - `pub struct PreviewSlot { at: usize, region: Option<Region> }`.
@@ -347,10 +355,12 @@ fn system_summarises_luma_and_its_updates_on_the_right() {
 ### Task 4: The gallery on four 390 px columns
 
 **Files:**
+
 - Modify: `src/view.rs` (section 1 drawing, new `gallery_action`, `dashed_border`, the `BackgroundOptions` anchor height), `src/state.rs` (`gallery_slots`, `gallery_target`, `gallery_slot`, the Background/Upload/Gradient/Cycle routes, sidebar Right → `section_entry()`, `backgrounds_viewport`, reveal top, wheel max).
 - Test: `src/settings-layout-tests.rs`, `src/wallpapers-ui-tests.rs`, `src/tests.rs` (updated)
 
 **Interfaces:**
+
 - Consumes: Task 1 gallery tokens, `settings_title(.., max_width)`.
 - Produces:
   - `fn gallery_slots(&self) -> usize` (`background_count() + 1`);
@@ -413,7 +423,7 @@ fn the_sidebar_enters_the_gallery_on_the_applied_background() {
 }
 ```
 
-  `navigate` here stands for the existing remote-direction entry point the other tests use. Use that same call.
+`navigate` here stands for the existing remote-direction entry point the other tests use. Use that same call.
 
 - [ ] **Step 2: Run, verify they fail**
 

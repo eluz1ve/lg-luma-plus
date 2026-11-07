@@ -1,13 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { releaseTag } from './build-number.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const manifest = JSON.parse(await fs.readFile(path.join(root, 'appinfo.json'), 'utf8'));
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 if (!/^\d+\.\d+\.\d+$/.test(manifest.version) || pkg.version !== manifest.version)
   throw new Error('package.json and appinfo.json must have the same numeric release version.');
-const tag = `v${manifest.version}`;
+const tag = releaseTag(manifest.version);
 const requestedTag =
   process.env.RELEASE_TAG ||
   (process.env.GITHUB_REF_TYPE === 'tag' ? process.env.GITHUB_REF_NAME : '');

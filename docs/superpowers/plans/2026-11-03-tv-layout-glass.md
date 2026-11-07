@@ -5,6 +5,7 @@
 **Goal:** Luma's chrome is frosted glass over the wallpaper. There is no per-frame blur: each wallpaper gets one blurred 480 × 270 copy, made once when it loads.
 
 **Architecture:**
+
 - A new draw, `Draw::Glass`, paints a rounded rect with the wallpaper's blurred copy sampled at the panel's own screen position. It uses the existing paint shader: a textured quad with a radius.
 - The blurred copy is a pure function, `glass::frost`. The renderer runs it on the decoded pixels it already holds when a full-screen wallpaper texture loads. This covers bundled, uploaded and dynamic wallpapers and Apple TV stills, once per frame or still.
 - The view gets one helper, `Scene::glass`, that lays the copy (both copies while wallpapers cross-fade) under the spec's tint, border and highlight. Every chrome surface that today paints `c(0x171c20, 0.72)`-style fills calls it.
@@ -36,10 +37,12 @@
 ### Task 1: `Draw::Glass` and the blurred copy
 
 **Files:**
+
 - Create: `src/glass.rs` (`frost`), `src/glass-tests.rs`
 - Modify: `src/main.rs` (mod), `src/renderer.rs` (`Draw::Glass`, copy built on wallpaper load, `glass()` quad, `profile_skip`), `src/damage.rs` (`bounds`, `same`), `src/view.rs` (`Scene::slide`, `Scene::fade`, `home_preview` arm)
 
 **Interfaces:**
+
 - Produces:
   - `pub fn frost(image: &image::RgbaImage) -> image::RgbaImage`, which always returns 480 × 270.
   - `Draw::Glass(String, Rect, f32, Rect, Color)`, in this order:
@@ -85,10 +88,12 @@
 ### Task 2: Chrome on glass
 
 **Files:**
+
 - Modify: `src/view.rs`
 - Test: `src/glass-tests.rs` (view part), existing tests whose fill colours change
 
 **Interfaces:**
+
 - Consumes: `Draw::Glass`.
 - Produces:
   - `Scene.backdrop: Vec<(String, f32)>` (wallpaper path and its opacity), set by `scene_with_pill` before anything else is drawn.

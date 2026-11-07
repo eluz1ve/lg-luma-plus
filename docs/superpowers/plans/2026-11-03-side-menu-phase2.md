@@ -5,6 +5,7 @@
 **Goal:** Home's rows below the favorites go away. The favorites move to the bottom of the screen, and at most one widget stands in the middle.
 
 **Architecture:**
+
 - `Preferences` gains `center()` and `in_today()`. Every caller asks these two instead of reading the three place flags (`cs2_today`, `shows_today`, `crypto_beside`) directly.
   - `center() -> Option<Center>` picks one widget, CS2 → crypto → shows, among those shown and not placed in Today.
   - `in_today(Center) -> bool` puts every other shown widget in Today.
@@ -43,6 +44,7 @@
 **Files:** `src/model.rs`, `src/today.rs`, `src/state.rs`, `assets/messages.json`. Tests go in `src/home-center-tests.rs`.
 
 Tests:
+
 - `one_widget_takes_the_center_cs2_then_crypto_then_shows`
 - `placing_a_widget_in_the_center_moves_the_one_there_into_today`
 
@@ -51,6 +53,7 @@ Tests:
 **Files:** `src/view.rs` (`home`, `shows_row`) and `src/state.rs` (Home's routes).
 
 Tests:
+
 - `favorites_sit_at_the_bottom_and_home_has_no_inputs`
 - `the_center_widget_sits_between_the_header_and_the_favorites`
 - `up_from_the_favorites_reaches_the_center_then_today_and_down_returns`

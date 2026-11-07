@@ -53,6 +53,7 @@
 ### Task 1: рамка и сетка Главной
 
 **Файлы:**
+
 - Создать: `src/layout.rs` (зарегистрировать `mod layout;` в `src/main.rs`).
 - Изменить: `src/view.rs`: `home()`, `tile()`, `crypto_row()`, `cs2_row()`, `shows_row()`,
   `weather_summary*`.
@@ -61,6 +62,7 @@
   существующих тестах геометрии Главной и добавить новые.
 
 **Интерфейсы:**
+
 - Даёт: `layout::{SAFE_X = 80., SAFE_Y = 60., GUTTER = 40., CONTENT_TOP = 150., HEADER_BOTTOM = 400.}`,
   `layout::column(count: usize) -> f32` (1760 − 40·(n−1)) / n,
   `layout::type_scale::{GREETING = 76., ROW_TITLE = 28., BODY = 26., SECONDARY = 24., CAPTION = 22.,
@@ -71,43 +73,45 @@
 
 Раскладка (y при `scroll = 0`):
 
-| Что | Геометрия |
-|---|---|
-| Шапка, левая колонка | дата 22/600, приветствие 76/600, погода 28. Блок центрируется по вертикали в 150…400 |
-| «Избранное» | заголовок y 416 (28/600), карточки y 466, 260 × 150, шаг 300, полоса 80…1840, затухание до 1910 |
-| Подпись | только у карточки в фокусе, когда `show_home_names`; под ряд резервируется 40 px |
-| Следующий ряд | `низ ряда + 48`; заголовок → чипы 50 |
-| Входы, крипто-ряд | чипы 410 × 96, шаг 450, 4 в ряд |
-| CS2, сериалы (когда рядом) | карточки по сетке: CS2 3 × 560 × 150, постеры 260 × 390 |
+| Что                        | Геометрия                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| Шапка, левая колонка       | дата 22/600, приветствие 76/600, погода 28. Блок центрируется по вертикали в 150…400            |
+| «Избранное»                | заголовок y 416 (28/600), карточки y 466, 260 × 150, шаг 300, полоса 80…1840, затухание до 1910 |
+| Подпись                    | только у карточки в фокусе, когда `show_home_names`; под ряд резервируется 40 px                |
+| Следующий ряд              | `низ ряда + 48`; заголовок → чипы 50                                                            |
+| Входы, крипто-ряд          | чипы 410 × 96, шаг 450, 4 в ряд                                                                 |
+| CS2, сериалы (когда рядом) | карточки по сетке: CS2 3 × 560 × 150, постеры 260 × 390                                         |
 
 - [ ] **Шаг 1: падающие тесты.**
-  `layout_columns_follow_the_tvos_grid`: `column(6) == 260.`, `column(4) == 410.`, `column(3) == 560.`,
-  `column(2) == 860.`.
-  `home_fits_one_screen_with_weather_six_favorites_two_inputs_and_four_coins`: при погоде, 6 избранных,
-  2 входах и 4 монетах рядом нижний край `max(control.rect.y + h)` не больше 1020, у первой плитки
-  `rect == (80, 466, 260, 150)`, у второй `x == 380`, ширина чипа входа 410.
-  `focused_favorite_alone_shows_its_name`: при `show_home_names` текст подписи есть только у
-  `Target::App` в фокусе, а заголовок «Входы» стоит ниже `466 + 150 + 40`.
-  `long_greeting_shrinks_to_the_left_column_beside_today`: приветствие с именем на 40 символов при
-  показанной карточке «Сегодня» рисуется не шире 1040 px.
+      `layout_columns_follow_the_tvos_grid`: `column(6) == 260.`, `column(4) == 410.`, `column(3) == 560.`,
+      `column(2) == 860.`.
+      `home_fits_one_screen_with_weather_six_favorites_two_inputs_and_four_coins`: при погоде, 6 избранных,
+      2 входах и 4 монетах рядом нижний край `max(control.rect.y + h)` не больше 1020, у первой плитки
+      `rect == (80, 466, 260, 150)`, у второй `x == 380`, ширина чипа входа 410.
+      `focused_favorite_alone_shows_its_name`: при `show_home_names` текст подписи есть только у
+      `Target::App` в фокусе, а заголовок «Входы» стоит ниже `466 + 150 + 40`.
+      `long_greeting_shrinks_to_the_left_column_beside_today`: приветствие с именем на 40 символов при
+      показанной карточке «Сегодня» рисуется не шире 1040 px.
 - [ ] **Шаг 2:** `cargo test --bin luma`. Новые тесты падают, остальные зелёные.
 - [ ] **Шаг 3:** `src/layout.rs` с константами выше. `home()` переписан под таблицу. В `tile()` подпись
-  рисуется только при `focused`, хит-бокс не растёт на подпись (резерв делает `home()`). Константы
-  `state.rs`: `HOME_STRIP_LEFT = 80.`, `HOME_STRIP_RIGHT = 1840.`, `HOME_TILE_WIDTH = 260.`,
-  `HOME_TILE_PITCH = 300.`. Заголовки рядов: `text(ROW_TITLE, 600, -0.02).shadow()`. Блок погоды и дата
-  берут размеры из `type_scale`.
+      рисуется только при `focused`, хит-бокс не растёт на подпись (резерв делает `home()`). Константы
+      `state.rs`: `HOME_STRIP_LEFT = 80.`, `HOME_STRIP_RIGHT = 1840.`, `HOME_TILE_WIDTH = 260.`,
+      `HOME_TILE_PITCH = 300.`. Заголовки рядов: `text(ROW_TITLE, 600, -0.02).shadow()`. Блок погоды и дата
+      берут размеры из `type_scale`.
 - [ ] **Шаг 4:** `cargo test --bin luma`. Все тесты зелёные, координаты старых тестов Главной обновлены
-  под таблицу.
+      под таблицу.
 - [ ] **Шаг 5:** коммит `feat(home): tvOS frame — 80 px safe area, 260/40 grid, 76 px greeting`.
 
 ### Task 2: серии на сегодня из расписания TVmaze
 
 **Файлы:**
+
 - Изменить: `src/shows.rs` (`Show`, `show()`, `parse_schedules`), `src/shows-service.rs` (запрос на
   завтра).
 - Тесты: `src/shows-tests.rs`.
 
 **Интерфейсы:**
+
 - Даёт: `pub struct Episode { pub airs: i64, pub season: Option<u32>, pub number: Option<u32> }` и поле
   `Show::episodes: Vec<Episode>`. Это все записи расписания этого сериала, без повторов, по
   возрастанию `airs`, не больше 8.
@@ -115,28 +119,30 @@
   `from <= airs < to`.
 
 - [ ] **Шаг 1: падающие тесты.**
-  `schedule_entries_keep_each_episodes_air_time`: две записи одного сериала с
-  `"airstamp": "2026-11-01T21:00:00+00:00", "season": 2, "number": 5` и следующей серией дают
-  `episodes.len() == 2`, у первой `airs == 1793566800`, `season == Some(2)`, `number == Some(5)`.
-  `an_episode_airing_this_local_evening_counts_even_on_the_next_utc_date`: при `airs` в
-  `2026-11-02T01:00Z` и окне местного дня 1 ноября для UTC−5 `airing(from, to)` возвращает `Some`.
-  Запись без `airstamp` даёт сериал с пустым `episodes`, и сериал не теряется.
+      `schedule_entries_keep_each_episodes_air_time`: две записи одного сериала с
+      `"airstamp": "2026-11-01T21:00:00+00:00", "season": 2, "number": 5` и следующей серией дают
+      `episodes.len() == 2`, у первой `airs == 1793566800`, `season == Some(2)`, `number == Some(5)`.
+      `an_episode_airing_this_local_evening_counts_even_on_the_next_utc_date`: при `airs` в
+      `2026-11-02T01:00Z` и окне местного дня 1 ноября для UTC−5 `airing(from, to)` возвращает `Some`.
+      Запись без `airstamp` даёт сериал с пустым `episodes`, и сериал не теряется.
 - [ ] **Шаг 2:** `cargo test --bin luma shows`. Тесты падают.
 - [ ] **Шаг 3:** `airstamp` разбирается через `time::format_description::well_known::Rfc3339`.
-  `season` и `number` берутся из записи расписания: верхний уровень `entry`, у `/schedule/web` это тоже
-  верхний уровень. В `Client::shows` к 7 дням `schedule/web` добавляется день `today + 1`.
+      `season` и `number` берутся из записи расписания: верхний уровень `entry`, у `/schedule/web` это тоже
+      верхний уровень. В `Client::shows` к 7 дням `schedule/web` добавляется день `today + 1`.
 - [ ] **Шаг 4:** `cargo test --bin luma`. Всё зелёное.
 - [ ] **Шаг 5:** коммит `feat(shows): keep each episode's air time from TVmaze's schedule`.
 
 ### Task 3: что попадает в «Сегодня»
 
 **Файлы:**
+
 - Создать: `src/today.rs` (`mod today;` в `main.rs`), `src/today-tests.rs`.
 - Изменить: `src/model.rs`: `cs2_today: bool` и `shows_today: bool`, по умолчанию `true`, через
   `#[serde(default = ...)]`, чтобы старые настройки грузились. `crypto_beside` остаётся и означает
   «криптовалюта в „Сегодня“».
 
 **Интерфейсы:**
+
 - Даёт:
   ```rust
   pub enum Line { Match { id: String }, Episode { show: i64, airs: i64 }, Crypto }
@@ -157,24 +163,25 @@
 - Виджет с `*_today == true` не рисует свой ряд ниже, даже когда строк нет.
 
 - [ ] **Шаг 1: падающие тесты** в `today-tests.rs`:
-  `live_matches_come_first_then_events_by_time_then_aired_episodes`;
-  `crypto_beside_is_always_the_last_line_and_the_rest_counts_as_more`: 3 live-матча и крипто дают
-  `[Match, Match, Crypto]` и `more == 1`;
-  `widgets_kept_as_rows_or_switched_off_add_nothing`;
-  `episodes_need_an_installed_app_and_todays_air_time`;
-  `old_preferences_without_today_flags_put_cs2_and_shows_in_today`: десериализация JSON без полей даёт
-  `true`.
+      `live_matches_come_first_then_events_by_time_then_aired_episodes`;
+      `crypto_beside_is_always_the_last_line_and_the_rest_counts_as_more`: 3 live-матча и крипто дают
+      `[Match, Match, Crypto]` и `more == 1`;
+      `widgets_kept_as_rows_or_switched_off_add_nothing`;
+      `episodes_need_an_installed_app_and_todays_air_time`;
+      `old_preferences_without_today_flags_put_cs2_and_shows_in_today`: десериализация JSON без полей даёт
+      `true`.
 - [ ] **Шаг 2:** `cargo test --bin luma today`. Тесты падают.
 - [ ] **Шаг 3:** реализовать `today()` и поля настроек. В `home()` пропускать `cs2_row` и `shows_row`,
-  когда `cs2_today` / `shows_today` включены, а `crypto_block` убрать (его место займёт карточка в
-  задаче 4).
+      когда `cs2_today` / `shows_today` включены, а `crypto_block` убрать (его место займёт карточка в
+      задаче 4).
 - [ ] **Шаг 4:** `cargo test --bin luma`. Тест `crypto_can_sit_beside_the_greeting_…` переписан под
-  крипто-строку в «Сегодня».
+      крипто-строку в «Сегодня».
 - [ ] **Шаг 5:** коммит `feat(home): choose what the Today card shows`.
 
 ### Task 4: карточка «Сегодня»
 
 **Файлы:**
+
 - Изменить: `src/view.rs`: новая `today_card(out, state, assets, now)`, вызов из `home()`, удалить
   `crypto_block`, `CRYPTO_BLOCK_*`, `crypto_block_shown`.
 - Изменить: `src/state.rs`: `Target::TodayMatch(String)`, `Target::TodayShow(i64)` и их обработка в
@@ -183,6 +190,7 @@
 - Тесты: `src/tests.rs` или новый `src/today-ui-tests.rs`.
 
 **Интерфейсы:**
+
 - Берёт: `today::today`, `TODAY_RECT`, `Show::airing`.
 - Вид: карточка в стиле нынешних чипов входов (`RoundedGradient` `0x20252b/.60` → `0x171c22/.55`, рамка
   `0xffffff/.063`, радиус 24). Стекло будет в плане 5. Высота `20·2 + 28 + 58·n`, центр по вертикали в
@@ -198,20 +206,21 @@
 - Если строк нет, карточку не рисовать. Высота шапки от этого не меняется.
 
 - [ ] **Шаг 1: падающие тесты.**
-  `today_card_lists_its_lines_and_opens_the_match_or_the_app`.
-  `no_today_lines_hide_the_card_without_moving_favorites`: y первой плитки одинаков с карточкой и без.
-  `up_from_the_first_favorite_reaches_today_then_the_tabs`.
-  `a_focused_match_that_leaves_the_feed_returns_focus_to_favorites`.
-  `format_compact_keeps_four_coins_on_one_line`: 4 монеты в 640 px.
+      `today_card_lists_its_lines_and_opens_the_match_or_the_app`.
+      `no_today_lines_hide_the_card_without_moving_favorites`: y первой плитки одинаков с карточкой и без.
+      `up_from_the_first_favorite_reaches_today_then_the_tabs`.
+      `a_focused_match_that_leaves_the_feed_returns_focus_to_favorites`.
+      `format_compact_keeps_four_coins_on_one_line`: 4 монеты в 640 px.
 - [ ] **Шаг 2:** `cargo test --bin luma`. Тесты падают.
 - [ ] **Шаг 3:** реализовать. Фокус, который ссылается на пропавшую строку, исправлять там же, где
-  сейчас исправляется пропавший `Cs2Match(index)`, иначе в `reveal_focus` / `first_content`.
+      сейчас исправляется пропавший `Cs2Match(index)`, иначе в `reveal_focus` / `first_content`.
 - [ ] **Шаг 4:** `cargo test --bin luma`. Всё зелёное.
 - [ ] **Шаг 5:** коммит `feat(home): Today card beside the greeting`.
 
 ### Task 5: настройки размещения и проверка на ТВ
 
 **Файлы:**
+
 - Изменить: `src/view.rs`: в `cs2_settings` и `shows_settings` строка «Показывать: В „Сегодня“ / Рядом»,
   в `crypto_settings` подпись `CryptoLayout`. Строку `CryptoCard` скрыть: карточка «Сегодня» всегда на
   подложке.
@@ -223,8 +232,8 @@
 - [ ] **Шаг 1: падающий тест** `cs2_and_shows_move_between_today_and_their_rows_from_widgets`.
 - [ ] **Шаг 2:** реализовать. `cargo test --bin luma`, всё зелёное. `cargo fmt`.
 - [ ] **Шаг 3:** снимки Главной (`target/debug/luma --screenshot`) на светлом и тёмном кадре Apple, с
-  карточкой «Сегодня» и без неё. Отправить пользователю.
+      карточкой «Сегодня» и без неё. Отправить пользователю.
 - [ ] **Шаг 4:** сборка и установка: `pnpm build && node tools/package.mjs && ares-install -d lgtv
   dist/com.ecklf.luma_*_arm.ipk && ares-launch -d lgtv com.ecklf.luma`, затем
-  `git push fork HEAD:integration`.
+      `git push fork HEAD:integration`.
 - [ ] **Шаг 5:** коммит `feat(widgets): put CS2 and TV Shows in Today or their own rows`.
