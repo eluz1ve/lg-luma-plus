@@ -671,3 +671,15 @@ fn the_page_under_today_and_the_menu_is_home_as_it_was() {
         &menu.draw[..menu.ground]
     ));
 }
+
+#[test]
+fn a_perf_script_can_focus_the_today_card_before_opening_it() {
+    let mut state = today_state();
+    let controls = at(&state).controls;
+    assert_eq!(
+        crate::script("focus-today", &mut state, &controls),
+        Ok(vec![])
+    );
+    assert_eq!(state.focus, Target::TodayCard);
+    assert!(state.overlay.is_none());
+}

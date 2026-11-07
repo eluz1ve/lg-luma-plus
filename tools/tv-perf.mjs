@@ -57,7 +57,11 @@ const walk = [
   ...press('up', 1, 8),
   ...press('right', 3, 6),
   ...press('left', 3, 6),
-  'today', // opens the Today card wherever the focus is
+  // Focus the Today card and let it settle, as a viewer does before OK; `today` then opens it
+  // without pressing OK.
+  'focus-today',
+  ...pause(10),
+  'today',
   ...pause(16),
   ...press('right', 2, 10),
   'back',

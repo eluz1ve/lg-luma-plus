@@ -759,7 +759,8 @@ impl Renderer {
     /// The wallpaper with full-screen translucent fills folded in: each fill maps a pixel p to
     /// p * (1 - a) + c * a, so together they are p * m + k, drawn in one pass instead of one
     /// full-screen layer each. Strips keep gradients' products of colour and alpha exact.
-    fn folded_quad(&mut self, rect: Rect, texture: GLuint, scrims: &[Scrim]) {
+    /// `flipped` reads the texture bottom up, as a framebuffer's rows run.
+    fn folded_quad(&mut self, rect: Rect, texture: GLuint, scrims: &[Scrim], flipped: bool) {
         const STRIPS: usize = 16;
         let fold = |t: f32| {
             let (mut m, mut k) = ([1f32; 3], [0f32; 3]);
@@ -786,7 +787,7 @@ impl Renderer {
                     rect.x + x * rect.w,
                     rect.y + t * rect.h,
                     x,
-                    t,
+                    if flipped { 1. - t } else { t },
                     m[0],
                     m[1],
                     m[2],
@@ -1138,7 +1139,7 @@ impl Renderer {
         if scrims.is_empty() {
             self.quad(rect, [0., 0., 1., 1.], plain_radius(radius), 0., tint, id);
         } else {
-            self.folded_quad(rect, id, scrims);
+            self.folded_quad(rect, id, scrims, false);
         }
     }
 
@@ -1439,13 +1440,30 @@ impl Renderer {
         self.ground_batch = None;
         // Scrims fold into a wallpaper only from the same side of the page's end.
         let mut fold_end = ground.map_or(commands.len(), |(page, _)| page);
+        let mut ground = ground;
         let mut index = 0;
         while index < commands.len() {
             if let Some((page, picture)) = ground
                 && index == page
             {
-                self.lay_ground(picture);
+                ground = None;
+                // The overlay's full-screen dims fold into its picture, as into a wallpaper.
+                let mut scrims = Vec::new();
+                if self.clip.is_none() && self.fade.is_none() {
+                    while let Some(next) = commands.get(index) {
+                        if profile_skip(next) {
+                            index += 1;
+                        } else if let Some(scrim) = Scrim::of(next) {
+                            scrims.push(scrim);
+                            index += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                self.lay_ground(picture, &scrims);
                 fold_end = commands.len();
+                continue;
             }
             let command = &commands[index];
             index += 1;
@@ -1644,21 +1662,19 @@ impl Renderer {
         self.stats.cpu_submission_ms = started.elapsed().as_secs_f64() * 1000.;
     }
 
-    /// The picture of the page laid over the whole screen, unclipped and unfaded, in a batch
-    /// of its own: it is drawn on its own when the page is drawn into it.
-    fn lay_ground(&mut self, picture: GLuint) {
+    /// The picture of the page laid over the whole screen with `scrims` folded in, unclipped
+    /// and unfaded, in a batch of its own: it is drawn on its own when the page is drawn into it.
+    fn lay_ground(&mut self, picture: GLuint, scrims: &[Scrim]) {
         let (clip, fade) = (self.clip.take(), self.fade.take());
         self.batch_floor = self.batches.len();
         self.ground_batch = Some(self.batches.len());
-        // A framebuffer's rows run bottom up; the plain texture path, without the distance field.
-        self.quad(
-            Rect::new(0., 0., 1920., 1080.),
-            [0., 1., 1., 0.],
-            -1.,
-            0.,
-            [1.; 4],
-            picture,
-        );
+        let screen = Rect::new(0., 0., 1920., 1080.);
+        if scrims.is_empty() {
+            // A framebuffer's rows run bottom up; the plain texture path, no distance field.
+            self.quad(screen, [0., 1., 1., 0.], -1., 0., [1.; 4], picture);
+        } else {
+            self.folded_quad(screen, picture, scrims, true);
+        }
         self.batch_floor = self.batches.len();
         (self.clip, self.fade) = (clip, fade);
     }
@@ -1682,7 +1698,7 @@ impl Renderer {
         {
             self.ground.forget();
         }
-        match self.ground.plan(&commands[..ground]) {
+        match self.ground.plan(&commands[..ground], Instant::now()) {
             crate::ground::Plan::Draw => None,
             crate::ground::Plan::Fill => Some((ground, self.ground_target(size)?, true)),
             crate::ground::Plan::Lay => Some((ground, self.ground_target(size)?, false)),

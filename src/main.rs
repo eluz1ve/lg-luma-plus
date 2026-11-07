@@ -150,7 +150,7 @@ impl Options {
         while let Some(arg) = args.next() {
             if arg == "--help" {
                 println!(
-                    "Luma native\n\n  --assets PATH       Generated artwork directory\n  --preferences PATH  Isolated preferences file\n  --fullscreen        Fullscreen desktop preview\n  --resolution SIZE   Request 1080p, 4k, or WIDTHxHEIGHT; verify actual drawable\n  --frames N          Exit after N event-loop frames\n  --profile-frames N  Force N presentations (20+) and report pacing after warmup\n  --script ACTIONS    Comma-separated home/apps/settings/up/down/left/right/enter/back/menu/hold/today/side-menu/type:TEXT/click:X:Y/wait\n  --time RFC3339      Fix the preview's clock and date\n  --screenshot PATH   Save an offscreen PNG\n  --capture-scale N   Capture at 1x/1080p (default) or 2x/4k\n  --diagnostics PATH  Save actual drawable, GPU, font-cache and timing information\n  --dump-state PATH   Save final UI state as JSON\n\nCompile with --features webos for the TV backend. Desktop builds never call TV services."
+                    "Luma native\n\n  --assets PATH       Generated artwork directory\n  --preferences PATH  Isolated preferences file\n  --fullscreen        Fullscreen desktop preview\n  --resolution SIZE   Request 1080p, 4k, or WIDTHxHEIGHT; verify actual drawable\n  --frames N          Exit after N event-loop frames\n  --profile-frames N  Force N presentations (20+) and report pacing after warmup\n  --script ACTIONS    Comma-separated home/apps/settings/up/down/left/right/enter/back/menu/hold/today/focus-today/side-menu/type:TEXT/click:X:Y/wait\n  --time RFC3339      Fix the preview's clock and date\n  --screenshot PATH   Save an offscreen PNG\n  --capture-scale N   Capture at 1x/1080p (default) or 2x/4k\n  --diagnostics PATH  Save actual drawable, GPU, font-cache and timing information\n  --dump-state PATH   Save final UI state as JSON\n\nCompile with --features webos for the TV backend. Desktop builds never call TV services."
                 );
                 println!(
                     "\n  --test-extra-apps N  Explicit scroll preview with up to 300 non-launchable extra cards; separate preferences"
@@ -466,6 +466,16 @@ fn script(
             } else {
                 vec![]
             }
+        }
+        // The card focused first and left to settle, as a viewer reaches it before OK.
+        "focus-today" => {
+            if controls
+                .iter()
+                .any(|control| control.target == Target::TodayCard)
+            {
+                state.focus = Target::TodayCard;
+            }
+            vec![]
         }
         "side-menu" => {
             state.open_menu();
@@ -2182,6 +2192,14 @@ fn run() -> Result<(), String> {
                 if let Some(timer) = &mut gpu_timer {
                     timer.begin();
                 }
+                if presented == 0 && ground {
+                    // The first draw into a new texture took the TV 119 ms; pay it at launch.
+                    renderer.prime_ground(
+                        &scene.draw[..scene.ground.min(scene.draw.len())],
+                        width,
+                        height,
+                    );
+                }
                 renderer.render(
                     &scene.draw,
                     width,
@@ -2329,7 +2347,9 @@ fn run() -> Result<(), String> {
             }
         }
         prewarm_now = false;
-        if idle && ground {
+        let still =
+            visible && !state.animating() && last_present.elapsed() > Duration::from_millis(300);
+        if still && ground {
             // The still page is drawn into its picture, for an overlay opened over it.
             let (width, height) = window.drawable_size();
             renderer.prime_ground(
