@@ -74,6 +74,11 @@ impl PerfLog {
         self.gpu.push(milliseconds);
     }
 
+    /// The loop is about to wait for input: the next frame's gap is that wait, not frame time.
+    pub fn idle(&mut self) {
+        self.last = None;
+    }
+
     /// One presented frame; a new second or screen writes out the frames before it.
     pub fn record(&mut self, now: Instant, label: &str, frame: &Frame) {
         if now.duration_since(self.window) >= Duration::from_secs(1) || label != self.label {

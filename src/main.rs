@@ -2334,6 +2334,11 @@ fn run() -> Result<(), String> {
         } else {
             100
         };
+        if timeout > 0
+            && let Some(log) = &mut perf_log
+        {
+            log.idle();
+        }
         queued_event = sdl_events::wait(&mut events, timeout, webos);
     }
     if text_active {

@@ -114,3 +114,34 @@ fn a_late_frame_gets_its_own_line_with_its_first_use_work() {
     );
     std::fs::remove_dir_all(&directory).unwrap();
 }
+
+#[test]
+fn a_frame_after_waiting_for_input_is_not_late() {
+    let directory = std::env::temp_dir().join(format!("luma-perf-idle-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    std::fs::write(directory.join("perf"), "").unwrap();
+    let mut log = PerfLog::open(&directory).unwrap();
+    let frame = Frame {
+        interval_ms: 0.,
+        compose_ms: 1.,
+        render_ms: 1.,
+        swap_ms: 1.,
+        redrawn: 0.1,
+        glyph_ms: 0.,
+        vector_ms: 0.,
+        image_ms: 0.,
+    };
+    let start = std::time::Instant::now();
+    log.record(start, "Home", &frame);
+    log.record(start + Duration::from_millis(17), "Home", &frame);
+    // A remote press 200 ms later: the gap was a wait, not a slow frame.
+    log.idle();
+    log.record(start + Duration::from_millis(217), "Home", &frame);
+    log.record(start + Duration::from_millis(234), "Home", &frame);
+    log.record(start + Duration::from_millis(1300), "Home", &frame);
+    drop(log);
+    let written = std::fs::read_to_string(directory.join("perf.log")).unwrap();
+    assert!(!written.contains(" late frame "), "{written}");
+    assert!(written.contains(" n=2 gap 17.0/17.0 "), "{written}");
+    std::fs::remove_dir_all(&directory).unwrap();
+}
