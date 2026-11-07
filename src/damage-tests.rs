@@ -327,3 +327,14 @@ fn glass_damages_its_panel() {
     assert!(same(&glass(660.), &glass(660.)));
     assert!(!same(&glass(660.), &glass(670.)));
 }
+
+#[test]
+fn two_scenes_are_the_same_only_command_for_command() {
+    let scene = [wallpaper(), shape(100.), shape(300.)];
+    assert!(same_scene(&scene, &scene.clone()));
+    assert!(!same_scene(
+        &scene,
+        &[wallpaper(), shape(100.), shape(301.)]
+    ));
+    assert!(!same_scene(&scene, &scene[..2]));
+}

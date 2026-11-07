@@ -24,6 +24,7 @@ mod font;
 mod glass;
 mod glyph_atlas;
 mod gpu_timer;
+mod ground;
 mod homebrew_updates;
 mod i18n;
 #[path = "input-refresh.rs"]
@@ -967,6 +968,9 @@ fn run() -> Result<(), String> {
     };
     let perf_msaa = perf_value("msaa=");
     let perf_partial = perf_value("partial=");
+    // The page under overlays as one picture (LUMA_GROUND=0 draws it each frame).
+    let ground = std::env::var("LUMA_GROUND").as_deref() != Ok("0")
+        && perf_value("ground=").as_deref() != Some("0");
     if webos
         && options.script.is_empty()
         && let Some(directory) = preferences_path.parent()
@@ -1172,12 +1176,13 @@ fn run() -> Result<(), String> {
     if let Some(log) = &mut perf_log {
         let timer = gpu_timer::GpuTimer::load(webos, |name| video.gl_get_proc_address(name).cast());
         log.note(&format!(
-            "start Luma+ {} {} msaa {samples} partial {} gpu timer {}",
+            "start Luma+ {} {} msaa {samples} partial {} ground {} gpu timer {}",
             env!("CARGO_PKG_VERSION"),
             renderer.info.renderer,
             partial
                 .as_ref()
                 .map_or("off", egl_damage::PartialUpdate::describe),
+            if ground { "on" } else { "off" },
             timer.as_ref().map_or_else(|error| error.as_str(), |_| "on"),
         ));
         gpu_timer = timer.ok();
@@ -1198,6 +1203,7 @@ fn run() -> Result<(), String> {
     let mut damage_report = (0usize, 0usize, 0usize, 0u8);
     let mut full_report = (0usize, 0usize, 0usize, 0u8);
     let mut redrawn_total = 0.;
+    let mut ground_laid = 0usize;
     let mut profile = diagnostics::Profile::default();
     let mut presented = 0usize;
     let mut captured = None;
@@ -2176,11 +2182,18 @@ fn run() -> Result<(), String> {
                 if let Some(timer) = &mut gpu_timer {
                     timer.begin();
                 }
-                renderer.render(&scene.draw, width, height, damage);
+                renderer.render(
+                    &scene.draw,
+                    width,
+                    height,
+                    damage,
+                    if ground { scene.ground } else { 0 },
+                );
                 if let Some(timer) = &mut gpu_timer {
                     timer.end();
                 }
                 redrawn_total += renderer.stats().redrawn_fraction;
+                ground_laid += usize::from(renderer.stats().ground_laid);
                 if verify_damage {
                     // Full frames give the baseline difference of the two drawing paths.
                     let report = if damage.is_some() {
@@ -2231,6 +2244,7 @@ fn run() -> Result<(), String> {
                     glyph_ms: renderer.stats().glyph_ms,
                     vector_ms: renderer.stats().vector_load_ms,
                     image_ms: renderer.stats().image_load_ms,
+                    laid: renderer.stats().ground_laid,
                 };
                 if let Some(log) = &mut perf_log {
                     let label = format!(
@@ -2315,6 +2329,15 @@ fn run() -> Result<(), String> {
             }
         }
         prewarm_now = false;
+        if idle && ground {
+            // The still page is drawn into its picture, for an overlay opened over it.
+            let (width, height) = window.drawable_size();
+            renderer.prime_ground(
+                &scene.draw[..scene.ground.min(scene.draw.len())],
+                width,
+                height,
+            );
+        }
         // Block until input instead of polling at frame rate on idle screens.
         // VSync paces animation; holds, scripted checks and icons still being
         // decoded need short timed wakes.
@@ -2376,6 +2399,7 @@ fn run() -> Result<(), String> {
             "profile": options.profile_frames.map(|_| profile.summary()),
             "partial_redraw": partial.as_ref().map(egl_damage::PartialUpdate::describe),
             "redrawn_fraction_mean": redrawn_total / presented.max(1) as f64,
+            "ground_laid_frames": ground_laid,
             "damage_verify": verify_damage.then(|| serde_json::json!({
                 "verified_frames": damage_report.0, "mismatched_frames": damage_report.1,
                 "worst_pixels": damage_report.2, "largest_difference": damage_report.3,

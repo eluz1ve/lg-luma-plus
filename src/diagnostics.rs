@@ -25,6 +25,8 @@ pub struct Frame {
     pub glyph_ms: f64,
     pub vector_ms: f64,
     pub image_ms: f64,
+    /// The page under an overlay was laid down as its picture.
+    pub laid: bool,
 }
 #[derive(Serialize)]
 pub struct Timing {
@@ -104,6 +106,7 @@ mod tests {
                     glyph_ms: 0.,
                     vector_ms: 0.,
                     image_ms: 0.,
+                    laid: false,
                 },
             );
         }

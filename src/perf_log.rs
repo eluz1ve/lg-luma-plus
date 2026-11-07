@@ -1,7 +1,7 @@
 //! On-TV frame timing, for measuring where no debugger reaches: while a `perf` file sits beside
 //! the preferences, each second that drew frames appends one line to `perf.log` there. A
 //! `script=` line in that file plays remote presses at launch, as `--script` does, and
-//! `msaa=`/`partial=` lines change how the next launch draws, for comparing on the TV.
+//! `msaa=`/`partial=`/`ground=` lines change how the next launch draws, for comparing on the TV.
 use crate::diagnostics::Frame;
 use std::{
     fs::File,
@@ -26,6 +26,7 @@ struct Sample {
     swap: f64,
     image: f64,
     redrawn: f64,
+    laid: bool,
 }
 
 pub struct PerfLog {
@@ -114,6 +115,7 @@ impl PerfLog {
                 swap: frame.swap_ms,
                 image: frame.image_ms,
                 redrawn: frame.redrawn,
+                laid: frame.laid,
             });
         }
     }
@@ -185,6 +187,12 @@ fn line(seconds: f64, label: &str, samples: &[Sample], gpu: &[f64]) -> String {
         let peak = samples.iter().map(value).fold(0., f64::max);
         format!("{mean:.1}/{peak:.1}")
     };
+    let laid = samples.iter().filter(|s| s.laid).count();
+    let laid = if laid > 0 {
+        format!(" laid {laid}")
+    } else {
+        String::new()
+    };
     let gpu = if gpu.is_empty() {
         String::new()
     } else {
@@ -193,7 +201,7 @@ fn line(seconds: f64, label: &str, samples: &[Sample], gpu: &[f64]) -> String {
         format!(" gpu {mean:.1}/{peak:.1}")
     };
     format!(
-        "t={seconds:.1} {label} n={} gap {} compose {} render {} swap {} image {:.1} redrawn {:.2} late {}{gpu}\n",
+        "t={seconds:.1} {label} n={} gap {} compose {} render {} swap {} image {:.1} redrawn {:.2} late {}{laid}{gpu}\n",
         samples.len(),
         stat(|s| s.gap),
         stat(|s| s.compose),

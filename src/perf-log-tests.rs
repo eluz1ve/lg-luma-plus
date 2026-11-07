@@ -8,6 +8,7 @@ fn sample(gap: f64, render: f64) -> Sample {
         swap: 1.,
         image: 0.,
         redrawn: 0.5,
+        laid: false,
     }
 }
 
@@ -95,6 +96,7 @@ fn a_late_frame_gets_its_own_line_with_its_first_use_work() {
         glyph_ms: 0.,
         vector_ms: 0.,
         image_ms,
+        laid: false,
     };
     let start = std::time::Instant::now();
     log.record(start, "Home", &frame(5., 0.));
@@ -130,6 +132,7 @@ fn a_frame_after_waiting_for_input_is_not_late() {
         glyph_ms: 0.,
         vector_ms: 0.,
         image_ms: 0.,
+        laid: false,
     };
     let start = std::time::Instant::now();
     log.record(start, "Home", &frame);
@@ -144,4 +147,26 @@ fn a_frame_after_waiting_for_input_is_not_late() {
     assert!(!written.contains(" late frame "), "{written}");
     assert!(written.contains(" n=2 gap 17.0/17.0 "), "{written}");
     std::fs::remove_dir_all(&directory).unwrap();
+}
+
+#[test]
+fn frames_that_laid_the_page_down_as_a_picture_are_counted() {
+    let laid = Sample {
+        laid: true,
+        ..sample(16.7, 2.)
+    };
+    let line = line(
+        5.,
+        "Home+overlay",
+        &[
+            sample(16.7, 9.),
+            laid,
+            Sample {
+                laid: true,
+                ..sample(16.7, 2.)
+            },
+        ],
+        &[3.],
+    );
+    assert!(line.ends_with(" late 0 laid 2 gpu 3.0/3.0\n"), "{line}");
 }

@@ -187,6 +187,8 @@ pub struct RenderStats {
     pub cpu_submission_ms: f64,
     /// Share of the drawable redrawn in the last frame (1 without partial redraw).
     pub redrawn_fraction: f64,
+    /// The page under an overlay was laid down as its picture.
+    pub ground_laid: bool,
 }
 impl RenderStats {
     fn new(target: Size) -> Self {
@@ -217,6 +219,7 @@ impl RenderStats {
             draw_calls: 0,
             cpu_submission_ms: 0.,
             redrawn_fraction: 1.,
+            ground_laid: false,
         }
     }
 }
@@ -292,6 +295,19 @@ impl Scrim {
             Self::Gradient(top, bottom) => {
                 std::array::from_fn(|i| top[i] + (bottom[i] - top[i]) * t)
             }
+        }
+    }
+}
+
+/// Limits drawing to `area` (drawable pixels, origin bottom-left), or lifts the limit.
+fn scissor(area: Option<[i32; 4]>) {
+    unsafe {
+        match area {
+            Some([x, y, w, h]) => {
+                gl::Enable(gl::SCISSOR_TEST);
+                gl::Scissor(x, y, w.max(0), h.max(0));
+            }
+            None => gl::Disable(gl::SCISSOR_TEST),
         }
     }
 }
@@ -395,6 +411,15 @@ pub struct Renderer {
     clip: Option<Rect>,
     // [top fade-in, top end, bottom start, bottom fade-out, left ×2, right ×2]; 0 = off.
     fade: Option<[f32; 8]>,
+    // Batches merge only from this one on: the page's batches end at its picture.
+    batch_floor: usize,
+    ground: crate::ground::Ground,
+    // The picture's framebuffer and texture.
+    ground_target: Option<(GLuint, Texture)>,
+    // No complete framebuffer for it: the page is always drawn.
+    ground_unsupported: bool,
+    // This frame's batch laying the picture down; the page's batches come before it.
+    ground_batch: Option<usize>,
     frame: u64,
     stats: RenderStats,
     pub info: GraphicsInfo,
@@ -505,6 +530,11 @@ impl Renderer {
             glass_worker: crate::glass::Worker::default(),
             vertices: Vec::with_capacity(65536),
             batches: Vec::new(),
+            batch_floor: 0,
+            ground: crate::ground::Ground::default(),
+            ground_target: None,
+            ground_unsupported: false,
+            ground_batch: None,
             clip: None,
             fade: None,
             frame: 0,
@@ -691,7 +721,9 @@ impl Renderer {
         texture: GLuint,
         backdrop: Option<[[u8; 3]; 2]>,
     ) {
-        if let Some(batch) = self.batches.last_mut() {
+        if self.batches.len() > self.batch_floor
+            && let Some(batch) = self.batches.last_mut()
+        {
             let same_clip = match (batch.clip, self.clip) {
                 (None, None) => true,
                 (Some(a), Some(b)) => a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h,
@@ -1119,6 +1151,10 @@ impl Renderer {
             let copy = copy.map(|copy| texture(copy.width(), copy.height(), copy.as_raw()));
             self.textures.insert(glass_key(&path), copy);
         }
+        if arrived {
+            // Same commands, new pixels: the page's picture showed the panes without them.
+            self.ground.forget();
+        }
         arrived
     }
 
@@ -1352,7 +1388,7 @@ impl Renderer {
     /// first appearance does not pay for it. The visible frame's statistics stay unchanged.
     pub fn prepare(&mut self, commands: &[Draw], width: u32, height: u32) {
         let stats = self.stats.clone();
-        self.build(commands, width, height, None);
+        self.build(commands, width, height, None, None);
         self.vertices.clear();
         self.batches.clear();
         self.stats = stats;
@@ -1360,18 +1396,34 @@ impl Renderer {
 
     /// Lays out the scene into vertices and batches; commands entirely outside `area` are
     /// skipped.
-    fn build(&mut self, commands: &[Draw], width: u32, height: u32, area: Option<Rect>) {
-        self.build_once(commands, width, height, area);
+    /// With `ground` (the page's length and its picture), the picture is laid down where the
+    /// page ends, in a batch of its own.
+    fn build(
+        &mut self,
+        commands: &[Draw],
+        width: u32,
+        height: u32,
+        area: Option<Rect>,
+        ground: Option<(usize, GLuint)>,
+    ) {
+        self.build_once(commands, width, height, area, ground);
         if self.atlas_full {
             // No room for a glyph: start the atlas over with this frame's glyphs alone.
             self.shelves.clear();
             self.atlas_glyphs.clear();
             self.atlas_full = false;
-            self.build_once(commands, width, height, area);
+            self.build_once(commands, width, height, area, ground);
         }
     }
 
-    fn build_once(&mut self, commands: &[Draw], width: u32, height: u32, area: Option<Rect>) {
+    fn build_once(
+        &mut self,
+        commands: &[Draw],
+        width: u32,
+        height: u32,
+        area: Option<Rect>,
+        ground: Option<(usize, GLuint)>,
+    ) {
         self.stats = RenderStats::new(Size::new(width, height));
         // Captures can bind a single-sample FBO even when the actual TV window
         // is multisampled, so query the active target rather than assume.
@@ -1383,8 +1435,18 @@ impl Renderer {
         self.batches.clear();
         self.clip = None;
         self.fade = None;
+        self.batch_floor = 0;
+        self.ground_batch = None;
+        // Scrims fold into a wallpaper only from the same side of the page's end.
+        let mut fold_end = ground.map_or(commands.len(), |(page, _)| page);
         let mut index = 0;
         while index < commands.len() {
+            if let Some((page, picture)) = ground
+                && index == page
+            {
+                self.lay_ground(picture);
+                fold_end = commands.len();
+            }
             let command = &commands[index];
             index += 1;
             if profile_skip(command) {
@@ -1395,7 +1457,9 @@ impl Renderer {
                 && self.fade.is_none()
             {
                 let mut scrims = Vec::new();
-                while let Some(next) = commands.get(index) {
+                while index < fold_end
+                    && let Some(next) = commands.get(index)
+                {
                     if profile_skip(next) {
                         index += 1;
                     } else if let Some(scrim) = Scrim::of(next) {
@@ -1473,36 +1537,45 @@ impl Renderer {
 
     /// Draws the scene. With `damage` (drawable pixels from `damage_pixels`), only those pixels
     /// are cleared and drawn; commands entirely outside them are skipped, and the rest of the
-    /// back buffer keeps its earlier contents.
-    pub fn render(&mut self, commands: &[Draw], width: u32, height: u32, damage: Option<[i32; 4]>) {
-        let area = damage.map(|pixels| Self::damage_area(pixels, width, height));
+    /// back buffer keeps its earlier contents. The first `ground` commands are the page under
+    /// whatever is drawn over it (`view::Scene::ground`): while they stay the same, they are
+    /// laid down as one picture.
+    pub fn render(
+        &mut self,
+        commands: &[Draw],
+        width: u32,
+        height: u32,
+        damage: Option<[i32; 4]>,
+        ground: usize,
+    ) {
         let started = Instant::now();
-        self.build(commands, width, height, area);
+        let picture =
+            self.ground_picture(commands, ground, Viewport::new(Size::new(width, height)));
+        let fill = picture.is_some_and(|(_, _, fill)| fill);
+        // A page drawn into its picture is drawn whole; the window only where it changed.
+        let area = damage
+            .filter(|_| !fill)
+            .map(|pixels| Self::damage_area(pixels, width, height));
+        self.build(
+            commands,
+            width,
+            height,
+            area,
+            picture.map(|(split, texture, _)| (split, texture)),
+        );
         let Viewport {
             x: vx,
             y: vy,
             width: vw,
             height: vh,
-            scale,
+            ..
         } = self.stats.viewport;
         if let Some([_, _, w, h]) = damage {
             self.stats.redrawn_fraction = f64::from(w * h) / f64::from((width * height).max(1));
         }
-        let scissor = |area: Option<[i32; 4]>| unsafe {
-            match area {
-                Some([x, y, w, h]) => {
-                    gl::Enable(gl::SCISSOR_TEST);
-                    gl::Scissor(x, y, w.max(0), h.max(0));
-                }
-                None => gl::Disable(gl::SCISSOR_TEST),
-            }
-        };
+        self.stats.ground_laid = picture.is_some();
+        let page = self.ground_batch.unwrap_or(0);
         unsafe {
-            gl::Viewport(0, 0, width as i32, height as i32);
-            scissor(damage);
-            gl::ClearColor(0.04, 0.04, 0.05, 1.);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-            gl::Viewport(vx, vy, vw, vh);
             if self.vao != 0 {
                 gl::BindVertexArray(self.vao);
             }
@@ -1513,6 +1586,214 @@ impl Renderer {
                 self.vertices.as_ptr().cast(),
                 gl::DYNAMIC_DRAW,
             );
+            // Into the picture first: switching to it after the window was drawn into would
+            // make a tiled GPU write the window's tiles out and read them back.
+            if fill && let Some((framebuffer, _)) = &self.ground_target {
+                let mut window = 0;
+                gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut window);
+                gl::BindFramebuffer(gl::FRAMEBUFFER, *framebuffer);
+                gl::Disable(gl::SCISSOR_TEST);
+                gl::Viewport(0, 0, vw, vh);
+                gl::ClearColor(0.04, 0.04, 0.05, 1.);
+                gl::Clear(gl::COLOR_BUFFER_BIT);
+                self.draw_batches(0..page, [0, 0, vw, vh], None);
+                gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
+            }
+            gl::Viewport(0, 0, width as i32, height as i32);
+            scissor(damage);
+            gl::ClearColor(0.04, 0.04, 0.05, 1.);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            self.draw_batches(page..self.batches.len(), [vx, vy, vw, vh], damage);
+            gl::Disable(gl::SCISSOR_TEST);
+        }
+        if fill {
+            self.ground.filled(&commands[..ground]);
+        }
+        // Keep the current scene, evict old full-resolution wallpapers before memory grows.
+        let mut bytes: usize = self
+            .textures
+            .values()
+            .flatten()
+            .map(|t| t.width as usize * t.height as usize * 4)
+            .sum();
+        if bytes > TEXTURE_BUDGET {
+            let mut old: Vec<_> = self
+                .textures
+                .iter()
+                .filter_map(|(path, t)| {
+                    t.as_ref()
+                        .filter(|t| t.frame != self.frame)
+                        .map(|t| (path.clone(), t.frame))
+                })
+                .collect();
+            old.sort_by_key(|(_, frame)| *frame);
+            for (path, _) in old {
+                if bytes <= TEXTURE_BUDGET {
+                    break;
+                }
+                if let Some(Some(t)) = self.textures.remove(&path) {
+                    bytes -= t.width as usize * t.height as usize * 4;
+                }
+            }
+        }
+        self.trim_text();
+        self.stats.vector_meshes = self.vectors.values().flatten().count();
+        self.stats.vector_bytes = self.vectors.values().flatten().map(|mesh| mesh.bytes).sum();
+        self.stats.artwork_bytes = bytes + self.stats.vector_bytes;
+        self.stats.draw_calls = self.batches.len();
+        self.stats.cpu_submission_ms = started.elapsed().as_secs_f64() * 1000.;
+    }
+
+    /// The picture of the page laid over the whole screen, unclipped and unfaded, in a batch
+    /// of its own: it is drawn on its own when the page is drawn into it.
+    fn lay_ground(&mut self, picture: GLuint) {
+        let (clip, fade) = (self.clip.take(), self.fade.take());
+        self.batch_floor = self.batches.len();
+        self.ground_batch = Some(self.batches.len());
+        // A framebuffer's rows run bottom up; the plain texture path, without the distance field.
+        self.quad(
+            Rect::new(0., 0., 1920., 1080.),
+            [0., 1., 1., 0.],
+            -1.,
+            0.,
+            [1.; 4],
+            picture,
+        );
+        self.batch_floor = self.batches.len();
+        (self.clip, self.fade) = (clip, fade);
+    }
+
+    /// Where this frame's page ends and its picture's texture, and whether the page is drawn
+    /// into the picture first; none when the page is drawn as it is.
+    fn ground_picture(
+        &mut self,
+        commands: &[Draw],
+        ground: usize,
+        viewport: Viewport,
+    ) -> Option<(usize, GLuint, bool)> {
+        if ground == 0 || ground >= commands.len() || self.ground_unsupported {
+            return None;
+        }
+        let size = (viewport.width as u32, viewport.height as u32);
+        if self
+            .ground_target
+            .as_ref()
+            .is_some_and(|(_, texture)| (texture.width, texture.height) != size)
+        {
+            self.ground.forget();
+        }
+        match self.ground.plan(&commands[..ground]) {
+            crate::ground::Plan::Draw => None,
+            crate::ground::Plan::Fill => Some((ground, self.ground_target(size)?, true)),
+            crate::ground::Plan::Lay => Some((ground, self.ground_target(size)?, false)),
+        }
+    }
+
+    /// The picture's texture at `size`, made on first use.
+    fn ground_target(&mut self, (width, height): (u32, u32)) -> Option<GLuint> {
+        if let Some((_, texture)) = &self.ground_target
+            && (texture.width, texture.height) == (width, height)
+        {
+            return Some(texture.id);
+        }
+        if let Some((framebuffer, _)) = self.ground_target.take() {
+            unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+        }
+        let picture = texture(width, height, &[]);
+        let mut framebuffer = 0;
+        let complete = unsafe {
+            // Laid down pixel for pixel.
+            gl::BindTexture(gl::TEXTURE_2D, picture.id);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            let mut window = 0;
+            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut window);
+            gl::GenFramebuffers(1, &mut framebuffer);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0,
+                gl::TEXTURE_2D,
+                picture.id,
+                0,
+            );
+            let complete = gl::CheckFramebufferStatus(gl::FRAMEBUFFER) == gl::FRAMEBUFFER_COMPLETE;
+            gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
+            complete
+        };
+        if !complete {
+            unsafe { gl::DeleteFramebuffers(1, &framebuffer) };
+            eprintln!("Luma: no framebuffer for the page under overlays; it is drawn each frame");
+            self.ground_unsupported = true;
+            return None;
+        }
+        let id = picture.id;
+        self.ground_target = Some((framebuffer, picture));
+        Some(id)
+    }
+
+    /// Draws a still scene into the page's picture ahead of time, so the first frame of an
+    /// overlay opened over it already lays the picture down.
+    pub fn prime_ground(&mut self, page: &[Draw], width: u32, height: u32) {
+        if page.is_empty() || self.ground_unsupported || self.ground.holds(page) {
+            return;
+        }
+        let viewport = Viewport::new(Size::new(width, height));
+        let stats = self.stats.clone();
+        if self
+            .ground_target((viewport.width as u32, viewport.height as u32))
+            .is_none()
+        {
+            return;
+        }
+        self.build(page, width, height, None, None);
+        let Some((framebuffer, _)) = &self.ground_target else {
+            return;
+        };
+        let framebuffer = *framebuffer;
+        unsafe {
+            if self.vao != 0 {
+                gl::BindVertexArray(self.vao);
+            }
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (self.vertices.len() * size_of::<f32>()) as isize,
+                self.vertices.as_ptr().cast(),
+                gl::DYNAMIC_DRAW,
+            );
+            let mut window = 0;
+            gl::GetIntegerv(gl::FRAMEBUFFER_BINDING, &mut window);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffer);
+            gl::Disable(gl::SCISSOR_TEST);
+            gl::Viewport(0, 0, viewport.width, viewport.height);
+            gl::ClearColor(0.04, 0.04, 0.05, 1.);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            self.draw_batches(
+                0..self.batches.len(),
+                [0, 0, viewport.width, viewport.height],
+                None,
+            );
+            gl::BindFramebuffer(gl::FRAMEBUFFER, window as GLuint);
+        }
+        self.ground.filled(page);
+        self.vertices.clear();
+        self.batches.clear();
+        self.stats = stats;
+    }
+
+    /// Issues `batches[range]`, the logical screen mapped to `viewport` (drawable pixels, origin
+    /// bottom-left) and every clip cut to `damage`.
+    fn draw_batches(
+        &self,
+        range: std::ops::Range<usize>,
+        viewport: [i32; 4],
+        damage: Option<[i32; 4]>,
+    ) {
+        let [vx, vy, vw, vh] = viewport;
+        let scale = self.stats.viewport.scale;
+        unsafe {
+            gl::Viewport(vx, vy, vw, vh);
             gl::UseProgram(self.program);
             // One drawable pixel in logical units: the paint shader's edge filter width.
             gl::Uniform1f(
@@ -1526,7 +1807,7 @@ impl Renderer {
             gl::ActiveTexture(gl::TEXTURE0);
             let mut paint_bound = false;
             let mut current_fade = None;
-            for batch in &self.batches {
+            for batch in &self.batches[range] {
                 if current_fade != Some(batch.fade) {
                     // The same cheap alpha mask applies to shapes, textures,
                     // icons and text; the unmasked wallpaper remains beneath.
@@ -1621,41 +1902,7 @@ impl Renderer {
                     }
                 }
             }
-            gl::Disable(gl::SCISSOR_TEST);
         }
-        // Keep the current scene, evict old full-resolution wallpapers before memory grows.
-        let mut bytes: usize = self
-            .textures
-            .values()
-            .flatten()
-            .map(|t| t.width as usize * t.height as usize * 4)
-            .sum();
-        if bytes > TEXTURE_BUDGET {
-            let mut old: Vec<_> = self
-                .textures
-                .iter()
-                .filter_map(|(path, t)| {
-                    t.as_ref()
-                        .filter(|t| t.frame != self.frame)
-                        .map(|t| (path.clone(), t.frame))
-                })
-                .collect();
-            old.sort_by_key(|(_, frame)| *frame);
-            for (path, _) in old {
-                if bytes <= TEXTURE_BUDGET {
-                    break;
-                }
-                if let Some(Some(t)) = self.textures.remove(&path) {
-                    bytes -= t.width as usize * t.height as usize * 4;
-                }
-            }
-        }
-        self.trim_text();
-        self.stats.vector_meshes = self.vectors.values().flatten().count();
-        self.stats.vector_bytes = self.vectors.values().flatten().map(|mesh| mesh.bytes).sum();
-        self.stats.artwork_bytes = bytes + self.stats.vector_bytes;
-        self.stats.draw_calls = self.batches.len();
-        self.stats.cpu_submission_ms = started.elapsed().as_secs_f64() * 1000.;
     }
 
     fn draw_mesh(&self, program: GLuint, mesh: &vector::Mesh, transform: [f32; 4], tint: Color) {
@@ -1758,7 +2005,7 @@ impl Renderer {
                 return Err("Screenshot framebuffer is incomplete".into());
             }
         }
-        self.render(commands, size.width, size.height, None);
+        self.render(commands, size.width, size.height, None, 0);
         let stats = self.stats.clone();
         let result = self.screenshot(path, size.width, size.height);
         unsafe {
@@ -1818,7 +2065,7 @@ impl Renderer {
             }
             gl::BindFramebuffer(gl::FRAMEBUFFER, framebuffers[0]);
         }
-        self.render(commands, width, height, None);
+        self.render(commands, width, height, None, 0);
         unsafe {
             gl::BindFramebuffer(gl::READ_FRAMEBUFFER, framebuffers[0]);
             gl::BindFramebuffer(gl::DRAW_FRAMEBUFFER, framebuffers[1]);
@@ -1900,6 +2147,9 @@ impl Drop for Renderer {
             gl::DeleteBuffers(1, &self.buffer);
             gl::DeleteProgram(self.program);
             gl::DeleteProgram(self.vector_program);
+            if let Some((framebuffer, _)) = &self.ground_target {
+                gl::DeleteFramebuffers(1, framebuffer);
+            }
             if self.vao != 0 {
                 gl::DeleteVertexArrays(1, &self.vao);
             }

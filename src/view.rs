@@ -239,6 +239,9 @@ pub struct Scene {
     /// The wallpapers behind the page and their opacities (two while they cross-fade), which
     /// glass samples.
     pub backdrop: Vec<(String, f32)>,
+    /// How many leading commands are the page with its header, under whatever is drawn over
+    /// it; while they stay the same, the renderer lays them down as one picture.
+    pub ground: usize,
 }
 
 /// A part of Home that settings change.
@@ -270,6 +273,7 @@ impl Scene {
             regions: Vec::new(),
             preview: None,
             backdrop: Vec::new(),
+            ground: 0,
         }
     }
     fn shape(&mut self, rect: Rect, radius: f32, fill: Color) {
@@ -962,6 +966,7 @@ pub fn scene(state: &State, assets: &Assets, now: OffsetDateTime) -> Scene {
     let (draws, controls) = (out.draw.len(), out.controls.len());
     header(&mut out, state, assets, now);
     out.slide(draws, controls, state.chrome_offset());
+    out.ground = out.draw.len();
     if let Some(
         overlay @ (Overlay::Options { .. }
         | Overlay::Delete { .. }

@@ -161,6 +161,11 @@ pub fn bounds(command: &Draw) -> Option<Rect> {
     }
 }
 
+/// Whether two scenes draw the same thing, command for command.
+pub fn same_scene(a: &[Draw], b: &[Draw]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same(a, b))
+}
+
 fn same(a: &Draw, b: &Draw) -> bool {
     let rect = |a: &Rect, b: &Rect| a.x == b.x && a.y == b.y && a.w == b.w && a.h == b.h;
     match (a, b) {

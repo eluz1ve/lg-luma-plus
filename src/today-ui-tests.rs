@@ -648,3 +648,26 @@ fn a_perf_script_opens_today_without_walking_the_focus_there() {
     assert_eq!(crate::script("today", &mut state, &controls), Ok(vec![]));
     assert!(matches!(state.overlay, Some(Overlay::Today { .. })));
 }
+
+#[test]
+fn the_page_under_today_and_the_menu_is_home_as_it_was() {
+    let mut state = today_state();
+    let home = at(&state);
+    assert_eq!(home.ground, home.draw.len(), "nothing lies over Home");
+    crate::script("today", &mut state, &home.controls).unwrap();
+    let today = at(&state);
+    assert!(today.ground < today.draw.len());
+    assert!(crate::damage::same_scene(
+        &home.draw,
+        &today.draw[..today.ground]
+    ));
+
+    let mut state = today_state();
+    state.open_menu();
+    let menu = at(&state);
+    assert!(menu.ground < menu.draw.len());
+    assert!(crate::damage::same_scene(
+        &home.draw,
+        &menu.draw[..menu.ground]
+    ));
+}
