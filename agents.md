@@ -101,6 +101,6 @@ gallery to `.build/brands-gallery.png`; source restoration via `pnpm assets:bran
 mocked desktop rendering, SDK setup, ARM cross-build, actual IPK verification/checksum/feed,
 artifacts and guarded publication. Keep existing published-version/draft/tag-commit checks.
 Every push to `main` publishes a build once all checks, smoke suites and the ARM package pass;
-PRs and manual runs build/check/package but do not publish. See `development.md#releases`.
+so does a manual run of `main`; PRs and other branches build/check/package but do not publish. See `development.md#releases`.
 Only create commits or PRs when explicitly requested. For PR descriptions follow the global
 `commands/pr.md` format instructions.

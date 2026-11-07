@@ -1073,7 +1073,8 @@ Homebrew feed, as the latest release. Its notes (`tools/release-notes.mjs`) list
 the commits since the newest published release the build descends from, oldest first, with a
 comparison link. Write commit subjects for readers of the release.
 
-Pull requests and manual runs build, check and package without publishing. To push without a
+A manual run of the CI workflow on `main` (**Actions → CI → Run workflow**) releases it too.
+Pull requests and manual runs of other branches build, check and package without publishing. To push without a
 build, put `[skip ci]` in the commit message. An already published build is skipped, a draft is
 resumed, and a tag on another commit fails the run: push again for a new number. Several pushes
 waiting behind a running build are released together by the newest. To retry a failed

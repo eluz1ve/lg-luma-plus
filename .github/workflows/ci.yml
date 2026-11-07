@@ -1,5 +1,5 @@
 name: CI
-run-name: "${{ github.event_name == 'push' && format('Build and release · {0}', github.event.head_commit.message) || github.event_name == 'workflow_dispatch' && format('Branch validation · {0} (no publication)', github.ref_name) || format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) }}"
+run-name: "${{ github.event_name == 'push' && format('Build and release · {0}', github.event.head_commit.message) || github.event_name == 'workflow_dispatch' && format('Manual run · {0}', github.ref_name) || format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title) }}"
 
 on:
   push:
@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Every push to main is released as a build numbered by its date and time
-  # (tools/build-number.mjs). Put [skip ci] in a commit message to push without a build.
+  # Every push to main, and every manual run of main, is released as a build numbered by its date
+  # and time (tools/build-number.mjs). Put [skip ci] in a commit message to push without a build.
   release-gate:
     name: Build number and release eligibility
     runs-on: ubuntu-24.04
@@ -34,16 +34,16 @@ jobs:
       - name: Release pushes to main
         id: gate
         env:
-          PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          PUBLISH: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
           RELEASE_TITLE: ${{ steps.build.outputs.title }}
         run: |
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           {
             echo "## $RELEASE_TITLE"
             if [ "$PUBLISH" = true ]; then
-              echo 'Release authorized: a push to main. Publication waits for checks, all four smoke suites, and the verified ARM package.'
+              echo 'Release authorized: main. Publication waits for checks, all four smoke suites, and the verified ARM package.'
             else
-              echo 'Validation only: only pushes to main are released.'
+              echo 'Validation only: only main is released.'
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -320,6 +320,6 @@ jobs:
             ...Object.entries(jobs).map(([name, job]) => `| ${name} | ${job.result} |`), '',
             `[Run and artifacts](${repo}/actions/runs/${process.env.GITHUB_RUN_ID})`, '',
             eligible ? `[Release page](${repo}/releases/tag/${process.env.RELEASE_TAG})` : 'Push to main to release a build.', '',
-            eligible && jobs.release.result !== 'success' ? 'Retry failed jobs on this original main-commit run after resolving failures. Manual dispatch does not publish.' : '',
+            eligible && jobs.release.result !== 'success' ? 'Retry failed jobs on this run after resolving failures, or run the workflow on main again.' : '',
           ].join('\n'));
           NODE
