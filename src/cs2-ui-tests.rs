@@ -137,7 +137,7 @@ fn cs2_cards_stand_above_the_favorites_and_open_their_match() {
         "Tier 1",
         "Mirage",
         "13:9",
-        "Vitality lineup",
+        "Vitality",
         "ZywOo",
         "No lineup yet",
         "Upper bracket · Final",
@@ -423,7 +423,7 @@ fn lineups_read_from_the_sofa() {
         serde_json::json!([{"name": "XTQZZZ", "role": "Head Coach"}]),
     );
     assert!(line(&page, "ZywOo").1.size >= 24.);
-    assert!(line(&page, "Alpha lineup").1.size >= 22.);
+    assert!(line(&page, "Alpha").1.size >= 22.);
     assert!(line(&page, "XTQZZZ").1.size >= 20.);
 }
 
@@ -461,6 +461,15 @@ fn coaches_who_would_run_into_the_heading_stay_off_the_line() {
     assert!(!shown.contains("LongCoachName4"), "{shown}");
     let label = line(&page, "COACH").0;
     assert!(label.x < coach.x);
-    let heading = line(&page, "Alpha lineup").0;
+    let heading = line(&page, "Alpha").0;
     assert!(heading.x + heading.w <= label.x);
+}
+
+#[test]
+fn a_lineup_is_headed_by_the_team_alone() {
+    let page = match_page(players(&["ZywOo"]), serde_json::json!([]));
+    assert!(!drawn(&page).iter().any(|(text, ..)| text == "Alpha lineup"));
+    let heading = line(&page, "Alpha").0;
+    let name = line(&page, "ZywOo").0;
+    assert!(heading.y + heading.h <= name.y && name.y - heading.y < 60.);
 }

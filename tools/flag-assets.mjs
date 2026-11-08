@@ -4,9 +4,9 @@ import { pathToFileURL } from 'node:url';
 import sharp from 'sharp';
 
 const root = path.resolve(import.meta.dirname, '..');
-// Twice what the CS2 match page draws (36×27), so a 4K interface stays sharp.
-const WIDTH = 72;
-const HEIGHT = 54;
+// Twice what the CS2 match page draws (30×22), so a 4K interface stays sharp.
+const WIDTH = 60;
+const HEIGHT = 45;
 
 export async function generateFlagAssets() {
   const source = path.join(root, 'assets/flags');

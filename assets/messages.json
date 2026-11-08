@@ -1604,21 +1604,6 @@
     "nl": "Maps",
     "sv": "Kartor"
   },
-  "cs2Lineup": {
-    "zh-tw": "{team} 陣容",
-    "en": "{team} lineup",
-    "de": "Aufstellung {team}",
-    "zh": "{team} 阵容",
-    "es": "Alineación de {team}",
-    "pt": "Escalação da {team}",
-    "it": "Formazione {team}",
-    "ru": "Состав {team}",
-    "pl": "Skład {team}",
-    "fr": "Composition de {team}",
-    "vi": "Đội hình {team}",
-    "nl": "Opstelling {team}",
-    "sv": "Laguppställning {team}"
-  },
   "cs2NoLineup": {
     "zh-tw": "尚無陣容",
     "en": "No lineup yet",

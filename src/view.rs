@@ -4257,12 +4257,9 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             team,
             Rect::new(column.x + 20., column.y + 16., 32., 32.),
         );
-        let heading = language.format(
-            "cs2Lineup",
-            &[("team", team.map_or("TBD", |team| team.short.as_str()))],
-        );
+        let heading = team.map_or("TBD", |team| team.short.as_str());
         let heading_style = text(22.4, 600, 0.);
-        let heading_w = assets.width(&heading, heading_style);
+        let heading_w = assets.width(heading, heading_style);
         let heading_x = column.x + 64.;
         out.text(
             heading,
@@ -4332,14 +4329,14 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         let pitch = (column.h - 62. - 12.) / players.len().clamp(5, 6) as f32;
         for (row, player) in players.iter().take(6).enumerate() {
             let middle = top + (row as f32 + 0.5) * pitch;
-            let flag = Rect::new(column.x + 20., middle - 13.5, 36., 27.);
+            let flag = Rect::new(column.x + 20., middle - 11., 30., 22.);
             match crate::cs2_flags::code(&player.flag) {
                 Some(code) => out.image(assets.path(format!("flags/{code}.png")), flag, 4., false),
                 None => out.shape(flag, 4., c(0xffffff, 0.06)),
             }
             out.text(
                 &player.name,
-                Rect::new(flag.x + flag.w + 14., middle - 16., column.w - 90., 32.),
+                Rect::new(heading_x, middle - 16., column.w - 84., 32.),
                 text(25.6, 600, -0.01),
                 WHITE,
                 false,
