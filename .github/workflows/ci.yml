@@ -100,7 +100,7 @@ jobs:
 
   smoke:
     name: Smoke / ${{ matrix.suite }}
-    needs: prepare
+    needs: [release-gate, prepare]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -127,6 +127,11 @@ jobs:
           node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The suites read the app's version from package.json, so it must match the shared binary's.
+      - name: Write the build's version
+        env:
+          LUMA_BUILD_NUMBER: ${{ needs.release-gate.outputs.number }}
+        run: node tools/build-number.mjs --apply
       - name: Install desktop rendering dependencies
         run: |
           apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
