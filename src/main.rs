@@ -17,6 +17,8 @@ mod crypto;
 #[path = "crypto-service.rs"]
 mod crypto_service;
 mod cs2;
+#[path = "cs2-live.rs"]
+mod cs2_live;
 #[path = "cs2-flags.rs"]
 mod cs2_flags;
 #[path = "cs2-service.rs"]
