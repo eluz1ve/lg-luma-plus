@@ -76,6 +76,8 @@ pub struct Artwork {
     pub pixels: RgbaImage,
     /// The card behind the icon: top and bottom of a vertical gradient (equal when flat).
     pub backdrop: [[u8; 3]; 2],
+    /// A fill in the logo's colours for the card around it (`cs2_wash`), where it has one.
+    pub wash: Option<Arc<Artwork>>,
 }
 
 impl Artwork {
@@ -143,6 +145,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Option<Artwork> {
         key: String::new(),
         pixels,
         backdrop,
+        wash: None,
     })
 }
 
@@ -310,7 +313,7 @@ fn logo_backdrop(image: &RgbaImage) -> [[u8; 3]; 2] {
     if light.0 > dark.0 { light.1 } else { dark.1 }
 }
 
-fn luminance(rgb: [u8; 3]) -> f32 {
+pub(crate) fn luminance(rgb: [u8; 3]) -> f32 {
     let linear = |c: u8| {
         let c = c as f32 / 255.;
         if c <= 0.04045 {
@@ -327,7 +330,7 @@ fn contrast(a: f32, b: f32) -> f32 {
 }
 
 /// Hue in degrees, saturation and value in 0..1.
-fn hsv(rgb: [u8; 3]) -> (f32, f32, f32) {
+pub(crate) fn hsv(rgb: [u8; 3]) -> (f32, f32, f32) {
     let [r, g, b] = rgb.map(|c| c as f32 / 255.);
     let max = r.max(g).max(b);
     let range = max - r.min(g).min(b);
@@ -343,7 +346,7 @@ fn hsv(rgb: [u8; 3]) -> (f32, f32, f32) {
     (hue, if max == 0. { 0. } else { range / max }, max)
 }
 
-fn hsl(hue: f32, saturation: f32, lightness: f32) -> [u8; 3] {
+pub(crate) fn hsl(hue: f32, saturation: f32, lightness: f32) -> [u8; 3] {
     let chroma = (1. - (2. * lightness - 1.).abs()) * saturation;
     let x = chroma * (1. - ((hue / 60.).rem_euclid(2.) - 1.).abs());
     let (r, g, b) = match (hue / 60.) as u32 {

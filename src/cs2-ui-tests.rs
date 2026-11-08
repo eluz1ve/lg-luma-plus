@@ -75,14 +75,16 @@ fn cs2_cards_stand_above_the_favorites_and_open_their_match() {
         })
         .collect();
     for expected in [
-        "CS2 Score",
+        "CS2 Scores",
         "Powered by Liquipedia",
         "LIVE",
         "Team Vitality",
-        "Map 2 · Inferno",
+        "Inferno",
+        "ZywOo",
         "Tomorrow 10:00 AM",
         "TBD",
-        "BO3 · Playoffs",
+        "BO3",
+        "Playoffs",
     ] {
         assert!(text.iter().any(|t| t == expected), "{expected} in {text:?}");
     }
@@ -250,7 +252,7 @@ fn cs2_and_shows_take_turns_in_the_center_from_widgets() {
     };
     // In Today by default: no rows of their own.
     assert!(state.preferences.cs2_today && state.preferences.shows_today);
-    assert!(!heading(&state, "CS2 Score") && !heading(&state, "Watching now"));
+    assert!(!heading(&state, "CS2 Scores") && !heading(&state, "Watching now"));
     state.open(2);
     for (widget, layout) in [(6, Target::Cs2Layout), (7, Target::ShowsLayout)] {
         state.focus = Target::Widget(widget);
@@ -263,9 +265,53 @@ fn cs2_and_shows_take_turns_in_the_center_from_widgets() {
     // One widget at a time: Shows in the center sent CS2 back into Today.
     assert!(state.preferences.cs2_today && !state.preferences.shows_today);
     state.open(0);
-    assert!(!heading(&state, "CS2 Score") && heading(&state, "Watching now"));
+    assert!(!heading(&state, "CS2 Scores") && heading(&state, "Watching now"));
     // Outside Russian its posters are TVmaze's, credited beside Lampa.
     assert!(heading(&state, "Lampa · TVmaze"));
     state.preferences.language = crate::i18n::Language::Ru;
     assert!(heading(&state, "Lampa") && !heading(&state, "Lampa · TVmaze"));
+}
+
+#[test]
+fn a_card_names_the_players_and_scores_each_map() {
+    let mut state = ready();
+    state.preferences.show_cs2 = true;
+    state.preferences.cs2_today = false;
+    let feed = crate::cs2::parse_feed(&serde_json::json!({
+        "updated": 0,
+        "matches": [{
+            "id": "a", "begin_at": "1970-01-01T00:00:00Z", "state": "live", "best_of": 3,
+            "tournament": "IEM Chengdu", "tier": 1, "score": [1, 0],
+            "teams": [{"name": "Team Vitality"}, {"name": "FaZe Clan"}],
+            "maps": [{"map": "Mirage", "score": [13, 9], "winner": 0},
+                     {"map": "Inferno", "score": [4, 6], "winner": null},
+                     {"map": "Anubis", "winner": null}],
+            "lineups": [[{"name": "ZywOo"}, {"name": "flameZ"}], [{"name": "ropz"}]]
+        }]
+    }))
+    .unwrap();
+    let (Some(command), _) = state.cs2.sync(true, true, 0) else {
+        panic!();
+    };
+    state.cs2.accept(command.id, Ok(feed), 0);
+    let text: Vec<String> = scene(&state)
+        .draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::Text(text, ..) => Some(text.clone()),
+            _ => None,
+        })
+        .collect();
+    for expected in [
+        "ZywOo · flameZ",
+        "ropz",
+        "Mirage",
+        "13:9",
+        "Inferno",
+        "4:6",
+        "Anubis",
+        "—",
+    ] {
+        assert!(text.iter().any(|t| t == expected), "{expected} in {text:?}");
+    }
 }

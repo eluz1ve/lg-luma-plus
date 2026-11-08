@@ -121,13 +121,13 @@ pub enum Target {
     WeatherTemperature,
     WeatherQuery,
     WeatherSearch,
-    /// Widgets › CS2 Score: show it, Tier 1–2 only, recent results.
+    /// Widgets › CS2 Scores: show it, Tier 1–2 only, recent results.
     Cs2Toggle,
     Cs2Major,
     Cs2Results,
-    /// A match card in Home's CS2 Score row, by position.
+    /// A match card in Home's CS2 Scores row, by position.
     Cs2Match(usize),
-    /// The close button of a CS2 Score match's dialog.
+    /// The close button of a CS2 Scores match's dialog.
     Cs2Close,
     /// Widgets › TV Shows: show the row.
     ShowsToggle,
@@ -153,7 +153,7 @@ pub enum Target {
     CryptoToggle,
     /// Widgets › Crypto: a row below the inputs or a line in Today.
     CryptoLayout,
-    /// Widgets › CS2 Score: matches in Today or in their own row.
+    /// Widgets › CS2 Scores: matches in Today or in their own row.
     Cs2Layout,
     /// Widgets › TV Shows: episodes in Today or a row of posters.
     ShowsLayout,
@@ -276,7 +276,7 @@ pub enum Overlay {
         id: String,
         restore: Target,
     },
-    /// A CS2 Score match in detail, by its id, so it stays open across refreshes.
+    /// A CS2 Scores match in detail, by its id, so it stays open across refreshes.
     Cs2Match {
         id: String,
         restore: Target,
@@ -310,7 +310,7 @@ pub enum Subpage {
     Clock,
     ClockFormat,
     TimeFormat,
-    /// Widgets › CS2 Score.
+    /// Widgets › CS2 Scores.
     Cs2,
     /// Widgets › Lampa: what it lists, and the CUB account its history comes from.
     Shows,
@@ -440,7 +440,7 @@ pub struct State {
     pub weather: weather::Weather,
     pub crypto: crate::crypto::Crypto,
     pub cs2: crate::cs2::Scores,
-    /// The first of the CS2 Score cards in view; Left and Right scroll through the rest.
+    /// The first of the CS2 Scores cards in view; Left and Right scroll through the rest.
     pub cs2_first: usize,
     pub shows: crate::shows::Shows,
     /// Lampa's CUB account, for the Today card.
@@ -1539,7 +1539,7 @@ impl State {
         self.dirty = true;
     }
 
-    /// How many matches CS2 Score lists.
+    /// How many matches CS2 Scores lists.
     pub fn cs2_count(&self) -> usize {
         self.cs2.feed.as_ref().map_or(0, |feed| {
             crate::cs2::shown(
@@ -1613,7 +1613,7 @@ impl State {
         }
     }
 
-    /// Scrolls the CS2 Score row so the card at `index` is in view.
+    /// Scrolls the CS2 Scores row so the card at `index` is in view.
     pub fn cs2_reveal(&mut self, index: usize) {
         let visible = crate::cs2::VISIBLE;
         if index < self.cs2_first {
@@ -2351,7 +2351,7 @@ impl State {
                 }
                 return vec![];
             }
-            // CS2 Score's cards: Left and Right step through every match, scrolling the row; Left
+            // CS2 Scores' cards: Left and Right step through every match, scrolling the row; Left
             // from the first opens the menu.
             if let Target::Cs2Match(index) = self.focus
                 && matches!(direction, Direction::Left | Direction::Right)
@@ -2402,7 +2402,7 @@ impl State {
                 }
                 return vec![];
             }
-            // CS2 Score's, TV Shows' and Lampa's rows: Right does nothing and Up from the first
+            // CS2 Scores', TV Shows' and Lampa's rows: Right does nothing and Up from the first
             // reaches the tabs.
             if matches!(
                 self.focus,

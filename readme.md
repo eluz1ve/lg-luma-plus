@@ -15,7 +15,7 @@ https://github.com/user-attachments/assets/9c05401c-37ec-4be8-acdf-774e645542c2
       <img src="docs/home.png" alt="Luma+ Home with the Today card and Lampa's Watching now row">
     </td>
     <td width="50%" align="center">
-      <img src="docs/today.png" alt="The Today card opened on CS2 Score's matches">
+      <img src="docs/today.png" alt="The Today card opened on CS2 Scores' matches">
     </td>
   </tr>
   <tr>
@@ -40,7 +40,7 @@ https://github.com/user-attachments/assets/9c05401c-37ec-4be8-acdf-774e645542c2
   from your CUB account (sign in with a QR code). OK opens the series or film right in Lampa,
   through a small Lampa plugin. Outside Russian, series show their English posters from
   [TVmaze](https://www.tvmaze.com).
-- **CS2 Score.** Counter-Strike 2 matches from Liquipedia with team logos, live scores and
+- **CS2 Scores.** Counter-Strike 2 matches from Liquipedia with team logos, live scores and
   results, and a match dialog with maps, rounds and lineups.
 - **Crypto prices.** Up to four coins, from the usual eight or any Binance coin, with their own
   marks, in the Today card or beside the greeting.

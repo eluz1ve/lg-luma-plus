@@ -1,6 +1,6 @@
 //! TV Shows on Home: series with a new episode that Lampa's viewers watch now, from the CUB feed
 //! behind Lampa's «Сейчас смотрят» (no account needed). OK opens Lampa. Requests and scheduling
-//! mirror CS2 Score: one job in flight, generation IDs, posters on their own worker.
+//! mirror CS2 Scores: one job in flight, generation IDs, posters on their own worker.
 use crate::{app_artwork::Artwork, cub, i18n::Language};
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};

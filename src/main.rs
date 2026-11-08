@@ -14,6 +14,8 @@ mod crypto_service;
 mod cs2;
 #[path = "cs2-service.rs"]
 mod cs2_service;
+#[path = "cs2-wash.rs"]
+mod cs2_wash;
 mod cub;
 #[path = "cub-service.rs"]
 mod cub_service;

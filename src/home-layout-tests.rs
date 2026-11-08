@@ -170,14 +170,14 @@ fn cs2_and_shows_in_today_leave_the_center_empty() {
         texts(state)
             .into_iter()
             .map(|(text, ..)| text)
-            .filter(|text| text == "CS2 Score" || text == "Watching now")
+            .filter(|text| text == "CS2 Scores" || text == "Watching now")
             .collect()
     };
     assert!(headings(&state).is_empty(), "{:?}", headings(&state));
     // Saved from the days of rows, both outside Today: CS2 takes the center, Shows stays in Today.
     state.preferences.cs2_today = false;
     state.preferences.shows_today = false;
-    assert_eq!(headings(&state), ["CS2 Score"]);
+    assert_eq!(headings(&state), ["CS2 Scores"]);
 }
 
 #[test]

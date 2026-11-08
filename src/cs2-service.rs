@@ -1,4 +1,4 @@
-//! The CS2 Score worker: one HTTP job at a time off the SDL thread, newest request wins.
+//! The CS2 Scores worker: one HTTP job at a time off the SDL thread, newest request wins.
 use crate::app_artwork::Artwork;
 use crate::cs2::{Command, Feed, image_allowed, parse_feed};
 use std::{
@@ -91,6 +91,16 @@ impl Client {
             crate::app_artwork::decode(&bytes)?
         };
         artwork.key = format!("cs2-image:{url}");
+        if !backdrop {
+            artwork.wash = crate::cs2_wash::paint(&artwork.pixels).map(|pixels| {
+                Arc::new(Artwork {
+                    key: format!("cs2-wash:{url}"),
+                    pixels,
+                    backdrop: [[0; 3]; 2],
+                    wash: None,
+                })
+            });
+        }
         Some(Arc::new(artwork))
     }
     pub fn feed(&self) -> Result<Feed, String> {
@@ -151,6 +161,7 @@ fn decode_backdrop(bytes: &[u8]) -> Option<Artwork> {
         key: String::new(),
         pixels,
         backdrop: [[0; 3]; 2],
+        wash: None,
     })
 }
 

@@ -1155,19 +1155,19 @@
     "sv": "Väder"
   },
   "cs2Score": {
-    "zh-tw": "CS2 Score",
-    "en": "CS2 Score",
-    "de": "CS2 Score",
-    "zh": "CS2 Score",
-    "es": "CS2 Score",
-    "pt": "CS2 Score",
-    "it": "CS2 Score",
-    "ru": "CS2 Score",
-    "pl": "CS2 Score",
-    "fr": "CS2 Score",
-    "vi": "CS2 Score",
-    "nl": "CS2 Score",
-    "sv": "CS2 Score"
+    "zh-tw": "CS2 Scores",
+    "en": "CS2 Scores",
+    "de": "CS2 Scores",
+    "zh": "CS2 Scores",
+    "es": "CS2 Scores",
+    "pt": "CS2 Scores",
+    "it": "CS2 Scores",
+    "ru": "CS2 Scores",
+    "pl": "CS2 Scores",
+    "fr": "CS2 Scores",
+    "vi": "CS2 Scores",
+    "nl": "CS2 Scores",
+    "sv": "CS2 Scores"
   },
   "shows": {
     "zh-tw": "影集",

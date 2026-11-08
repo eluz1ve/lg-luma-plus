@@ -18,7 +18,7 @@ fn at(state: &State) -> view::Scene {
     )
 }
 
-/// Home with CS2 Score and TV Shows in Today: a live match, and a series with a new episode;
+/// Home with CS2 Scores and TV Shows in Today: a live match, and a series with a new episode;
 /// Lampa is installed.
 fn today_state() -> State {
     let mut state = ready();
@@ -156,7 +156,7 @@ fn today_card_is_one_control_and_ok_opens_it_in_the_center() {
     assert_eq!(
         lines.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>(),
         vec![Target::TodayMatch("m1".into())],
-        "CS2 Score's tab first, and nothing of Home beneath"
+        "CS2 Scores' tab first, and nothing of Home beneath"
     );
     assert!(lines.iter().all(|(_, r)| r.x >= panel.x
         && r.x + r.w <= panel.x + panel.w
@@ -164,7 +164,7 @@ fn today_card_is_one_control_and_ok_opens_it_in_the_center() {
         && r.y + r.h <= panel.y + panel.h));
     let texts = self::texts(&scene);
     for expected in [
-        "CS2 Score",
+        "CS2 Scores",
         "Lampa",
         "LIVE NOW",
         "Natus Vincere 1–0 FaZe Clan",
@@ -300,6 +300,7 @@ fn the_cards_match_line_shows_both_teams_logos() {
             key: "navi".into(),
             pixels: image::RgbaImage::new(1, 1),
             backdrop: [[0; 3]; 2],
+            wash: None,
         })),
     );
     state.cs2.logos.insert(
@@ -308,6 +309,7 @@ fn the_cards_match_line_shows_both_teams_logos() {
             key: "faze".into(),
             pixels: image::RgbaImage::new(1, 1),
             backdrop: [[0; 3]; 2],
+            wash: None,
         })),
     );
     let pictures: Vec<String> = at(&state)
@@ -495,6 +497,7 @@ fn a_finished_match_in_the_opened_card_shows_its_score() {
         "updated": NOW,
         "matches": [{
             "id": "m0", "begin_at": "2026-11-01T16:00:00Z", "state": "finished", "best_of": 3,
+            "finished_at": NOW - 60,
             "tournament": "IEM", "tier": 1, "score": [2, 1],
             "teams": [{"name": "Team Vitality", "short": "VIT"}, {"name": "MOUZ", "short": "MOUZ"}]
         }]

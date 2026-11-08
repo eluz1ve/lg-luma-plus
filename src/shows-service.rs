@@ -156,6 +156,7 @@ pub fn poster(agent: &ureq::Agent, key: &str, kind: &str) -> Option<Arc<Artwork>
         key: format!("{kind}:{key}"),
         pixels,
         backdrop: [[0; 3]; 2],
+        wash: None,
     }))
 }
 

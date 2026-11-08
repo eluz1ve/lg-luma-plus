@@ -971,18 +971,23 @@ lists the app as running, installs through `com.webos.appInstallService/dev/inst
 reports success only once the installed manifest shows the new version (up to four minutes). A
 running app is retried at the next check. Successful updates show a short notice.
 
-## CS2 Score
+## CS2 Scores
 
-**Widgets → CS2 Score** (off by default) shows Counter-Strike 2 matches below the inputs: live
-ones first, then upcoming ones, then recent results, up to twelve, three cards at a time. Left
+**Widgets → CS2 Scores** (off by default) shows Counter-Strike 2 matches below the inputs: live
+ones first, the biggest events at the front, then those that ended in the last 30 minutes, then
+upcoming ones, up to twelve, three cards at a time. Left
 and Right step through them and scroll the row ("4–6 / 12" in its header); Down from a favorite
 reaches them when Home shows no inputs. A card shows LIVE, the start ("Tomorrow 21:00") or
-"Final", the tournament with its logo as a faint watermark, both teams with their logos and maps
-won, and the map being played or the format and round. OK opens the match: the round as a chip
+"Final", the tournament with its logo as a faint watermark, the format, both teams with their
+logos, players and maps won, and each map with its score, the one being played marked, or the
+round before the match. Its glass is washed with the colours of the tournament's logo
+(`src/cs2-wash.rs`). OK opens the match: the round as a chip
 (final, third place, upper or lower bracket…), the teams around the score on the current map's
 screenshot, each map's tile with its rounds and winner, both lineups with their coach, when
 the feed was last updated, and "Powered by Liquipedia · CC BY-SA 3.0". **Tier 1–2 events only** and **Recent results** are on
-by default. The widget is named "CS2 Score" in every language.
+by default. The widget is named "CS2 Scores" in every language. A result counts as recent by the
+feed's `finished_at`, when the feed first saw the match over, against its own `updated`, so a
+wrong clock on the TV does not matter.
 
 The data is the shared feed `cs2/matches.json` of
 [eluz1ve/luma-feeds](https://github.com/eluz1ve/luma-feeds), rebuilt from LiquipediaDB on the feeds'
