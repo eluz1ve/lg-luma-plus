@@ -1035,3 +1035,25 @@ fn ok_on_a_stream_opens_it_in_its_app() {
         }]
     );
 }
+
+#[test]
+fn hltv_maps_with_their_picks_stand_in_for_a_feed_without_them() {
+    let mut state = open_match();
+    state.cs2.feed.as_mut().unwrap().matches[0].maps.clear();
+    with_detail(
+        &mut state,
+        serde_json::json!({"map": "Dust II", "maps": [
+            {"map": "Mirage", "picked": 1, "score": [7, 13], "winner": 1},
+            {"map": "Dust II", "picked": 0, "score": [5, 4], "winner": null},
+            {"map": "Anubis", "picked": null, "score": null, "winner": null}
+        ]}),
+    );
+    let page = scene(&state);
+    let mirage = line(&page, "Mirage").0;
+    let dust = line(&page, "Dust II").0;
+    let anubis = line(&page, "Anubis").0;
+    assert!(mirage.x < dust.x && dust.x < anubis.x);
+    line(&page, "Pick: FaZe");
+    line(&page, "Round 24 · Pick: Vitality");
+    line(&page, "Decider");
+}

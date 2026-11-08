@@ -4412,6 +4412,71 @@ fn cs2_streams_row(
     true
 }
 
+/// The match with HLTV's maps and picks when its live file has them: Liquipedia's list can lag
+/// the veto by a whole map. Screenshots come from the feed's maps of the same name.
+fn cs2_with_live_maps<'a>(
+    state: &State,
+    item: &'a crate::cs2::Match,
+) -> std::borrow::Cow<'a, crate::cs2::Match> {
+    let live = state.cs2_live.maps(&item.id);
+    if live.is_empty() {
+        return std::borrow::Cow::Borrowed(item);
+    }
+    let image = |name: &str| {
+        let same = |map: &&crate::cs2::Map| map.name == name && map.image.is_some();
+        item.maps
+            .iter()
+            .find(same)
+            .or_else(|| {
+                state
+                    .cs2
+                    .feed
+                    .iter()
+                    .flat_map(|feed| &feed.matches)
+                    .flat_map(|other| &other.maps)
+                    .find(same)
+            })
+            .and_then(|map| map.image.clone())
+    };
+    let mut merged = item.clone();
+    merged.maps = live
+        .iter()
+        .map(|map| crate::cs2::Map {
+            name: map.name.clone(),
+            score: map.score,
+            winner: map.winner,
+            image: image(&map.name),
+            picked: map.picked,
+        })
+        .collect();
+    std::borrow::Cow::Owned(merged)
+}
+
+/// "Pick: FaZe" or "Decider" under a map's name, once the veto is known.
+fn cs2_pick(state: &State, item: &crate::cs2::Match, map: &crate::cs2::Map) -> Option<String> {
+    if !state
+        .cs2_live
+        .maps(&item.id)
+        .iter()
+        .any(|live| live.name == map.name)
+    {
+        return None;
+    }
+    let language = state.preferences.language;
+    Some(match map.picked {
+        Some(team) => {
+            let team = item.teams[team].as_ref()?;
+            let name = if team.short.is_empty() {
+                &team.name
+            } else {
+                &team.short
+            };
+            language.format("cs2Pick", &[("team", name)])
+        }
+        None => language.t("cs2Decider").to_owned(),
+    })
+}
+
 fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: OffsetDateTime) {
     use crate::cs2::State as Phase;
     let language = state.preferences.language;
@@ -4447,6 +4512,7 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         );
         return;
     };
+    let item = &*cs2_with_live_maps(state, item);
     let x = panel.x + 48.;
     let inner = panel.w - 96.;
     let live = item.state == Phase::Live;
@@ -4818,6 +4884,7 @@ fn cs2_dialog_maps(
         );
         let map = item.maps.get(slot);
         let current = playing == Some(slot);
+        let pick = map.and_then(|map| cs2_pick(state, item, map));
         out.shape(
             tile,
             14.,
@@ -4848,7 +4915,7 @@ fn cs2_dialog_maps(
             &title,
             Rect::new(
                 tile.x + 16.,
-                tile.y + if current { 13. } else { 28. },
+                tile.y + if current || pick.is_some() { 13. } else { 28. },
                 room,
                 28.,
             ),
@@ -4882,12 +4949,26 @@ fn cs2_dialog_maps(
                 }
                 None => String::new(),
             };
+            let below = match (below.is_empty(), &pick) {
+                (_, None) => below,
+                (true, Some(pick)) => pick.clone(),
+                (false, Some(pick)) => format!("{below} · {pick}"),
+            };
             let below_room = tile.w - 32. - if round.is_some() { score_room } else { 0. };
             out.text(
                 &below,
                 Rect::new(tile.x + 16., tile.y + 47., below_room, 20.),
                 assets.fit_text(&below, text(14.4, 600, 0.04), below_room),
                 c(0xf0c6c8, 1.),
+                false,
+            );
+        }
+        if let Some(pick) = pick.as_ref().filter(|_| !current) {
+            out.text(
+                pick,
+                Rect::new(tile.x + 16., tile.y + 47., room, 20.),
+                assets.fit_text(pick, text(14.4, 600, 0.04), room),
+                c(0xf5f5f5, 0.6),
                 false,
             );
         }

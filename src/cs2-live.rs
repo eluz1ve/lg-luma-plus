@@ -9,6 +9,7 @@ const PLAYERS: usize = 5;
 const HISTORY: usize = 60;
 const LOG: usize = 40;
 const STREAMS: usize = 16;
+const MAPS: usize = 7;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
@@ -105,6 +106,17 @@ pub struct Stream {
     pub viewers: u32,
 }
 
+/// A map of the series as HLTV lists it after the veto.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LiveMap {
+    pub name: String,
+    /// The team that picked it; None for the decider.
+    pub picked: Option<usize>,
+    pub score: Option<[u32; 2]>,
+    /// None until decided, and for the map being played.
+    pub winner: Option<usize>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Live {
     pub id: String,
@@ -121,6 +133,8 @@ pub struct Live {
     /// Newest first.
     pub log: Vec<Event>,
     pub streams: Vec<Stream>,
+    /// In play order.
+    pub maps: Vec<LiveMap>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -319,6 +333,15 @@ pub fn parse_live(value: &Value) -> Result<Live, String> {
         }),
         log: list(&value["log"], LOG, event),
         streams: list(&value["streams"], STREAMS, stream),
+        maps: list(&value["maps"], MAPS, |map| {
+            let name = text(&map["map"]);
+            (!name.is_empty()).then(|| LiveMap {
+                name,
+                picked: team(&map["picked"]),
+                score: pair(&map["score"]),
+                winner: team(&map["winner"]),
+            })
+        }),
     })
 }
 
@@ -557,6 +580,13 @@ impl LiveScores {
             && live.id == id
             && now - self.detail_changed <= DETAIL_MAX_AGE)
             .then_some(live)
+    }
+    /// The open match's maps as last read, however old.
+    pub fn maps(&self, id: &str) -> &[LiveMap] {
+        match &self.detail {
+            Some(live) if self.open.as_deref() == Some(id) && live.id == id => &live.maps,
+            _ => &[],
+        }
     }
     /// The open match's streams as last read, however old: they change rarely.
     pub fn streams(&self, id: &str) -> &[Stream] {

@@ -91,6 +91,9 @@ pub struct Map {
     pub winner: Option<usize>,
     /// A screenshot of the map on Liquipedia's commons.
     pub image: Option<String>,
+    /// The team that picked it, from HLTV while the match is open; None for the decider or
+    /// when unknown.
+    pub picked: Option<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -311,6 +314,7 @@ fn parse_match(value: &Value) -> Option<Match> {
                     score: pair(&map["score"]),
                     winner: side(&map["winner"]),
                     image: feed_image(&map["image"]),
+                    picked: None,
                 })
             })
             .collect(),

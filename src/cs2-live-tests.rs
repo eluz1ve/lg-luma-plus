@@ -495,3 +495,63 @@ fn the_open_match_keeps_its_streams_after_the_file_goes_stale() {
     assert_eq!(scores.streams("a").len(), 1);
     assert!(scores.streams("b").is_empty());
 }
+
+#[test]
+fn the_maps_come_with_their_picks() {
+    let mut scores = LiveScores::default();
+    let commands = scores.sync(true, false, Some("a"), true, 0);
+    let Some(LiveCommand::Match { id, .. }) = commands.into_iter().last() else {
+        panic!("the match is due");
+    };
+    let live = parse_live(&serde_json::json!({
+        "id": "a", "updated": 0, "map": "Dust II", "round": 1, "state": "started",
+        "score": [0, 0], "sides": ["ct", "t"], "players": [[], []], "log": [], "streams": [],
+        "maps": [
+            {"map": "Cache", "picked": 1, "score": [2, 13], "winner": 1},
+            {"map": "Dust II", "picked": 0, "score": null, "winner": null},
+            {"map": "Anubis", "picked": null, "score": null, "winner": null},
+            {"map": "", "picked": 0},
+            {"map": "Nuke", "picked": 5, "score": [1], "winner": 7}
+        ]
+    }))
+    .unwrap();
+    assert!(scores.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(live)
+        },
+        0
+    ));
+    let maps = scores.maps("a");
+    assert_eq!(
+        maps[0],
+        LiveMap {
+            name: "Cache".into(),
+            picked: Some(1),
+            score: Some([2, 13]),
+            winner: Some(1)
+        }
+    );
+    assert_eq!(maps[2].picked, None);
+    assert_eq!(maps.len(), 4, "a map needs a name");
+    assert_eq!(
+        maps[3],
+        LiveMap {
+            name: "Nuke".into(),
+            picked: None,
+            score: None,
+            winner: None
+        }
+    );
+    assert!(scores.maps("b").is_empty());
+}
+
+#[test]
+fn a_file_without_maps_reads() {
+    let live = parse_live(&json!({
+        "id": "a", "updated": 0, "map": "Dust II", "round": 1, "state": "started",
+        "score": [0, 0], "sides": ["ct", "t"], "players": [[], []], "log": [], "streams": []
+    }))
+    .unwrap();
+    assert!(live.maps.is_empty());
+}

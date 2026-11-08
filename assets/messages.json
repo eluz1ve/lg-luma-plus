@@ -2111,6 +2111,38 @@
     "sv": "desarmerade bomben",
     "cs": "zneškodnil bombu"
   },
+  "cs2Pick": {
+    "zh-tw": "{team} 選圖",
+    "en": "Pick: {team}",
+    "de": "Pick: {team}",
+    "zh": "{team} 选图",
+    "es": "Elección: {team}",
+    "pt": "Escolha: {team}",
+    "it": "Scelta: {team}",
+    "ru": "Пик {team}",
+    "pl": "Wybór: {team}",
+    "fr": "Choix : {team}",
+    "vi": "{team} chọn",
+    "nl": "Keuze: {team}",
+    "sv": "Val: {team}",
+    "cs": "Volba: {team}"
+  },
+  "cs2Decider": {
+    "zh-tw": "決勝圖",
+    "en": "Decider",
+    "de": "Decider",
+    "zh": "决胜图",
+    "es": "Decisivo",
+    "pt": "Decisivo",
+    "it": "Decisivo",
+    "ru": "Десайдер",
+    "pl": "Decydująca",
+    "fr": "Décisive",
+    "vi": "Bản đồ quyết định",
+    "nl": "Beslissend",
+    "sv": "Avgörande",
+    "cs": "Rozhodující"
+  },
   "cs2RoundNumber": {
     "zh-tw": "第 {number} 回合",
     "en": "Round {number}",
