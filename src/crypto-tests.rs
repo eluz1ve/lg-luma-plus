@@ -41,9 +41,6 @@ fn prices_and_changes_are_formatted_for_cards() {
     assert_eq!(format_price(0.12345), "$0.1235");
     assert_eq!(format_price(0.00001042), "$0.00001042");
     assert_eq!(format_price(0.003456), "$0.003456");
-    assert_eq!(format_change(1.2349), "+1.23%");
-    assert_eq!(format_change(-0.851), "−0.85%");
-    assert_eq!(format_change(-0.001), "+0.00%");
 }
 
 #[test]

@@ -97,9 +97,12 @@ fn crypto_prices_leave_home_as_it_is_and_open_their_settings_from_today() {
     for expected in [
         "BTC",
         "Bitcoin",
-        "$67,420.12  +1.23%",
-        "$2,600.50  −3.69%",
-        "$0.5000  +0.00%",
+        "$67,420.12",
+        "▲ 1.23%",
+        "$2,600.50",
+        "▼ 3.69%",
+        "$0.5000",
+        "▲ 0.00%",
     ] {
         assert!(text.iter().any(|t| t == expected), "{expected} in {text:?}");
     }

@@ -2398,33 +2398,32 @@ const TODAY_LINE: f32 = 56.;
 const TICKER_GAP: f32 = 40.;
 const TICKER_FADE: f32 = 32.;
 
-/// A coin on the ticker: its coloured labels with their widths, and its whole width.
+/// A coin on the ticker: its coloured labels with their widths, the change for its pill, and
+/// its whole width.
 struct TickerCoin {
     parts: Vec<(String, Color, f32)>,
+    change: Option<(String, f64)>,
     width: f32,
 }
 
-/// The Today card's prices on one `line`: as exchanges show them, the symbol quiet, the price
-/// white, the change green or red. Coins wider than the line run across it without a seam.
+/// The Today card's prices on one `line`: the symbol white, the price quieter, the change in
+/// its tinted pill. Coins wider than the line run across it without a seam.
 /// Returns the length of one lap in whole pixels, or 0 when the coins stand still.
 fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> f32 {
-    let style = text(type_scale::CAPTION, 550, 0.);
-    let inner_gap = 7.;
+    let style = text(type_scale::CAPTION, 600, 0.);
+    let pill_style = text(type_scale::CAPTION, 650, 0.);
+    let inner_gap = 8.;
     let coins: Vec<TickerCoin> = state
         .preferences
         .crypto_coins
         .iter()
         .map(|symbol| {
-            let mut parts = vec![(symbol.clone(), c(0xf5f5f5, 0.55))];
-            if let Some(quote) = state.crypto.quotes.iter().find(|q| &q.symbol == symbol) {
-                parts.push((crate::crypto::format_compact(quote.price), WHITE));
+            let quote = state.crypto.quotes.iter().find(|q| &q.symbol == symbol);
+            let mut parts = vec![(symbol.clone(), WHITE)];
+            if let Some(quote) = quote {
                 parts.push((
-                    format!(
-                        "{}{:.1}%",
-                        if quote.change < 0. { "▼" } else { "▲" },
-                        quote.change.abs()
-                    ),
-                    market(quote.change),
+                    crate::crypto::format_compact(quote.price),
+                    c(0xe8e8e8, 0.72),
                 ));
             }
             let parts: Vec<_> = parts
@@ -2434,9 +2433,16 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
                     (label, colour, width)
                 })
                 .collect();
-            let width = parts.iter().map(|part| part.2).sum::<f32>()
-                + inner_gap * parts.len().saturating_sub(1) as f32;
-            TickerCoin { parts, width }
+            let change = quote.map(|quote| (change_label(quote.change, 1), quote.change));
+            let width = parts.iter().map(|part| part.2 + inner_gap).sum::<f32>()
+                + change.as_ref().map_or(-inner_gap, |(label, _)| {
+                    pill_width(assets, label, pill_style)
+                });
+            TickerCoin {
+                parts,
+                change,
+                width,
+            }
         })
         .collect();
     let widths = coins
@@ -2484,6 +2490,18 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
                         false,
                     );
                     pen += part + inner_gap;
+                }
+                if let Some((label, change)) = &coin.change {
+                    change_pill(
+                        out,
+                        assets,
+                        label,
+                        *change,
+                        pen,
+                        line.y + 15.,
+                        pill_style,
+                        false,
+                    );
                 }
             }
             left += coin.width + TICKER_GAP;
@@ -2547,7 +2565,7 @@ fn today_card(
         eyebrow.to_uppercase(),
         Rect::new(x, rect.y + TODAY_PAD, inner, 24.),
         text(20., 600, 0.12),
-        c(0xf5f5f5, 0.6),
+        WHITE,
         false,
     );
     let main = text(type_scale::BODY, 550, -0.01);
@@ -2725,13 +2743,65 @@ fn today_card(
     Some(rect)
 }
 
-/// A price change's colour, as exchanges show it: green up, red down.
-fn market(change: f64) -> Color {
-    if change < 0. {
-        c(0xf6465d, 1.)
-    } else {
-        c(0x0ecb81, 1.)
+/// A price change's colour: green up, red down. `light` is for a focused line's white.
+fn market(change: f64, light: bool) -> Color {
+    match (change < -0.005, light) {
+        (true, false) => c(0xff6b62, 1.),
+        (false, false) => c(0x5fd36e, 1.),
+        (true, true) => c(0xc9252d, 1.),
+        (false, true) => c(0x15803d, 1.),
     }
+}
+
+/// A change with its arrow: "▲ 0.38%" / "▼ 1.02%", to `decimals` places.
+fn change_label(change: f64, decimals: usize) -> String {
+    let scale = 10f64.powi(decimals as i32);
+    let rounded = (change * scale).round() / scale + 0.;
+    // The same rule as its colour, so a tiny fall rounds to "▼ 0.0%" in red.
+    let arrow = if change < -0.005 { "▼" } else { "▲" };
+    format!("{arrow} {:.*}%", decimals, rounded.abs())
+}
+
+/// Space either side of a change pill's label.
+const PILL_PAD: f32 = 12.;
+
+/// A change pill's width for its label.
+fn pill_width(assets: &Assets, label: &str, style: TextStyle) -> f32 {
+    assets.width(label, style) + 2. * PILL_PAD
+}
+
+/// A change as exchanges show it: a dark capsule tinted green or red, the change in the colour
+/// with its arrow, readable on any wallpaper. Its label's top is at `y`, like the text beside it.
+#[allow(clippy::too_many_arguments)]
+fn change_pill(
+    out: &mut Scene,
+    assets: &Assets,
+    label: &str,
+    change: f64,
+    x: f32,
+    y: f32,
+    style: TextStyle,
+    light: bool,
+) {
+    let width = pill_width(assets, label, style);
+    let height = style.size + 14.;
+    let pill = Rect::new(x, y - 6., width, height);
+    let tint = market(change, light);
+    if !light {
+        out.shape(pill, height / 2., c(0x000000, 0.4));
+    }
+    out.shape(
+        pill,
+        height / 2.,
+        [tint[0], tint[1], tint[2], if light { 0.14 } else { 0.2 }],
+    );
+    out.text(
+        label,
+        Rect::new(x + PILL_PAD, y, width, 28.),
+        style,
+        tint,
+        false,
+    );
 }
 
 /// The opened Today card's section headings and lines.
@@ -3156,24 +3226,30 @@ fn today_coin(out: &mut Scene, state: &State, assets: &Assets, index: usize, row
         name => name,
     };
     let quote = state.crypto.quotes.iter().find(|q| &q.symbol == symbol);
+    let mut row = row;
     let (when, tone) = match quote {
-        Some(quote) => (
-            format!(
-                "{}  {}",
+        Some(quote) => {
+            // The change in its pill at the line's end; the price beside it, in the ink.
+            let label = change_label(quote.change, 2);
+            let style = text(type_scale::CAPTION, 650, 0.);
+            let width = pill_width(assets, &label, style);
+            let right = row.x + row.w - 24.;
+            change_pill(
+                out,
+                assets,
+                &label,
+                quote.change,
+                right - width,
+                row.y + 28.,
+                style,
+                focused,
+            );
+            row.w -= width + 16.;
+            (
                 crate::crypto::format_price(quote.price),
-                crate::crypto::format_change(quote.change)
-            ),
-            if focused {
-                // Deeper on a focused line's white.
-                if quote.change < 0. {
-                    c(0xcf304a, 1.)
-                } else {
-                    c(0x03a66d, 1.)
-                }
-            } else {
-                market(quote.change)
-            },
-        ),
+                today_ink(focused, 0.8),
+            )
+        }
         None => (
             state
                 .preferences

@@ -424,11 +424,42 @@ fn the_crypto_line_colours_each_change_as_exchanges_do() {
             _ => None,
         })
     };
-    let (up, down) = (colour("▲1.2%").unwrap(), colour("▼0.8%").unwrap());
+    let (up, down) = (colour("▲ 1.2%").unwrap(), colour("▼ 0.8%").unwrap());
     assert!(up[1] > up[0] && up[1] > 0.6, "green: {up:?}");
     assert!(down[0] > down[1] && down[0] > 0.8, "red: {down:?}");
     let price = colour("1,000").unwrap();
-    assert!(price[0] > 0.9 && price[1] > 0.9, "the price stays white");
+    assert!(price[0] > 0.9 && price[1] > 0.9, "the price stays light");
+    assert_eq!(
+        colour("BTC").unwrap(),
+        crate::renderer::WHITE,
+        "the symbol leads"
+    );
+    assert_eq!(
+        colour("TODAY").unwrap(),
+        crate::renderer::WHITE,
+        "the heading is white"
+    );
+    // Readable on any wallpaper: the change stands on a dark capsule tinted its colour.
+    let drawn = at(&state);
+    let change = drawn
+        .draw
+        .iter()
+        .position(|draw| matches!(draw, crate::renderer::Draw::Text(text, ..) if text == "▲ 1.2%"))
+        .unwrap();
+    let (
+        crate::renderer::Draw::Shape(veil_rect, _, _, veil),
+        crate::renderer::Draw::Shape(_, _, _, tint),
+    ) = (&drawn.draw[change - 2], &drawn.draw[change - 1])
+    else {
+        panic!("the change has no pill");
+    };
+    assert!(
+        veil[..3].iter().all(|ink| *ink == 0.) && veil[3] >= 0.3,
+        "{veil:?}"
+    );
+    assert_eq!(tint[..3], up[..3]);
+    assert!(tint[3] > 0. && tint[3] < 0.4, "{tint:?}");
+    assert!(veil_rect.h > 28., "{veil_rect:?}");
 }
 
 #[test]
