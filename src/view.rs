@@ -2397,16 +2397,19 @@ const TODAY_LINE: f32 = 56.;
 /// The gap between two coins of the ticker, and the width over which it fades at its ends.
 const TICKER_GAP: f32 = 40.;
 const TICKER_FADE: f32 = 32.;
+/// A coin's mark before its symbol on the ticker.
+const TICKER_MARK: f32 = 26.;
 
-/// A coin on the ticker: its coloured labels with their widths, the change for its pill, and
-/// its whole width.
+/// A coin on the ticker: its mark and the mark's colour, its coloured labels with their widths,
+/// the change for its pill, and its whole width.
 struct TickerCoin {
+    mark: (&'static str, u32),
     parts: Vec<(String, Color, f32)>,
     change: Option<(String, f64)>,
     width: f32,
 }
 
-/// The Today card's prices on one `line`: the symbol white, the price quieter, the change in
+/// The Today card's prices on one `line`: the coin's mark, the symbol white, the price quieter, the change in
 /// its tinted pill. Coins wider than the line run across it without a seam.
 /// Returns the length of one lap in whole pixels, or 0 when the coins stand still.
 fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> f32 {
@@ -2434,11 +2437,14 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
                 })
                 .collect();
             let change = quote.map(|quote| (change_label(quote.change, 1), quote.change));
-            let width = parts.iter().map(|part| part.2 + inner_gap).sum::<f32>()
+            let width = TICKER_MARK
+                + inner_gap
+                + parts.iter().map(|part| part.2 + inner_gap).sum::<f32>()
                 + change.as_ref().map_or(-inner_gap, |(label, _)| {
                     pill_width(assets, label, pill_style)
                 });
             TickerCoin {
+                mark: crate::crypto::mark(symbol),
                 parts,
                 change,
                 width,
@@ -2480,7 +2486,14 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
         let mut left = line.x - offset + lap as f32 * span;
         for coin in &coins {
             if left < right && left + coin.width > line.x {
-                let mut pen = left;
+                let (mark, tint) = coin.mark;
+                out.icon(
+                    assets,
+                    mark,
+                    Rect::new(left, line.y + 14., TICKER_MARK, TICKER_MARK),
+                    c(tint, 0.95),
+                );
+                let mut pen = left + TICKER_MARK + inner_gap;
                 for (label, colour, part) in &coin.parts {
                     out.text(
                         label,
@@ -2690,7 +2703,7 @@ fn today_card(
                 (watched.title.clone(), when, c(0xe8e8e8, 0.62))
             }
             Line::Crypto => {
-                out.icon(assets, "bitcoin", icon.inset(4.), c(0xf7931a, 0.95));
+                out.icon(assets, "coins", icon.inset(4.), c(0xf5f5f5, 0.9));
                 if state.crypto.quotes.is_empty() {
                     let status = language.t(if state.crypto.failed {
                         "cryptoUnavailable"

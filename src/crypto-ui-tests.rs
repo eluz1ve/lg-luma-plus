@@ -294,6 +294,45 @@ fn the_tickers_end_joins_its_start_without_a_gap() {
     assert!(all_at(&scene(&state), "BTC").contains(&(first + 10.)));
 }
 
+/// Where the UI icon `name` is drawn, left to right.
+fn icons_at(scene: &view::Scene, name: &str) -> Vec<crate::state::Rect> {
+    let file = format!("ui-icons/{name}.lvec");
+    let mut places: Vec<_> = scene
+        .draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::TintedImage(path, rect, ..) if path.ends_with(&file) => {
+                Some(*rect)
+            }
+            _ => None,
+        })
+        .collect();
+    places.sort_by(|a, b| a.x.total_cmp(&b.x));
+    places
+}
+
+#[test]
+fn each_coin_on_the_ticker_leads_with_its_own_mark() {
+    let drawn = scene(&priced(&["BTC", "ETH"]));
+    for (mark, symbol) in [("coin-btc", "BTC"), ("coin-eth", "ETH")] {
+        let icon = icons_at(&drawn, mark)[0];
+        let name = text_at(&drawn, symbol).unwrap();
+        assert!(icon.x + icon.w <= name.x, "{mark} stands before {symbol}");
+        assert!(name.x - (icon.x + icon.w) <= 12., "and close to it");
+    }
+}
+
+#[test]
+fn the_prices_line_opens_with_a_general_mark_rather_than_bitcoins() {
+    let drawn = scene(&priced(&["ETH"]));
+    assert!(icons_at(&drawn, "bitcoin").is_empty());
+    let general = icons_at(&drawn, "coins");
+    assert_eq!(general.len(), 1);
+    assert!(general[0].x + general[0].w <= icons_at(&drawn, "coin-eth")[0].x);
+    // A coin without a mark of its own takes the same general one on its way past.
+    assert_eq!(icons_at(&scene(&priced(&["PEPE"])), "coins").len(), 2);
+}
+
 #[test]
 fn coins_that_fit_stand_still() {
     let mut state = priced(&["BTC"]);
@@ -413,4 +452,21 @@ fn todays_list_holds_every_coin_up_to_the_limit() {
         "{:?}",
         row.rect
     );
+}
+
+/// A tint multiplies what the icon already holds, so an icon compiled black stays black.
+#[test]
+fn every_interface_icon_is_white_underneath_its_tint() {
+    let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/ui-icons");
+    for entry in std::fs::read_dir(folder).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|extension| extension == "svg") {
+            let svg = std::fs::read_to_string(&path).unwrap();
+            assert!(
+                !svg.contains("currentColor") || svg.contains(r##"color="#fff""##),
+                "{} would draw black whatever its tint",
+                path.display()
+            );
+        }
+    }
 }
