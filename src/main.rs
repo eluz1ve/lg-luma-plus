@@ -2238,6 +2238,8 @@ fn run() -> Result<(), String> {
         }
         if renderer.receive_glass() {
             state.dirty = true;
+            // The same commands with new pixels: unseen by the tracker, and owed to every buffer.
+            damage_tracker.reset();
         }
         let dt = last_frame.elapsed().as_secs_f32().min(0.1);
         last_frame = Instant::now();

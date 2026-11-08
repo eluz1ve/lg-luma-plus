@@ -355,3 +355,42 @@ fn the_first_difference_between_scenes_is_found_command_for_command() {
         Some(1)
     );
 }
+
+/// New pixels under unchanged commands, a glass copy arriving in the first frames: three buffers
+/// take turns, as on the TV, and each must end up showing them or the ticker's frames alternate
+/// between a buffer with the pixels and one without.
+#[test]
+fn pixels_arriving_under_the_same_commands_reach_every_buffer() {
+    let card = Rect::new(0., 0., 400., 100.);
+    let strip = Rect::new(0., 40., 400., 40.);
+    let frame = |x: f32| {
+        vec![
+            Draw::Shape(card, 0., 0., [0.; 4]),
+            Draw::Clip(Some(strip)),
+            Draw::Shape(Rect::new(x, 40., 20., 40.), 0., 0., [1.; 4]),
+            Draw::Clip(None),
+        ]
+    };
+    let above_the_strip = Rect::new(0., 0., 400., 40.);
+    let mut tracker = Tracker::default();
+    let mut drawn_at = [None::<u32>; 3];
+    let mut holds = [0; 3];
+    let mut pixels = 1;
+    for now in 0..12_u32 {
+        if now == 1 {
+            pixels = 2;
+            tracker.reset();
+        }
+        tracker.push(&frame(now as f32));
+        let back = (now % 3) as usize;
+        let age = drawn_at[back].map_or(0, |then| now - then);
+        if tracker
+            .damage(age)
+            .is_none_or(|area| intersects(area, above_the_strip))
+        {
+            holds[back] = pixels;
+        }
+        drawn_at[back] = Some(now);
+    }
+    assert_eq!(holds, [2, 2, 2]);
+}

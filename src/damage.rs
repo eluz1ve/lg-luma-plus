@@ -46,7 +46,8 @@ impl Tracker {
             })
     }
 
-    /// After anything drew into the window outside this tracker, e.g. a resized drawable.
+    /// After anything drew into the window outside this tracker, e.g. a resized drawable, or
+    /// pixels changed under the same commands, as when a glass copy arrives.
     pub fn reset(&mut self) {
         self.previous.clear();
         self.history.clear();
