@@ -760,6 +760,7 @@ pub fn watch(system: &impl System) -> Result<Value> {
     system::root(system)?;
     let lock = fs::OpenOptions::new()
         .create(true)
+        .truncate(false)
         .write(true)
         .open(system.path(Path::new(&format!("{STATE}/watch.lock"))))
         .map_err(|e| e.to_string())?;

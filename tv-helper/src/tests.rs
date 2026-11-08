@@ -364,7 +364,9 @@ impl System for Fixture {
                     .iter()
                     .filter_map(|key| {
                         let key = key.as_str().unwrap();
-                        settings.get(key).map(|value| (key.to_owned(), json!(value)))
+                        settings
+                            .get(key)
+                            .map(|value| (key.to_owned(), json!(value)))
                     })
                     .collect();
                 json!({"returnValue":true,"settings":found})
