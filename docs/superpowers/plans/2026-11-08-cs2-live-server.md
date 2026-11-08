@@ -57,10 +57,12 @@
 ### Task 1: Каркас `live/` и сопоставление матчей
 
 **Files:**
+
 - Create: `live/package.json` (`"type": "module"`, `engines.node >=24`, зависимость на форк HLTV через git-ссылку с конкретным коммитом; `"test": "node --test test/"`), `live/pair.js`, `live/test/pair.test.js`
 - Modify: `.gitignore` (`live/node_modules/`)
 
 **Interfaces:**
+
 - Produces: `normalize(name: string): string`; `pair(liquipedia: Match[], hltv: {id:number, team1:string, team2:string, date:number}[]): Map<string, {hltv:number, swapped:boolean}>` — ключ liquipedia `id`; `swapped` = порядок команд HLTV обратный Liquipedia.
 
 - [ ] **Step 1: Тесты** `pair.test.js`:
@@ -80,6 +82,7 @@
 **Files:** Create `live/state.js`, `live/test/state.test.js`, `live/test/fixtures/*` (из Task 0).
 
 **Interfaces:**
+
 - Consumes: `{hltv, swapped}` из Task 1.
 - Produces: `createMatch(id: string, hltv: number, swapped: boolean)`; `applyScoreboard(m, sb)`; `applyLog(m, events)`; `snapshot(m, now): object` — ровно этот JSON (его читает TV-план):
 
@@ -120,6 +123,7 @@
 **Files:** Create `live/streams.js`, `live/test/streams.test.js`.
 
 **Interfaces:**
+
 - Produces: `streams(match: object): {platform:"twitch"|"youtube"|"kick", channel:string, url:string, language:string|null, viewers:number}[]` — из `getMatch().streams`, по убыванию `viewers`.
 
 - [ ] **Step 1: Тесты** (на `fixtures/match.json` + синтетика): платформа по хосту ссылки (`twitch.tv`, `youtube.com`/`youtu.be`, `kick.com`); прочие (HLTV live, Facebook, VK…) отбрасываются; YouTube оставляет прямую ссылку на видео (`watch?v=` или `/live/<id>`), Twitch/Kick — ссылку на канал, `channel` = последний сегмент пути; сортировка по `viewers` убыв., без `viewers` — в конец; язык из флага/названия стрима, нет — `null`.
@@ -131,6 +135,7 @@
 **Files:** Create `live/writer.js`, `live/test/writer.test.js`.
 
 **Interfaces:**
+
 - Produces: `writeMatch(dir, snapshot): boolean` (true — файл изменился); `writeIndex(dir, snapshots, now)` → `cs2/live/index.json` = `{"updated": now, "matches": {"<id>": {"map","round","score":[a,b]}}}`; `prune(dir, liveIds, now)` — удаляет `<id>.json`, чей матч не live больше 10 мин.
 
 - [ ] **Step 1: Тесты** во временной папке: запись атомарная (tmp + `rename`, в папке не остаётся `*.tmp`); повторная запись того же snapshot (без учёта `updated`) возвращает `false` и файл не трогает; `index.json` содержит только live-матчи; `prune` не удаляет `index.json` и свежие файлы.
@@ -140,10 +145,12 @@
 ### Task 5: Сервис, деплой, Caddy
 
 **Files:**
+
 - Create: `live/service.js` (точка входа), `server/cs2-live.service` (systemd unit), `server/live-update.sh`
 - Modify: `server/install.sh` (ставит `live/` через `npm ci --omit=dev` и unit), `server/Caddyfile.example` (`@live path /cs2/live/*` → `Cache-Control "no-store"`), `server/feeds.env.example` (`HLTV_PROXY=` пустой), `server/README.md`, `README.md` (раздел `cs2/live/`)
 
 **Interfaces:**
+
 - Consumes: Tasks 1–4.
 
 Цикл `service.js`: каждые 30 с читает `$WWW/cs2/matches.json`; каждые 60 с — `HLTV.getMatches()` (live); пары через `pair`; кандидаты — Liquipedia `live` или `upcoming` с началом в ближайший час **и** live на HLTV. Новое — `connectToScorebot`, плюс `getMatch` для стримов раз в 5 мин. Пропало с HLTV live — `done()`/close. Каждую секунду `writeMatch` для изменившихся, каждые 30 с `writeIndex` + `prune`. Обрыв — переподключение с бэкоффом 5 → 60 с. Браузер Puppeteer открывается на запрос и закрывается после. `HLTV_PROXY` из окружения — как в Task 0 Step 4. Лог в stdout (journald).

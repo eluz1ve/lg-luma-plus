@@ -732,7 +732,7 @@ fn a_long_nick_stays_in_its_column() {
         .into_iter()
         .filter(|(text, ..)| text == "4 150")
         .map(|(_, rect, _)| rect)
-        .last()
+        .next_back()
         .unwrap();
     assert!(
         nick.x + nick.w <= money.x - 70.,

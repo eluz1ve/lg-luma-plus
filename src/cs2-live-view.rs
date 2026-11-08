@@ -49,7 +49,7 @@ fn switches(round: u32) -> u32 {
 /// The side `team` played in `round`, from the side it plays in the current round.
 fn side_in(live: &Live, team: usize, round: u32) -> Side {
     let now = live.sides[team];
-    if (switches(round) + switches(live.round.max(1))) % 2 == 0 {
+    if (switches(round) + switches(live.round.max(1))).is_multiple_of(2) {
         now
     } else {
         match now {

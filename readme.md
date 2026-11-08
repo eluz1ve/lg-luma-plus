@@ -41,7 +41,9 @@ https://github.com/user-attachments/assets/9c05401c-37ec-4be8-acdf-774e645542c2
   through a small Lampa plugin. Outside Russian, series show their English posters from
   [TVmaze](https://www.tvmaze.com).
 - **CS2 Scores.** Counter-Strike 2 matches from Liquipedia with team logos, live scores and
-  results, and a match dialog with maps, rounds and lineups.
+  results, and a match dialog with maps, rounds and lineups. While a match is played: the round
+  score on Home and in Today, and in the dialog a live scoreboard, round history and game log
+  from HLTV, with the match's Twitch and YouTube streams one OK away.
 - **Crypto prices.** Up to 20 coins, from the usual eight or any Binance coin, running as a ticker
   in the Today card.
 - **A tvOS-style screen.** A side menu instead of the tab bar, glass panels, a softer focus, and

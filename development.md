@@ -1014,6 +1014,23 @@ with app artwork's limits (logos at 256 px, map screenshots at 640 px for the di
 memory up to 64. `--cs2-test-server` accepts only a literal loopback HTTP origin and is refused in
 TV builds.
 
+While a match is being played, the feeds server follows HLTV's scorebot for it and writes
+`cs2/live/<id>.json` every second and `cs2/live/index.json` (map, round and round score of every
+such match) every 30 seconds (`src/cs2-live.rs` parses both, at most 128 KiB, from the same
+origin). Luma reads the index every minute while Home shows the widget, and puts the round score
+on the live map's tile, the Home card and the Today lines, coloured by the sides when the open
+match's file has them. The open dialog of a live match reads its file every two seconds and then
+shows the round, an HLTV-style scoreboard (HP, money, opening duels, KAST, kills with headshots,
+assists, deaths, ADR; dead players dimmed) with the round history, and the game log with the
+game's icons (`assets/ui-icons/cs-*.svg`, Valve's, see `assets/licenses/valve-cs2-icons.txt`).
+Neither is shown once older than 30 seconds (the index: three minutes), so a stalled server
+leaves the plain card. Under the title, **Watch** lists the match's streams that an app on the TV
+can play, most watched first; OK opens the stream there. Twitch opens in the webosbrew Twitch app
+(`twitch.adamffdev.v1`, `{"channel": login}`), which reads its params only when it starts, so
+Luma closes it first; YouTube opens in `youtube.leanback.v4` with
+`{"contentTarget": "https://www.youtube.com/tv?v=<id>"}`. Kick streams get no chip: its TV app
+does not play them properly.
+
 ## Compatibility
 
 Luma's native startup, rendering and app/input discovery have been verified on rooted webOS 26.
