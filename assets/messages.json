@@ -194,6 +194,36 @@
     "nl": "Huidig: {current} · Nieuwste: {latest}",
     "sv": "Nuvarande: {current} · Senaste: {latest}"
   },
+  "updateChanges": {
+    "en": "What's new",
+    "de": "Was ist neu",
+    "es": "Novedades",
+    "zh": "更新内容",
+    "zh-tw": "更新內容",
+    "pt": "Novidades",
+    "it": "Novità",
+    "ru": "Что нового",
+    "pl": "Co nowego",
+    "fr": "Nouveautés",
+    "vi": "Có gì mới",
+    "nl": "Wat is er nieuw",
+    "sv": "Nyheter"
+  },
+  "updateMoreChanges": {
+    "en": "and {count} more",
+    "de": "und {count} weitere",
+    "es": "y {count} más",
+    "zh": "还有 {count} 项",
+    "zh-tw": "還有 {count} 項",
+    "pt": "e mais {count}",
+    "it": "e altre {count}",
+    "ru": "и ещё {count}",
+    "pl": "i {count} więcej",
+    "fr": "et {count} de plus",
+    "vi": "và {count} mục khác",
+    "nl": "en nog {count}",
+    "sv": "och {count} till"
+  },
   "openHomebrewChannel": {
     "zh-tw": "開啟 Homebrew Channel 進行更新",
     "en": "Open Homebrew Channel to update",

@@ -4387,3 +4387,100 @@ fn a_slightly_scrolled_home_moves_the_chrome_away_whole_never_half() {
     settle(&mut state);
     assert_eq!(state.chrome_offset(), 0.);
 }
+
+fn system_settings_offering(changes: usize) -> State {
+    let mut state = ready();
+    state.open(2);
+    state.section = crate::state::SYSTEM_SECTION;
+    state.update_response(Ok(Some("9.0.0".into())));
+    state.changes_response(
+        "9.0.0".into(),
+        (0..changes).map(|n| format!("Change number {n}")).collect(),
+    );
+    state
+}
+
+#[test]
+fn an_update_lists_what_changed_since_the_installed_version() {
+    let state = system_settings_offering(2);
+    let rendered = scene(&state);
+    let drawn = |wanted: &str| {
+        rendered
+            .draw
+            .iter()
+            .any(|draw| matches!(draw, crate::renderer::Draw::Text(label, ..) if label == wanted))
+    };
+    let language = state.preferences.language;
+    assert!(drawn(&language.t("updateChanges").to_uppercase()));
+    assert!(drawn("Change number 0"));
+    assert!(drawn("Change number 1"));
+    assert!(!drawn(
+        &language.format("updateMoreChanges", &[("count", "0")])
+    ));
+}
+
+#[test]
+fn a_long_list_of_changes_stays_on_screen_and_counts_the_rest() {
+    let state = system_settings_offering(60);
+    let rendered = scene(&state);
+    let shown: Vec<f32> = rendered
+        .draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::Text(label, rect, ..) if label.starts_with("Change number") => {
+                Some(rect.y + rect.h)
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(shown.len() > 3 && shown.len() < 60, "{}", shown.len());
+    assert!(shown.iter().all(|bottom| *bottom <= 1020.), "{shown:?}");
+    let rest = (60 - shown.len()).to_string();
+    let more = state
+        .preferences
+        .language
+        .format("updateMoreChanges", &[("count", &rest)]);
+    assert!(
+        rendered
+            .draw
+            .iter()
+            .any(|draw| matches!(draw, crate::renderer::Draw::Text(label, ..) if *label == more))
+    );
+}
+
+#[test]
+fn nothing_is_said_about_changes_without_an_update_or_without_a_list() {
+    let mut state = system_settings_offering(0);
+    let heading = state.preferences.language.t("updateChanges").to_uppercase();
+    let says = |state: &State| {
+        scene(state)
+            .draw
+            .iter()
+            .any(|draw| matches!(draw, crate::renderer::Draw::Text(label, ..) if *label == heading))
+    };
+    assert!(!says(&state));
+    state.changes_response("9.0.0".into(), vec!["A change".into()]);
+    assert!(says(&state));
+    state.update_response(Ok(None));
+    assert!(!says(&state));
+}
+
+#[test]
+fn changes_belong_to_the_version_on_offer() {
+    let mut state = system_settings_offering(0);
+    state.changes_response("8.0.0".into(), vec!["An older list".into()]);
+    assert!(state.update_changes.is_empty());
+    state.changes_response("9.0.0".into(), vec!["Listed".into()]);
+    assert_eq!(state.update_changes, ["Listed"]);
+    state.update_response(Ok(Some("9.0.0".into())));
+    assert_eq!(
+        state.update_changes,
+        ["Listed"],
+        "a repeated check keeps them"
+    );
+    state.update_response(Ok(Some("9.1.0".into())));
+    assert!(state.update_changes.is_empty());
+    state.changes_response("9.1.0".into(), vec!["Listed".into()]);
+    state.install_response(crate::update::Response::Finished(Ok(())));
+    assert!(state.update_changes.is_empty());
+}

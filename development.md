@@ -942,6 +942,12 @@ attempt or reports its persisted failure. Desktop and scripted/simulated runs ca
 `self-update.sh` is embedded in the running build, while `home.sh` and `luma-helper` come from the
 package being installed: a change to the script takes effect one update later than a helper change.
 
+While an update is on offer, System's summary lists what changed since the installed build: the
+bulleted notes of every newer `build-*` release, newest first, as many as fit and a count of the
+rest. They come from GitHub's releases API, read once per offered version on the update-check
+thread; if that fails the card simply has no list. `--test-update-changes 'One|Two'` fills the
+list in a `--test-update-version` preview.
+
 Preview the update card without a network request:
 
 ```sh

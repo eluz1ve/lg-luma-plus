@@ -6644,7 +6644,14 @@ fn input_name_rows(out: &mut Scene, state: &State, assets: &Assets, id: &str, y:
     }
 }
 
-/// System, on the right where other sections show Home: Luma's version and its updates.
+/// How far down System's summary may grow.
+const SYSTEM_SUMMARY_BOTTOM: f32 = 1020.;
+/// A listed change's text, past its bullet.
+const CHANGE_INDENT: f32 = 26.;
+const CHANGE_GAP: f32 = 12.;
+
+/// System, on the right where other sections show Home: Luma's version, its updates and what
+/// an update on offer changes since the installed build.
 fn system_summary(out: &mut Scene, state: &State, assets: &Assets) {
     let language = state.preferences.language;
     let title = if matches!(state.update, crate::update::InstallStatus::Failed(_)) {
@@ -6673,12 +6680,41 @@ fn system_summary(out: &mut Scene, state: &State, assets: &Assets) {
     let version_style = text(type_scale::SECONDARY, 450, 0.).leading(1.35);
     let version_height =
         assets.lines(&version, version_style, inner) as f32 * type_scale::SECONDARY * 1.35;
-    let panel = Rect::new(
-        PREVIEW.x,
-        PREVIEW.y,
-        PREVIEW.w,
-        28. + title_height + 10. + version_height + 30.,
-    );
+    let changes: &[String] = if state.available_update.is_some() {
+        &state.update_changes
+    } else {
+        &[]
+    };
+    let change_style = text(type_scale::SECONDARY, 450, 0.).leading(1.35);
+    let change_line = type_scale::SECONDARY * 1.35;
+    let change_width = inner - CHANGE_INDENT;
+    let head = PREVIEW.y + 28. + title_height + 10. + version_height;
+    let list_top = head + 24. + 24. + type_scale::EYEBROW * 1.2 + 14.;
+    // As many changes as fit above the TV's safe margin; the rest are counted.
+    let mut fitting = Vec::new();
+    let mut end = list_top;
+    for (index, change) in changes.iter().enumerate() {
+        let height = assets.lines(change, change_style, change_width) as f32 * change_line;
+        let counted = if index + 1 < changes.len() {
+            CHANGE_GAP + change_line
+        } else {
+            0.
+        };
+        if end + height + counted > SYSTEM_SUMMARY_BOTTOM - 30. {
+            break;
+        }
+        fitting.push((change, height));
+        end += height + CHANGE_GAP;
+    }
+    let rest = changes.len() - fitting.len();
+    let bottom = if changes.is_empty() {
+        head
+    } else if rest > 0 {
+        end + change_line
+    } else {
+        end - CHANGE_GAP
+    };
+    let panel = Rect::new(PREVIEW.x, PREVIEW.y, PREVIEW.w, bottom + 30. - PREVIEW.y);
     out.text(
         "LUMA",
         Rect::new(
@@ -6708,6 +6744,48 @@ fn system_summary(out: &mut Scene, state: &State, assets: &Assets) {
         c(0xffffff, 0.62),
         false,
     );
+    if changes.is_empty() {
+        return;
+    }
+    y = head + 24.;
+    out.shape(
+        Rect::new(panel.x + 32., y, inner, 1.),
+        0.,
+        c(0xffffff, 0.12),
+    );
+    out.text(
+        language.t("updateChanges").to_uppercase(),
+        Rect::new(panel.x + 32., y + 24., inner, type_scale::EYEBROW * 1.2),
+        text(type_scale::EYEBROW, 600, 0.12),
+        c(0xf5f5f5, 0.6),
+        false,
+    );
+    y = list_top;
+    let text_x = panel.x + 32. + CHANGE_INDENT;
+    for (change, height) in fitting {
+        out.shape(
+            Rect::new(panel.x + 34., y + change_line / 2. - 3.5, 7., 7.),
+            3.5,
+            c(0xffffff, 0.42),
+        );
+        out.text(
+            change,
+            Rect::new(text_x, y, change_width, height),
+            change_style,
+            c(0xffffff, 0.88),
+            false,
+        );
+        y += height + CHANGE_GAP;
+    }
+    if rest > 0 {
+        out.text(
+            language.format("updateMoreChanges", &[("count", &rest.to_string())]),
+            Rect::new(text_x, y, change_width, change_line),
+            text(type_scale::SECONDARY, 450, 0.),
+            c(0xffffff, 0.5),
+            false,
+        );
+    }
 }
 
 fn settings_surface(out: &mut Scene, rect: Rect, radius: f32) {

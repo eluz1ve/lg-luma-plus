@@ -109,6 +109,7 @@ struct Options {
     crypto_test_server: Option<String>,
     test_extra_apps: usize,
     test_update_version: Option<String>,
+    test_update_changes: Vec<String>,
     cs2_test_server: Option<String>,
 }
 
@@ -192,6 +193,9 @@ impl Options {
                 "--weather-test-server" => result.weather_test_server = Some(value),
                 "--crypto-test-server" => result.crypto_test_server = Some(value),
                 "--test-update-version" => result.test_update_version = Some(value),
+                "--test-update-changes" => {
+                    result.test_update_changes = value.split('|').map(str::to_owned).collect();
+                }
                 "--cs2-test-server" => result.cs2_test_server = Some(value),
                 "--test-extra-apps" => {
                     result.test_extra_apps = value
@@ -1069,6 +1073,7 @@ fn run() -> Result<(), String> {
             "Luma update preview: simulated version {version}; public release check disabled"
         );
         state.available_update = (version != env!("CARGO_PKG_VERSION")).then(|| version.clone());
+        state.update_changes = options.test_update_changes.clone();
         state.update_status = update::Status::Checked;
     } else if public_update_checks {
         state.update_status = update::Status::Checking;
@@ -1720,6 +1725,9 @@ fn run() -> Result<(), String> {
         }
         for result in update_service.receiver.try_iter() {
             state.update_response(result);
+        }
+        for (version, changes) in update_service.changes.try_iter() {
+            state.changes_response(version, changes);
         }
         // Rebuild hit regions before input whenever inventory/layout changed.
         if state.dirty {
@@ -2549,7 +2557,7 @@ fn run() -> Result<(), String> {
     if let Some(path) = options.dump {
         let state = serde_json::json!({ "page": state.page, "focus": state.focus, "query": state.query,
             "filter": state.filter, "preferences": state.preferences, "apps": state.apps().iter().map(|a| &a.id).collect::<Vec<_>>(),
-            "update_status": state.update_status, "available_update": state.available_update,
+            "update_status": state.update_status, "available_update": state.available_update, "update_changes": state.update_changes,
             "error": state.error, "scroll": state.scroll, "home_scroll": state.home_scroll, "subpage": state.subpage, "modal": state.overlay.is_some(), "weather": state.weather, "crypto": state.crypto, "cs2": state.cs2,
             "inventory": state.inventory.apps,
             "recents": state.recents.entries, "recents_pending": state.recents.pending, "recents_error": state.recents.error, "recents_visibility": state.recents.visibility,

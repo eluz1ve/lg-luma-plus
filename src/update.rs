@@ -4,6 +4,9 @@ pub mod discovery {
 
     const FEED: &str = "https://github.com/eluz1ve/lg-luma-plus/releases/latest/download/repo.json";
     const LIMIT: usize = 256 * 1024;
+    /// The latest releases, for what changed since the installed build; about 220 KB.
+    const RELEASES: &str = "https://api.github.com/repos/eluz1ve/lg-luma-plus/releases?per_page=20";
+    const RELEASES_LIMIT: usize = 1024 * 1024;
 
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
     #[serde(rename_all = "snake_case")]
@@ -21,6 +24,8 @@ pub mod discovery {
 
     pub struct Service {
         pub receiver: mpsc::Receiver<Result<Option<String>, String>>,
+        /// What the version on offer changes, read after it was offered.
+        pub changes: mpsc::Receiver<(String, Vec<String>)>,
         sender: mpsc::Sender<()>,
     }
 
@@ -28,6 +33,7 @@ pub mod discovery {
         /// Interactive desktop and TV runs share the feed; scripted/simulated previews stay offline.
         pub fn new(enabled: bool) -> Self {
             let (sender, receiver) = mpsc::channel();
+            let (changes_tx, changes) = mpsc::channel();
             let (command_tx, command_rx) = mpsc::channel();
             thread::spawn(move || {
                 let agent = ureq::Agent::config_builder()
@@ -37,6 +43,8 @@ pub mod discovery {
                     .proxy(None)
                     .build()
                     .new_agent();
+                // Read once per version, as GitHub limits how often this API may be asked.
+                let mut known: Option<(String, Vec<String>)> = None;
                 while command_rx.recv().is_ok() {
                     let result = if enabled {
                         fetch(&agent, FEED, env!("CARGO_PKG_VERSION"))
@@ -46,13 +54,32 @@ pub mod discovery {
                                 .into(),
                         )
                     };
+                    let offered = result.clone().ok().flatten();
                     if sender.send(result).is_err() {
+                        break;
+                    }
+                    let Some(offered) = offered else { continue };
+                    if known
+                        .as_ref()
+                        .is_none_or(|(version, _)| *version != offered)
+                    {
+                        match read(&agent, RELEASES, RELEASES_LIMIT)
+                            .and_then(|bytes| changes_since(&bytes, env!("CARGO_PKG_VERSION")))
+                        {
+                            Ok(list) => known = Some((offered, list)),
+                            Err(error) => eprintln!("Luma release notes: {error}"),
+                        }
+                    }
+                    if let Some(known) = known.clone()
+                        && changes_tx.send(known).is_err()
+                    {
                         break;
                     }
                 }
             });
             let service = Self {
                 receiver,
+                changes,
                 sender: command_tx,
             };
             if enabled {
@@ -67,6 +94,10 @@ pub mod discovery {
     }
 
     fn fetch(agent: &ureq::Agent, url: &str, current: &str) -> Result<Option<String>, String> {
+        newer_version(&read(agent, url, LIMIT)?, current)
+    }
+
+    fn read(agent: &ureq::Agent, url: &str, limit: usize) -> Result<Vec<u8>, String> {
         let mut response = agent
             .get(url)
             .header("Accept", "application/json")
@@ -77,13 +108,65 @@ pub mod discovery {
         response
             .body_mut()
             .as_reader()
-            .take(LIMIT as u64 + 1)
+            .take(limit as u64 + 1)
             .read_to_end(&mut bytes)
             .map_err(|error| error.to_string())?;
-        if bytes.len() > LIMIT {
+        if bytes.len() > limit {
             return Err("Release feed is too large".into());
         }
-        newer_version(&bytes, current)
+        Ok(bytes)
+    }
+
+    #[derive(Deserialize)]
+    struct Published {
+        tag_name: String,
+        body: Option<String>,
+        #[serde(default)]
+        draft: bool,
+        #[serde(default)]
+        prerelease: bool,
+    }
+
+    /// The build a release's tag names, as numbers of the version made from it:
+    /// build-2611081530 is 26.1108.1530.
+    fn tagged_build(tag: &str) -> Option<[u64; 3]> {
+        let digits = tag
+            .strip_prefix("build-")
+            .filter(|digits| digits.len() == 10 && digits.bytes().all(|b| b.is_ascii_digit()))?;
+        Some([
+            digits[..2].parse().ok()?,
+            digits[2..6].parse().ok()?,
+            digits[6..].parse().ok()?,
+        ])
+    }
+
+    /// What every published build newer than `current` changed, newest first, from the
+    /// bulleted notes of its release (`tools/release-notes.mjs`).
+    pub fn changes_since(releases: &[u8], current: &str) -> Result<Vec<String>, String> {
+        let releases: Vec<Published> =
+            serde_json::from_slice(releases).map_err(|_| "The releases could not be read")?;
+        let current = version(current).ok_or("The installed version is not valid")?;
+        let mut builds: Vec<_> = releases
+            .iter()
+            .filter(|release| !release.draft && !release.prerelease)
+            .filter_map(|release| Some((tagged_build(&release.tag_name)?, release)))
+            .filter(|(build, _)| *build > current)
+            .collect();
+        builds.sort_by_key(|(build, _)| std::cmp::Reverse(*build));
+        Ok(builds
+            .into_iter()
+            .flat_map(|(_, release)| {
+                let body = release.body.as_deref().unwrap_or_default();
+                // A release lists its commits oldest first.
+                body.lines()
+                    .rev()
+                    .filter_map(|line| line.strip_prefix("- "))
+                    .map(str::trim)
+                    .filter(|change| !change.is_empty() && *change != "Rebuilt")
+                    .map(str::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .collect())
     }
 
     #[derive(Deserialize)]
@@ -160,6 +243,55 @@ pub mod discovery {
             assert!(!public_checks_enabled(true, false));
             assert!(!public_checks_enabled(false, true));
             assert!(!public_checks_enabled(true, true));
+        }
+        fn published(tag: &str, body: &str) -> serde_json::Value {
+            serde_json::json!({"tag_name": tag, "body": body, "draft": false, "prerelease": false})
+        }
+        fn listed(releases: Vec<serde_json::Value>, current: &str) -> Vec<String> {
+            changes_since(&serde_json::to_vec(&releases).unwrap(), current).unwrap()
+        }
+        #[test]
+        fn lists_what_every_build_newer_than_the_current_one_changed_newest_first() {
+            let releases = vec![
+                published("build-2611081534", "### Changes\n\n- Already installed\n"),
+                published(
+                    "build-2611081612",
+                    "### Changes\n\n- Second\n- Third\n\nSince Luma+ build #2611081603: [a...b](https://example.com)\n",
+                ),
+                published("build-2611081603", "### Changes\n\n- First\n"),
+            ];
+            assert_eq!(
+                listed(releases, "26.1108.1534"),
+                ["Third", "Second", "First"]
+            );
+        }
+        #[test]
+        fn a_build_number_compares_like_the_version_made_from_it() {
+            let releases = vec![
+                published("build-2601050930", "- Installed\n"),
+                published("build-2601050931", "- Newer\n"),
+            ];
+            assert_eq!(listed(releases, "26.105.930"), ["Newer"]);
+        }
+        #[test]
+        fn leaves_out_drafts_prereleases_other_tags_and_empty_rebuilds() {
+            let mut draft = published("build-2611090000", "- Draft\n");
+            draft["draft"] = true.into();
+            let mut prerelease = published("build-2611090001", "- Prerelease\n");
+            prerelease["prerelease"] = true.into();
+            let releases = vec![
+                draft,
+                prerelease,
+                published("v9.0.0", "- Upstream\n"),
+                published("build-2611090002", "### Changes\n\n- Rebuilt\n"),
+                published("build-2611090003", "- Kept\n"),
+            ];
+            assert_eq!(listed(releases, "26.1108.1534"), ["Kept"]);
+        }
+        #[test]
+        fn an_unreadable_list_of_releases_is_an_error() {
+            assert!(changes_since(b"{}", "26.1108.1534").is_err());
+            assert!(changes_since(b"not json", "26.1108.1534").is_err());
         }
         #[test]
         fn preview_requires_a_valid_current_or_newer_version() {

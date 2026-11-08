@@ -399,6 +399,7 @@ pub struct State {
     pub notice: Option<(String, Instant)>,
     pub error: Option<String>,
     pub available_update: Option<String>,
+    pub update_changes: Vec<String>,
     pub update_status: crate::update::Status,
     pub update_check_requested: bool,
     /// Inventory loads that failed in a row while no apps were shown yet.
@@ -480,6 +481,7 @@ impl State {
             notice: None,
             error: None,
             available_update: None,
+            update_changes: Vec::new(),
             update_status: crate::update::Status::Unchecked,
             update_check_requested: false,
             inventory_failures: 0,
@@ -530,6 +532,9 @@ impl State {
         match result {
             Ok(latest) => {
                 let announce = latest.is_some() && latest != self.available_update;
+                if latest != self.available_update {
+                    self.update_changes.clear();
+                }
                 self.available_update = latest;
                 self.update_status = crate::update::Status::Checked;
                 if announce {
@@ -555,6 +560,15 @@ impl State {
         self.dirty = true;
     }
 
+    /// What the update on offer changes. It arrives after the offer; a list for a version no
+    /// longer on offer is dropped.
+    pub fn changes_response(&mut self, version: String, changes: Vec<String>) {
+        if self.available_update.as_deref() == Some(version.as_str()) {
+            self.dirty |= self.update_changes != changes;
+            self.update_changes = changes;
+        }
+    }
+
     pub fn update_busy(&self) -> bool {
         self.update_status == crate::update::Status::Checking
             || matches!(
@@ -574,6 +588,7 @@ impl State {
             }
             Response::Finished(result) => {
                 self.available_update = None;
+                self.update_changes.clear();
                 match result {
                     Ok(()) => {
                         self.update = InstallStatus::Idle;
