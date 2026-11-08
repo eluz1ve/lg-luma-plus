@@ -112,6 +112,8 @@ struct Fixture {
     /// Other apps SAM reports as running, and the version LG's installer installs next.
     running_apps: RefCell<Vec<String>>,
     installs: RefCell<Option<String>>,
+    /// The TV's system settings, as the settings service answers them.
+    settings: RefCell<BTreeMap<String, String>>,
 }
 impl Fixture {
     fn new() -> Self {
@@ -143,6 +145,7 @@ impl Fixture {
             stuck: Cell::new(false),
             running_apps: RefCell::new(vec![]),
             installs: RefCell::new(None),
+            settings: RefCell::new(BTreeMap::new()),
         };
         for dir in [
             "/var/lib/luma-home/app",
@@ -352,6 +355,27 @@ impl System for Fixture {
                     ),
                 )?;
                 json!({"returnValue":true,"appInfo":app})
+            }
+            "getSystemSettings" => {
+                let settings = self.settings.borrow();
+                let found: serde_json::Map<String, Value> = payload["keys"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|key| {
+                        let key = key.as_str().unwrap();
+                        settings.get(key).map(|value| (key.to_owned(), json!(value)))
+                    })
+                    .collect();
+                json!({"returnValue":true,"settings":found})
+            }
+            "setSystemSettings" => {
+                for (key, value) in payload["settings"].as_object().unwrap() {
+                    self.settings
+                        .borrow_mut()
+                        .insert(key.clone(), value.as_str().unwrap().to_owned());
+                }
+                json!({"returnValue":true})
             }
             "blockSystemApp" | "releaseBlockSystemApp" | "addDevice" | "deleteDevice" => {
                 json!({"returnValue":true})
@@ -1241,4 +1265,22 @@ mod app_update_tests {
         assert!(error.contains("not updated"));
         assert_eq!(f.pauses.get(), 240);
     }
+}
+
+#[test]
+fn a_cold_start_holds_lgs_home_auto_launch_off_and_opens_luma_itself() {
+    let f = Fixture::new();
+    f.put("/etc/starfish-release", b"Rockhopper release 11.2.0");
+    home::dispatch(&f, "enable", Some(DIR), None).unwrap();
+    f.settings.borrow_mut().extend([
+        ("quickStartMode".to_owned(), "off".to_owned()),
+        ("homeAutoLaunch".to_owned(), "on".to_owned()),
+    ]);
+    *f.front.borrow_mut() = "com.webos.app.livetv".into();
+    f.calls.borrow_mut().clear();
+    home::dispatch(&f, "apply", None, None).unwrap();
+    assert_eq!(f.settings.borrow()["homeAutoLaunch"], "off");
+    assert!(f.calls.borrow().iter().any(|c| c.contains("/launch")));
+    home::dispatch(&f, "disable", None, None).unwrap();
+    assert_eq!(f.settings.borrow()["homeAutoLaunch"], "on");
 }

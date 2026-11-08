@@ -541,6 +541,15 @@ fn inventory_filters_system_apps_duplicates_and_unsafe_identifiers() {
     .unwrap();
     assert_eq!(inputs.len(), 2);
     assert_eq!(inputs[1].connected, None);
+    let inputs = normalize_inputs(&json!([
+        {"appId":"com.webos.app.hdmi2","label":"HDMI 2","subList":[
+            {"id":"SIMPLINK","osdName":"STEREO 70s","depth":1},
+            {"id":"SIMPLINK","osdName":"PlayStation 5","depth":2},
+            {"id":"SIMPLINK","osdName":" ","depth":3}
+        ]}
+    ]))
+    .unwrap();
+    assert_eq!(inputs[0].title, "PlayStation 5");
 }
 
 #[test]
@@ -2771,7 +2780,7 @@ fn widgets_group_existing_settings_and_restore_each_parent_without_changing_pref
             _ => None,
         })
         .collect();
-    assert_eq!(widget_order, [4, 0, 1, 2, 3, 5, 6, 7]);
+    assert_eq!(widget_order, [4, 0, 1, 2, 3, 5, 6, 7, 8]);
     for (index, subpage) in [
         Subpage::Greeting,
         Subpage::Weather,
@@ -2853,7 +2862,7 @@ fn widgets_are_localized_without_legacy_sidebar_entries() {
                 .iter()
                 .filter(|c| matches!(c.target, Target::Widget(_)))
                 .count(),
-            8
+            9
         );
         for key in [
             "widgets",
@@ -4028,6 +4037,7 @@ fn tv_shows_slide_six_at_a_time_and_open_in_lampa() {
             })
             .collect::<Vec<_>>()
     };
+    assert_eq!(state.center_row_len(), 10);
     assert_eq!(shows(&state), [0, 1, 2, 3, 4, 5]);
     state.focus = Target::Show(5);
     state.direction(Direction::Right, &controls(&state));
@@ -4041,9 +4051,85 @@ fn tv_shows_slide_six_at_a_time_and_open_in_lampa() {
             card: "tv_6".into()
         }]
     );
+    state.focus = Target::Show(4);
     state.inventory.apps.retain(|app| app.title != "Lampa");
     assert!(state.activate().is_empty());
     assert!(state.notice.is_some(), "without Lampa, a notice says so");
+}
+
+#[test]
+fn the_apps_widget_slides_opens_titles_and_leaves_out_turned_off_apps() {
+    let mut state = ready();
+    state.preferences.show_apps = true;
+    state.preferences.apps_today = false;
+    let card = |app: &str, id: usize| {
+        serde_json::json!({"type": "content", "titleText": format!("{app} {id}"),
+            "onClick": {"targetAppId": app, "contentId": id.to_string()}})
+    };
+    let reply = serde_json::json!({"allContents": [
+        {"contents": (0..6).map(|id| card("youtube.leanback.v4", id)).collect::<Vec<_>>()},
+        {"contents": (0..3).map(|id| card("com.wbd.stream", id)).collect::<Vec<_>>()},
+    ]});
+    state.app_cards.accept(crate::app_cards::parse(&reply));
+    assert_eq!(state.preferences.center(), Some(crate::model::Center::Apps));
+    assert_eq!(state.center_row_len(), 9);
+    state.focus = Target::Show(5);
+    state.direction(Direction::Right, &controls(&state));
+    assert_eq!(state.focus, Target::Show(6));
+    assert_eq!(state.shows_first, 1);
+    // Each app's in turn: YouTube, HBO Max, YouTube, ...
+    assert_eq!(
+        state.activate(),
+        vec![Effect::OpenContent {
+            app: "youtube.leanback.v4".into(),
+            params: serde_json::json!({"contentTarget": "3"}),
+        }]
+    );
+    state.preferences.apps_off = vec!["youtube.leanback.v4".into()];
+    assert_eq!(state.center_row_len(), 3);
+    // Placed in Today, its cards become Today's lines.
+    state
+        .preferences
+        .place_in_center(crate::model::Center::Apps, false);
+    let now = 1_700_000_000;
+    let date = time::OffsetDateTime::from_unix_timestamp(now)
+        .unwrap()
+        .date();
+    let today = crate::today::today(&state, now, date);
+    assert_eq!(
+        today.lines[0],
+        crate::today::Line::App {
+            app: "com.wbd.stream".into(),
+            id: "0".into()
+        }
+    );
+}
+
+#[test]
+fn the_red_key_steps_through_lampas_collections_on_home() {
+    use crate::model::LampaFeed;
+    let mut state = ready();
+    state.preferences.show_shows = true;
+    state.preferences.shows_today = false;
+    state.focus = Target::Show(3);
+    state.shows_first = 2;
+    // Signed out, the history is skipped.
+    assert_eq!(state.next_lampa_feed(), vec![Effect::Save]);
+    assert_eq!(state.preferences.lampa_feed, LampaFeed::Latest);
+    assert_eq!(
+        (state.focus.clone(), state.shows_first),
+        (Target::Show(0), 0)
+    );
+    assert_eq!(
+        state.notice.as_ref().map(|n| n.0.as_str()),
+        Some("Latest additions")
+    );
+    state.preferences.lampa_feed = LampaFeed::NewThisYear;
+    state.next_lampa_feed();
+    assert_eq!(state.preferences.lampa_feed, LampaFeed::Watching);
+    // Only while Lampa's row is in the middle of Home.
+    state.preferences.shows_today = true;
+    assert!(state.next_lampa_feed().is_empty());
 }
 
 #[test]
@@ -4071,16 +4157,22 @@ fn a_long_show_title_is_cut_with_an_ellipsis_not_shrunk() {
 
 #[test]
 fn carousels_slide_the_same_way_left_and_right() {
-    use crate::shows::Show;
+    // The Apps row: two apps' six cards each, taken in turn, so the fifth card is "A2".
     let mut state = ready();
-    state.preferences.show_shows = true;
-    state.preferences.shows_today = false;
-    state.shows.list = (0..12)
-        .map(|index| Show::sample(index, &format!("Show {index}"), time::Date::MIN))
-        .collect();
+    state.preferences.show_apps = true;
+    state.preferences.apps_today = false;
+    let card = |app: &str, name: &str, id: usize| {
+        serde_json::json!({"type": "content", "titleText": format!("{name}{id}"),
+            "onClick": {"targetAppId": app, "contentId": id.to_string()}})
+    };
+    let reply = serde_json::json!({"allContents": [
+        {"contents": (0..6).map(|id| card("app.a", "A", id)).collect::<Vec<_>>()},
+        {"contents": (0..6).map(|id| card("app.b", "B", id)).collect::<Vec<_>>()},
+    ]});
+    state.app_cards.accept(crate::app_cards::parse(&reply));
     let drawn_x = |state: &State| {
         scene(state).draw.iter().find_map(|draw| match draw {
-            crate::renderer::Draw::Text(label, rect, ..) if label == "Show 4" => Some(rect.x),
+            crate::renderer::Draw::Text(label, rect, ..) if label == "A2" => Some(rect.x),
             _ => None,
         })
     };

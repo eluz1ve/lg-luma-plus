@@ -5,6 +5,8 @@ use std::mem::MaybeUninit;
 
 pub const WEBOS_EXIT_KEYCODE: i32 = (1 << 30) | 505;
 pub const WEBOS_HOME_KEYCODE: i32 = (1 << 30) | 384;
+/// The remote's red key, marked with one dot (`SDL_WEBOS_SCANCODE_RED` in the NDK's SDL_webOS.h).
+pub const WEBOS_RED_KEYCODE: i32 = (1 << 30) | 486;
 
 pub fn decode(mut raw: sys::SDL_Event, webos: bool) -> Event {
     // SAFETY: SDL always initializes the type tag; only keyboard variants have
@@ -23,6 +25,9 @@ pub fn decode(mut raw: sys::SDL_Event, webos: bool) -> Event {
             } else if webos && scancode == 482 {
                 raw.key.keysym.scancode = sys::SDL_Scancode::SDL_SCANCODE_AC_BACK;
                 raw.key.keysym.sym = i32::from(Keycode::AcBack);
+            } else if webos && scancode == 486 {
+                raw.key.keysym.scancode = sys::SDL_Scancode::SDL_SCANCODE_UNKNOWN;
+                raw.key.keysym.sym = WEBOS_RED_KEYCODE;
             } else if webos && scancode == 505 {
                 raw.key.keysym.scancode = sys::SDL_Scancode::SDL_SCANCODE_ESCAPE;
                 raw.key.keysym.sym = WEBOS_EXIT_KEYCODE;

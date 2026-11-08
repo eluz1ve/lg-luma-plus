@@ -179,14 +179,12 @@ fn back_and_right_close_the_menu_and_restore_the_focus() {
 }
 
 #[test]
-fn a_relaunch_returns_home_with_the_menu_open() {
+fn a_relaunch_returns_home_without_the_menu() {
     let mut state = ready();
     state.open(2);
     assert!(state.relaunch_home().is_empty());
     assert_eq!(state.page, Page::Home);
-    assert!(menu_open(&state));
-    assert_eq!(state.focus, Target::Nav(0));
-    state.back();
+    assert!(!menu_open(&state));
     assert_eq!(state.focus, Target::App("netflix".into()));
 }
 

@@ -143,6 +143,8 @@ pub enum Target {
     TodayMatch(String),
     /// A TV Shows line of the opened Today card, by the series' TMDB id: opens Lampa.
     TodayShow(i64),
+    /// An app's card in the opened Today card, by its app and content ID: opens it there.
+    TodayApp(String, String),
     /// A Lampa line of the opened Today card, by its CUB card ("tv_2190"): opens Lampa.
     TodayLampa(String),
     /// Widgets › Lampa: sign in to CUB, or out.
@@ -150,6 +152,12 @@ pub enum Target {
     /// Widgets › Lampa: its lines in the Today card.
     LampaFeed,
     LampaPlugin,
+    /// Widgets › Apps: whether the widget shows the cards of the app at this place in
+    /// `AppCards::apps`.
+    AppsApp(usize),
+    /// Widgets › Apps: whether it shows, and where.
+    AppsToggle,
+    AppsLayout,
     WeatherClear,
     WeatherResult(usize),
     CryptoToggle,
@@ -179,7 +187,10 @@ impl Target {
     pub fn today_line(&self) -> bool {
         matches!(
             self,
-            Target::TodayMatch(_) | Target::TodayShow(_) | Target::TodayLampa(_)
+            Target::TodayMatch(_)
+                | Target::TodayShow(_)
+                | Target::TodayLampa(_)
+                | Target::TodayApp(..)
         )
     }
 
@@ -311,6 +322,9 @@ pub enum Subpage {
     Cs2,
     /// Widgets › Lampa: what it lists, and the CUB account its history comes from.
     Shows,
+    /// Widgets › Lampa › what it lists.
+    LampaFeed,
+    Apps,
     Input(String),
     WeatherLocation,
     Temperature,
@@ -357,6 +371,11 @@ pub enum Effect {
     Recent {
         generation: u64,
         command: crate::recents::Command,
+    },
+    /// Opens an app at a title it published as a card (`app_cards.rs`).
+    OpenContent {
+        app: String,
+        params: serde_json::Value,
     },
     /// Fire-and-forget HTTP request for a custom tile, off the SDL thread.
     FireWebhook(CustomTile),
@@ -443,6 +462,8 @@ pub struct State {
     pub shows: crate::shows::Shows,
     /// Lampa's CUB account, for the Today card.
     pub cub: crate::cub::Cub,
+    /// The cards the TV's apps publish, shown in the Lampa row after Lampa's own.
+    pub app_cards: crate::app_cards::AppCards,
     /// The user signed out of CUB: its kept sign-in is to be removed.
     pub cub_forget: bool,
     /// The first of the TV Shows cards in view; Left and Right scroll through the rest.
@@ -517,6 +538,7 @@ impl State {
             cs2_first: 0,
             shows: crate::shows::Shows::default(),
             cub: crate::cub::Cub::default(),
+            app_cards: crate::app_cards::AppCards::default(),
             cub_forget: false,
             shows_first: 0,
             ticker: 0.,
@@ -827,11 +849,9 @@ impl State {
         pending
     }
 
-    /// Home from another app: Luma comes back on Home, with the menu open.
+    /// Home from another app: the app goes to the background and Luma comes back on Home.
     pub fn relaunch_home(&mut self) -> Vec<Effect> {
-        let pending = self.return_home();
-        self.open_menu();
-        pending
+        self.return_home()
     }
 
     /// Before the menu opens over the page: drafts are kept, and a dialog or Recents closes back
@@ -1642,27 +1662,76 @@ impl State {
         }
         self.shows_first = self
             .shows_first
-            .min(self.lampa_cards().len().saturating_sub(visible));
+            .min(self.center_row_len().saturating_sub(visible));
     }
 
-    /// The cards of Home's Lampa row, as Lampa's card IDs: the series Lampa watches now, or the
-    /// account's history, latest first.
+    /// The red key on Home, while Lampa's row stands in the middle: the next of Lampa's
+    /// collections, skipping the history until CUB is signed in. Its name shows as a notice.
+    pub fn next_lampa_feed(&mut self) -> Vec<Effect> {
+        use crate::model::Center;
+        if self.page != Page::Home
+            || self.overlay.is_some()
+            || self.preferences.center() != Some(Center::Shows)
+        {
+            return vec![];
+        }
+        let next = self.lampa_feed_after();
+        self.preferences.lampa_feed = next;
+        self.shows_first = 0;
+        if matches!(self.focus, Target::Show(_)) {
+            self.focus = Target::Show(0);
+        }
+        self.notify(self.preferences.language.t(next.key()).to_owned());
+        self.dirty = true;
+        vec![Effect::Save]
+    }
+
+    /// The collection the red key turns Lampa's row to next.
+    pub fn lampa_feed_after(&self) -> crate::model::LampaFeed {
+        use crate::model::LampaFeed;
+        let all = LampaFeed::ALL;
+        let at = all
+            .iter()
+            .position(|feed| *feed == self.preferences.lampa_feed)
+            .unwrap_or(0);
+        (1..=all.len())
+            .map(|step| all[(at + step) % all.len()])
+            .find(|feed| *feed != LampaFeed::Continue || self.cub.signed_in())
+            .unwrap_or(LampaFeed::Watching)
+    }
+
+    /// The Apps widget's cards: those of the apps not turned off.
+    pub fn shown_app_cards(&self) -> Vec<&crate::app_cards::AppCard> {
+        self.app_cards.shown(&self.preferences.apps_off)
+    }
+
+    /// How many cards the poster row in the middle of Home holds: Lampa's or the apps'.
+    pub fn center_row_len(&self) -> usize {
+        match self.preferences.center() {
+            Some(crate::model::Center::Apps) => self.shown_app_cards().len(),
+            _ => self.lampa_cards().len(),
+        }
+    }
+
+    /// The cards of Home's Lampa row, as Lampa's card IDs: the account's history, latest first,
+    /// or the feed read from CUB's catalogue.
     pub fn lampa_cards(&self) -> Vec<String> {
         match self.preferences.lampa_feed {
-            crate::model::LampaFeed::Watching => self
-                .shows
-                .list
-                .iter()
-                .map(|show| format!("tv_{}", show.id))
-                .collect(),
             crate::model::LampaFeed::Continue if self.cub.signed_in() => self
                 .cub
                 .watched
                 .iter()
-                .take(crate::shows::SHOWN)
+                .take(crate::shows::ROW_CARDS)
                 .map(|watched| watched.card.clone())
                 .collect(),
             crate::model::LampaFeed::Continue => Vec::new(),
+            _ => self
+                .shows
+                .list
+                .iter()
+                .take(crate::shows::ROW_CARDS)
+                .map(crate::shows::Show::card)
+                .collect(),
         }
     }
 
@@ -2038,6 +2107,11 @@ impl State {
             Some(Subpage::Weather) => Target::Widget(1),
             Some(Subpage::Cs2) => Target::Widget(6),
             Some(Subpage::Shows) => Target::Widget(7),
+            Some(Subpage::Apps) => Target::Widget(8),
+            Some(Subpage::LampaFeed) => {
+                self.subpage = Some(Subpage::Shows);
+                Target::LampaFeed
+            }
             Some(Subpage::Shortcuts) => Target::Widget(2),
             Some(Subpage::Inputs) => Target::Widget(3),
             Some(Subpage::Crypto) => Target::Widget(5),
@@ -2249,6 +2323,7 @@ impl State {
                     Some(Subpage::Language) => Language::ALL.len(),
                     Some(Subpage::Appearance) => UiSize::ALL.len(),
                     Some(Subpage::DateFormat) => crate::model::DateFormat::ALL.len(),
+                    Some(Subpage::LampaFeed) => crate::model::LampaFeed::ALL.len(),
                     _ => 3,
                 };
                 match direction {
@@ -2322,6 +2397,9 @@ impl State {
                     | Target::LampaAccount
                     | Target::LampaFeed
                     | Target::LampaPlugin
+                    | Target::AppsApp(_)
+                    | Target::AppsToggle
+                    | Target::AppsLayout
                     | Target::Cs2Major
                     | Target::Cs2Results
                     | Target::InputMode(_)
@@ -2442,7 +2520,7 @@ impl State {
             {
                 let next = match direction {
                     Direction::Left => index.checked_sub(1),
-                    _ => (index + 1 < self.lampa_cards().len()).then_some(index + 1),
+                    _ => (index + 1 < self.center_row_len()).then_some(index + 1),
                 };
                 if let Some(next) = next {
                     self.shows_reveal(next);
@@ -2466,11 +2544,17 @@ impl State {
                     | Target::LampaAccount
                     | Target::LampaFeed
                     | Target::LampaPlugin
+                    | Target::AppsApp(_)
+                    | Target::AppsToggle
+                    | Target::AppsLayout
             ) {
                 match direction {
                     Direction::Right => return vec![],
                     Direction::Up
-                        if matches!(self.focus, Target::Cs2Toggle | Target::ShowsToggle) =>
+                        if matches!(
+                            self.focus,
+                            Target::Cs2Toggle | Target::ShowsToggle | Target::AppsToggle
+                        ) =>
                     {
                         return vec![];
                     }
@@ -3238,6 +3322,19 @@ impl State {
                 }
             }
             Target::TodayShow(id) => return self.open_lampa(&format!("tv_{id}")),
+            Target::TodayApp(app, id) => {
+                if let Some(card) = self
+                    .app_cards
+                    .list
+                    .iter()
+                    .find(|card| card.app == app && card.content_id == id)
+                {
+                    return vec![Effect::OpenContent {
+                        app,
+                        params: card.params(),
+                    }];
+                }
+            }
             Target::TodayLampa(card) => return self.open_lampa(&card),
             Target::LampaAccount => {
                 if self.cub.signed_in() {
@@ -3262,23 +3359,50 @@ impl State {
                 }
             }
             Target::LampaFeed => {
-                use crate::model::LampaFeed;
-                self.preferences.lampa_feed = match self.preferences.lampa_feed {
-                    LampaFeed::Watching => LampaFeed::Continue,
-                    LampaFeed::Continue => LampaFeed::Watching,
-                };
-                self.shows_first = 0;
-                return vec![Effect::Save];
+                self.subpage = Some(Subpage::LampaFeed);
+                self.focus = Target::Choice(
+                    crate::model::LampaFeed::ALL
+                        .iter()
+                        .position(|feed| *feed == self.preferences.lampa_feed)
+                        .unwrap_or(0),
+                );
+                self.scroll = 0.;
+                self.panel_started = Some(Instant::now());
             }
             Target::Cs2Close => return self.back(),
             Target::ShowsToggle => {
                 self.preferences.show_shows = !self.preferences.show_shows;
                 return vec![Effect::Save];
             }
-            Target::Show(index) => {
-                if let Some(card) = self.lampa_cards().into_iter().nth(index) {
-                    return self.open_lampa(&card);
+            Target::AppsApp(index) => {
+                if let Some(app) = self.app_cards.apps().into_iter().nth(index) {
+                    let off = &mut self.preferences.apps_off;
+                    if let Some(at) = off.iter().position(|other| *other == app) {
+                        off.remove(at);
+                    } else {
+                        off.push(app);
+                    }
+                    self.shows_first = self
+                        .shows_first
+                        .min(self.center_row_len().saturating_sub(crate::shows::VISIBLE));
+                    return vec![Effect::Save];
                 }
+            }
+            Target::Show(index) => {
+                if self.preferences.center() == Some(crate::model::Center::Apps) {
+                    if let Some(card) = self.shown_app_cards().get(index) {
+                        return vec![Effect::OpenContent {
+                            app: card.app.clone(),
+                            params: card.params(),
+                        }];
+                    }
+                } else if let Some(card) = self.lampa_cards().get(index) {
+                    return self.open_lampa(card);
+                }
+            }
+            Target::AppsToggle => {
+                self.preferences.show_apps = !self.preferences.show_apps;
+                return vec![Effect::Save];
             }
             Target::WeatherConfigure => {
                 self.open(2);
@@ -3354,12 +3478,14 @@ impl State {
                 self.preferences.show_crypto = !self.preferences.show_crypto;
                 return vec![Effect::Save];
             }
-            Target::Cs2Layout | Target::ShowsLayout => {
+            Target::Cs2Layout | Target::ShowsLayout | Target::AppsLayout => {
                 use crate::model::Center;
                 let widget = match self.focus {
                     Target::Cs2Layout => Center::Cs2,
+                    Target::AppsLayout => Center::Apps,
                     _ => Center::Shows,
                 };
+                self.shows_first = 0;
                 let center = self.preferences.center() != Some(widget);
                 self.preferences.place_in_center(widget, center);
                 return vec![Effect::Save];
@@ -3396,6 +3522,7 @@ impl State {
                     1 => (Subpage::Weather, Target::WeatherToggle),
                     6 => (Subpage::Cs2, Target::Cs2Toggle),
                     7 => (Subpage::Shows, Target::ShowsToggle),
+                    8 => (Subpage::Apps, Target::AppsToggle),
                     2 => (Subpage::Shortcuts, Target::TileEditor),
                     4 => (Subpage::Date, Target::DateToggle),
                     5 => (Subpage::Crypto, Target::CryptoToggle),
@@ -3655,6 +3782,11 @@ impl State {
                     Some(Subpage::DateFormat) => {
                         self.preferences.date_format = crate::model::DateFormat::ALL[index.min(3)];
                     }
+                    Some(Subpage::LampaFeed) => {
+                        let all = crate::model::LampaFeed::ALL;
+                        self.preferences.lampa_feed = all[index.min(all.len() - 1)];
+                        self.shows_first = 0;
+                    }
                     Some(Subpage::Input(id)) => {
                         self.preferences.input_modes.insert(
                             id,
@@ -3718,7 +3850,7 @@ impl State {
                     ) => {
                         return vec![];
                     }
-                    Some(Subpage::Cs2 | Subpage::Shows) => return vec![],
+                    Some(Subpage::Cs2 | Subpage::Shows | Subpage::Apps) => return vec![],
                     None => return vec![],
                 }
                 self.close_subpage();

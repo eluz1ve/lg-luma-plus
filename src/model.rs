@@ -301,14 +301,63 @@ pub const CUSTOM_TILE_PREFIX: &str = "custom.";
 pub const TILE_LIMIT: usize = 64;
 pub const TILE_URL_LIMIT: usize = 512;
 
-/// What the Lampa widget lists: series with a new episode that Lampa's viewers watch now (CUB's
-/// feed), or the account's history to continue with its bookmarks' new episodes.
+/// What the Lampa widget lists: series with a new episode and films that Lampa's viewers watch
+/// now (CUB's feed), the account's history to continue with its bookmarks' new episodes, or one
+/// of the collections on Lampa's own main page.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LampaFeed {
     #[default]
     Watching,
     Continue,
+    Latest,
+    Fire,
+    TopMovies,
+    TopShows,
+    NewEpisodes,
+    NewThisYear,
+}
+
+impl LampaFeed {
+    pub const ALL: [LampaFeed; 8] = [
+        LampaFeed::Watching,
+        LampaFeed::Continue,
+        LampaFeed::Latest,
+        LampaFeed::Fire,
+        LampaFeed::TopMovies,
+        LampaFeed::TopShows,
+        LampaFeed::NewEpisodes,
+        LampaFeed::NewThisYear,
+    ];
+
+    /// Its name's message key, which is also the row's heading.
+    pub fn key(self) -> &'static str {
+        match self {
+            LampaFeed::Watching => "lampaWatching",
+            LampaFeed::Continue => "lampaHistory",
+            LampaFeed::Latest => "lampaLatest",
+            LampaFeed::Fire => "lampaFire",
+            LampaFeed::TopMovies => "lampaTopMovies",
+            LampaFeed::TopShows => "lampaTopShows",
+            LampaFeed::NewEpisodes => "lampaNewEpisodes",
+            LampaFeed::NewThisYear => "lampaNewThisYear",
+        }
+    }
+
+    /// The address on CUB's catalogue, under `https://tmdb.{host}/`, of a collection read as one
+    /// page, as Lampa's main page asks for it; None for the feeds read otherwise. `year` is the
+    /// TV's.
+    pub fn catalogue(self, year: i32) -> Option<String> {
+        Some(match self {
+            LampaFeed::Watching | LampaFeed::Continue => return None,
+            LampaFeed::Latest => "?sort=latest".into(),
+            LampaFeed::Fire => "top/fire/movie".into(),
+            LampaFeed::TopMovies => "top/hundred/movie".into(),
+            LampaFeed::TopShows => "top/hundred/tv".into(),
+            LampaFeed::NewEpisodes => "?cat=tv&sort=update".into(),
+            LampaFeed::NewThisYear => format!("?cat=movie&sort=now&airdate={year}"),
+        })
+    }
 }
 
 /// Anything but a known feed leaves the default.
@@ -398,6 +447,12 @@ pub struct Preferences {
     /// What the Lampa widget lists.
     #[serde(deserialize_with = "deserialize_lampa_feed")]
     pub lampa_feed: LampaFeed,
+    /// The Apps widget: the cards the TV's apps publish, in the middle of Home or in Today.
+    #[serde(deserialize_with = "crate::cs2::deserialize_flag")]
+    pub show_apps: bool,
+    pub apps_today: bool,
+    /// Apps whose cards the Apps widget leaves out (`app_cards.rs`).
+    pub apps_off: Vec<String>,
     /// Liquipedia's tier 1 and 2 events only.
     #[serde(deserialize_with = "crate::cs2::deserialize_enabled")]
     pub cs2_major_only: bool,
@@ -462,6 +517,9 @@ impl Default for Preferences {
             cs2_today: true,
             shows_today: true,
             lampa_feed: LampaFeed::Watching,
+            show_apps: false,
+            apps_today: true,
+            apps_off: Vec::new(),
             cs2_major_only: true,
             cs2_results: true,
             input_modes: BTreeMap::new(),
@@ -489,13 +547,15 @@ impl Default for Preferences {
 pub enum Center {
     Cs2,
     Shows,
+    /// The cards the TV's apps publish (`app_cards.rs`).
+    Apps,
 }
 
 impl Preferences {
     /// The widget in the middle of Home: the first shown outside Today, CS2, then shows. Rows
     /// saved before the center existed can leave both outside; the other goes into Today.
     pub fn center(&self) -> Option<Center> {
-        [Center::Cs2, Center::Shows]
+        [Center::Cs2, Center::Shows, Center::Apps]
             .into_iter()
             .find(|&widget| self.shown(widget) && !self.placed_in_today(widget))
     }
@@ -523,6 +583,7 @@ impl Preferences {
         match widget {
             Center::Cs2 => self.show_cs2,
             Center::Shows => self.show_shows,
+            Center::Apps => self.show_apps,
         }
     }
 
@@ -530,6 +591,7 @@ impl Preferences {
         match widget {
             Center::Cs2 => self.cs2_today,
             Center::Shows => self.shows_today,
+            Center::Apps => self.apps_today,
         }
     }
 
@@ -537,6 +599,7 @@ impl Preferences {
         match widget {
             Center::Cs2 => self.cs2_today = today,
             Center::Shows => self.shows_today = today,
+            Center::Apps => self.apps_today = today,
         }
     }
 

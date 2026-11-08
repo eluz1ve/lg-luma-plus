@@ -59,6 +59,7 @@ fn show(id: i64, days: i64) -> Show {
         season: Some(1),
         aired: DATE - time::Duration::days(days),
         rating: None,
+        movie: false,
     }
 }
 

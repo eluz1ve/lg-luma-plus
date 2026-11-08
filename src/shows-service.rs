@@ -65,6 +65,19 @@ impl Client {
     /// The feed's first pages, from the first of CUB's hosts that answers.
     pub fn shows(&self, command: &Command) -> Result<Vec<Show>, String> {
         let mut error = None;
+        if let Some(path) = command.feed.catalogue(command.date.year()) {
+            for host in crate::cub::HOSTS {
+                let url = catalogue_url(host, &path);
+                match self.get(&url, LIMIT).and_then(|bytes| {
+                    serde_json::from_slice::<Value>(&bytes)
+                        .map_err(|_| "CUB returned unreadable data".into())
+                }) {
+                    Ok(page) => return Ok(crate::shows::parse_catalogue(&page)),
+                    Err(message) => error = Some(message),
+                }
+            }
+            return Err(error.unwrap_or_else(|| "CUB is unavailable.".into()));
+        }
         for host in crate::cub::HOSTS {
             let pages: Result<Vec<Value>, String> = (1..=PAGES)
                 .map(|page| {
@@ -74,7 +87,19 @@ impl Client {
                 })
                 .collect();
             match pages {
-                Ok(pages) => return Ok(parse_feed(&pages, command.date)),
+                Ok(pages) => {
+                    // Films are a bonus: the series still show when their page fails.
+                    let movies = self
+                        .get(&movies_url(host), LIMIT)
+                        .ok()
+                        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                        .map(|page| crate::shows::parse_movies(&page))
+                        .unwrap_or_default();
+                    return Ok(crate::shows::interleave(
+                        parse_feed(&pages, command.date),
+                        movies,
+                    ));
+                }
                 Err(message) => error = Some(message),
             }
         }
@@ -158,6 +183,17 @@ pub fn poster(agent: &ureq::Agent, key: &str, kind: &str) -> Option<Arc<Artwork>
         backdrop: [[0; 3]; 2],
         wash: None,
     }))
+}
+
+/// A collection of Lampa's main page on CUB's catalogue at `host`.
+fn catalogue_url(host: &str, path: &str) -> String {
+    let join = if path.contains('?') { '&' } else { '?' };
+    format!("https://tmdb.{host}/{path}{join}email=")
+}
+
+/// The first page of the films Lampa's viewers watch now, as Lampa itself asks for it.
+fn movies_url(host: &str) -> String {
+    format!("https://tmdb.{host}/?cat=movie&sort=now_playing&page=1&email=")
 }
 
 /// A page of the series Lampa's viewers watch now, as Lampa itself asks for it.

@@ -239,3 +239,22 @@ fn a_language_change_asks_for_the_other_poster() {
     assert!(shows.poster(&shows.list[0], Language::En).is_none());
     assert_eq!(shows.wanted_posters(0, Language::Ru), ["/1.jpg"]);
 }
+
+#[test]
+fn a_collection_tells_films_from_series_by_the_fields_set() {
+    let page = serde_json::json!({"results": [
+        {"id": 950396, "title": "Ущелье", "name": null, "first_air_date": null,
+            "release_date": "2025-02-13", "last_air_date": "0001-01-01",
+            "poster_path": "/yiUINsMKnemBFcUHqpv94yJolWH.jpg", "vote_average": 7.7, "vote_count": 4374},
+        {"id": 1399, "name": "Игра престолов", "title": null, "first_air_date": "2011-04-17",
+            "last_air_date": "2019-05-19", "poster_path": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
+            "seasons": {"1": 10, "8": 6}},
+    ]});
+    let items = crate::shows::parse_catalogue(&page);
+    assert_eq!(items.len(), 2);
+    assert!(items[0].movie);
+    assert_eq!(items[0].card(), "movie_950396");
+    assert!(!items[1].movie);
+    assert_eq!(items[1].card(), "tv_1399");
+    assert_eq!(items[1].season, Some(8));
+}

@@ -38,6 +38,24 @@ pub struct Tv;
 unsafe extern "C" {
     fn geteuid() -> u32;
     fn kill(pid: i32, signal: i32) -> i32;
+    fn flock(fd: i32, operation: i32) -> i32;
+}
+
+/// Holds an exclusive lock on `file` for the life of the process; false when another holds it.
+pub fn lock(file: &std::fs::File) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd;
+        const LOCK_EX: i32 = 2;
+        const LOCK_NB: i32 = 4;
+        // SAFETY: the descriptor belongs to `file`, open for the duration of the call.
+        unsafe { flock(file.as_raw_fd(), LOCK_EX | LOCK_NB) == 0 }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = file;
+        true
+    }
 }
 impl System for Tv {
     fn path(&self, path: &Path) -> PathBuf {

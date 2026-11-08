@@ -25,6 +25,11 @@ pub enum Line {
         card: String,
     },
     Crypto,
+    /// A card an app published (`app_cards.rs`), by its app and content ID.
+    App {
+        app: String,
+        id: String,
+    },
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -48,6 +53,7 @@ pub enum Tab {
     Lampa,
     Shows,
     Crypto,
+    Apps,
 }
 
 impl Tab {
@@ -58,6 +64,7 @@ impl Tab {
             Tab::Lampa => "lampa",
             Tab::Shows => "lampa",
             Tab::Crypto => "crypto",
+            Tab::Apps => "appsWidget",
         }
     }
 }
@@ -76,6 +83,8 @@ pub enum Section {
     /// Lampa's series to pick up.
     Continue,
     Prices,
+    /// The apps' cards.
+    Apps,
 }
 
 impl Section {
@@ -88,6 +97,7 @@ impl Section {
             Section::Episodes => "todayEpisodes",
             Section::Continue => "todayContinue",
             Section::Prices => "todayPrices",
+            Section::Apps => "appsSuggest",
         }
     }
 }
@@ -101,6 +111,8 @@ struct Day {
     aired: Vec<Line>,
     /// Lampa's releases today, the week's earlier ones and series to continue.
     lampa: Option<[Vec<Line>; 3]>,
+    /// The apps' cards, each app's in turn.
+    apps: Vec<Line>,
     crypto: bool,
 }
 
@@ -111,13 +123,15 @@ pub fn today(state: &State, now: i64, date: Date) -> Today {
         coming,
         aired,
         lampa,
+        apps,
         crypto,
     } = gather(state, now, date);
     let events: Vec<Line> = coming.into_iter().chain(aired).collect();
-    let groups = match lampa {
+    let mut groups = match lampa {
         Some([fresh, week, resume]) => vec![fresh, events, week, resume],
         None => vec![events],
     };
+    groups.push(apps);
     let mut lines = live;
     lines.extend(interleave(groups));
     let room = LINES - usize::from(crypto);
@@ -177,6 +191,7 @@ pub fn tabs(state: &State, now: i64, date: Date) -> Vec<(Tab, Sections)> {
             .shows
             .list
             .iter()
+            .filter(|show| !show.movie)
             .map(|show| Line::Episode { show: show.id })
             .collect();
         tabs.push((Tab::Shows, vec![(Section::Episodes, episodes)]));
@@ -184,6 +199,7 @@ pub fn tabs(state: &State, now: i64, date: Date) -> Vec<(Tab, Sections)> {
     if preferences.crypto_in_today() {
         tabs.push((Tab::Crypto, vec![(Section::Prices, vec![Line::Crypto])]));
     }
+    tabs.push((Tab::Apps, vec![(Section::Apps, app_lines(state))]));
     tabs.into_iter()
         .map(|(tab, sections)| {
             let sections: Vec<_> = sections
@@ -227,7 +243,7 @@ fn gather(state: &State, now: i64, date: Date) -> Day {
             .shows
             .list
             .iter()
-            .filter(|show| show.new_on(date))
+            .filter(|show| !show.movie && show.new_on(date))
             .map(|show| Line::Episode { show: show.id })
             .collect()
     } else {
@@ -239,8 +255,24 @@ fn gather(state: &State, now: i64, date: Date) -> Day {
         coming: coming.into_iter().map(|(_, line)| line).collect(),
         aired,
         lampa: lampa.then(|| lampa_lines(&state.cub, now, date)),
+        apps: app_lines(state),
         crypto: preferences.crypto_in_today(),
     }
+}
+
+/// The apps' cards, when the Apps widget sits in Today.
+fn app_lines(state: &State) -> Vec<Line> {
+    if !state.preferences.in_today(crate::model::Center::Apps) {
+        return Vec::new();
+    }
+    state
+        .shown_app_cards()
+        .into_iter()
+        .map(|card| Line::App {
+            app: card.app.clone(),
+            id: card.content_id.clone(),
+        })
+        .collect()
 }
 
 /// Lampa's lines: today's releases, the week's earlier ones, and series to continue; one line

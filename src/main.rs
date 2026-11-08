@@ -1,5 +1,10 @@
 mod aerials;
 mod app_artwork;
+// The TV build reads the cards; the host build compiles the parser for its tests.
+#[cfg_attr(not(target_arch = "arm"), allow(dead_code))]
+mod app_cards;
+#[path = "app-cards-service.rs"]
+mod app_cards_service;
 mod dynamic_wallpaper;
 // Used by the TV build's Home lifecycle; the host build compiles it for its tests.
 #[cfg(all(feature = "webos", target_os = "linux"))]
@@ -339,7 +344,7 @@ impl BackButton {
 }
 
 /// Opens an app, and Lampa on `card`; on the desktop, a notice names it.
-fn launch(state: &mut State, platform: &Platform, id: String, card: Option<String>) {
+fn launch(state: &mut State, platform: &Platform, id: String, request: Request) {
     if scroll_preview::is_placeholder(&id) {
         state.notify(state.preferences.language.t("scrollTestOnly"));
         return;
@@ -350,7 +355,7 @@ fn launch(state: &mut State, platform: &Platform, id: String, card: Option<Strin
     if platform.webos {
         state.launching = true;
         state.notify(state.preferences.language.t("opening"));
-        platform.send(Request::Launch(id, card));
+        platform.send(request);
     } else {
         let title = state
             .inventory
@@ -396,8 +401,16 @@ fn effects(
                     platform.send(Request::Refresh);
                 }
             }
-            Effect::Launch(id) => launch(state, platform, id, None),
-            Effect::OpenCard { app, card } => launch(state, platform, app, Some(card)),
+            Effect::Launch(id) => launch(state, platform, id.clone(), Request::Launch(id, None)),
+            Effect::OpenCard { app, card } => launch(
+                state,
+                platform,
+                app.clone(),
+                Request::Launch(app, Some(card)),
+            ),
+            Effect::OpenContent { app, params } => {
+                launch(state, platform, app.clone(), Request::Open(app, params))
+            }
             Effect::FireWebhook(tile) => webhook.send(tile),
             Effect::UpdateDownload(release) => updates.request(update::Request::Download(release)),
             Effect::Quit => return false,
@@ -686,9 +699,13 @@ fn shows_tick(
     offset: time::UtcOffset,
 ) {
     let now = OffsetDateTime::now_utc().unix_timestamp();
-    // Only "watching now" needs CUB's feed; the history comes with the account.
-    let enabled =
-        state.preferences.show_shows && state.preferences.lampa_feed == model::LampaFeed::Watching;
+    // Every feed but the history, which comes with the account, is read from CUB's catalogue.
+    let feed = state.preferences.lampa_feed;
+    let enabled = state.preferences.show_shows && feed != model::LampaFeed::Continue;
+    if enabled && state.shows.set_feed(feed) {
+        state.shows_first = 0;
+        state.dirty = true;
+    }
     let (command, changed) =
         state
             .shows
@@ -816,6 +833,54 @@ fn cub_tick(
     if visible {
         for poster in state.cub.wanted_posters(state.preferences.language) {
             service.poster(poster);
+        }
+    }
+}
+
+/// The cards the TV's apps publish, for the Lampa row: read while Home shows the row, and
+/// the pictures of the cards in view.
+fn app_cards_tick(state: &mut State, service: &app_cards_service::Service, visible: bool) {
+    let now = OffsetDateTime::now_utc().unix_timestamp();
+    let preferences = &state.preferences;
+    let in_center = preferences.center() == Some(model::Center::Apps);
+    let wanted = visible
+        && state.page == state::Page::Home
+        && preferences.show_apps
+        && (in_center || preferences.in_today(model::Center::Apps));
+    if state.app_cards.due(wanted, now) {
+        service.read();
+    }
+    while let Ok(response) = service.receiver.try_recv() {
+        state.dirty |= match response {
+            app_cards_service::Response::Cards(result) => {
+                let changed = state.app_cards.accept(result);
+                state.shows_first = state
+                    .shows_first
+                    .min(state.center_row_len().saturating_sub(shows::VISIBLE));
+                changed
+            }
+            app_cards_service::Response::Image { url, image } => {
+                state.app_cards.accept_image(url, image)
+            }
+        };
+    }
+    if wanted {
+        // The row's cards in view and the next one; in Today, its first few lines.
+        let (first, count) = if in_center {
+            (state.shows_first, shows::VISIBLE + 1)
+        } else {
+            (0, today::LINES * 2)
+        };
+        let cards: Vec<app_cards::AppCard> = state
+            .shown_app_cards()
+            .into_iter()
+            .skip(first)
+            .take(count)
+            .cloned()
+            .collect();
+        let cards: Vec<&app_cards::AppCard> = cards.iter().collect();
+        for url in state.app_cards.wanted_images(&cards) {
+            service.image(url);
         }
     }
 }
@@ -1127,6 +1192,7 @@ fn run() -> Result<(), String> {
     )?);
     let shows_service = shows_service::Service::new(shows_service::Client::new());
     let cub_service = cub_service::Service::new(cub_service::Client::new());
+    let app_cards_service = app_cards_service::Service::new(webos);
     let updates = update::Worker::new(webos && public_update_checks);
     let homebrew = homebrew_updates::Worker::new(webos && public_update_checks);
     let platform = Platform::new(
@@ -1135,6 +1201,12 @@ fn run() -> Result<(), String> {
     );
     let webhook_service = webhook::Service::new();
     let update_service = update::Service::new(public_update_checks);
+    // As Home, a root watchdog gives LG Home back for the session if Luma hangs or keeps
+    // crashing; Luma's main loop beats for it.
+    let mut heartbeat: Option<Option<Instant>> = (webos && options.webos_home).then(|| {
+        platform.send(Request::StartWatchdog);
+        None
+    });
     effects(
         vec![Effect::Refresh],
         &mut state,
@@ -1401,6 +1473,10 @@ fn run() -> Result<(), String> {
     let mut foreground = platform::ForegroundCheck::default();
     let mut focused = !start_hidden;
     let mut press: Option<Press> = None;
+    // The Magic Remote pointer resting on a row's card at the screen's side slides the row on.
+    let mut edge_pointer: Option<(i32, i32)> = None;
+    let mut edge_since: Option<Instant> = None;
+    let mut edge_step = Instant::now();
     let mut back_button = BackButton::default();
     let mut last_frame = Instant::now();
     let mut last_minute = None;
@@ -1425,6 +1501,12 @@ fn run() -> Result<(), String> {
         options.time.unwrap_or_else(OffsetDateTime::now_utc),
     );
     while running {
+        if let Some(beat) = &mut heartbeat
+            && beat.is_none_or(|at| at.elapsed() >= Duration::from_secs(5))
+        {
+            *beat = Some(Instant::now());
+            let _ = std::fs::write(platform::HEARTBEAT, format!("{}\n", std::process::id()));
+        }
         let now = options
             .time
             .unwrap_or_else(|| OffsetDateTime::now_utc().to_offset(local_offset));
@@ -1704,6 +1786,7 @@ fn run() -> Result<(), String> {
         cs2_tick(&mut state, &cs2_service, visible);
         shows_tick(&mut state, &shows_service, visible, local_offset);
         cub_tick(&mut state, &cub_service, &cub_path, visible, local_offset);
+        app_cards_tick(&mut state, &app_cards_service, visible);
         if weather_tick(&mut state, &weather_service, visible) {
             running &= effects(
                 vec![Effect::Save],
@@ -1731,6 +1814,44 @@ fn run() -> Result<(), String> {
         }
         for (version, changes) in update_service.changes.try_iter() {
             state.changes_response(version, changes);
+        }
+        if let Some(direction) = edge_pointer
+            .filter(|_| state.pointer && state.overlay.is_none() && press.is_none())
+            .filter(|_| state.page == state::Page::Home)
+            .and_then(|(x, y)| {
+                let (at, _) = pointer_position(&window, x, y)?;
+                let side = if at < EDGE_ZONE {
+                    Direction::Left
+                } else if at > 1920. - EDGE_ZONE {
+                    Direction::Right
+                } else {
+                    return None;
+                };
+                matches!(
+                    hit(&scene.controls, &window, x, y, &state),
+                    Some(Target::App(_) | Target::Input(_) | Target::Show(_) | Target::AppsApp(_))
+                )
+                .then_some(side)
+            })
+        {
+            let since = *edge_since.get_or_insert_with(Instant::now);
+            if since.elapsed() >= EDGE_DWELL && edge_step.elapsed() >= EDGE_REPEAT {
+                edge_step = Instant::now();
+                let pending = state.direction(direction, &scene.controls);
+                state.pointer = true;
+                running &= effects(
+                    pending,
+                    &mut state,
+                    &platform,
+                    &preferences_path,
+                    &weather_service,
+                    &wallpaper_service,
+                    &webhook_service,
+                    &updates,
+                );
+            }
+        } else {
+            edge_since = None;
         }
         // Rebuild hit regions before input whenever inventory/layout changed.
         if state.dirty {
@@ -1792,7 +1913,7 @@ fn run() -> Result<(), String> {
                         press = None;
                         back_button.cancel();
                         // Home over Luma itself toggles the menu; from another app, Luma comes
-                        // back on Home with the menu open.
+                        // back on Home.
                         pending = if focused && visible {
                             state.home_key()
                         } else {
@@ -1901,6 +2022,12 @@ fn run() -> Result<(), String> {
                                 pending = state.home_key();
                             }
                         }
+                        _ if webos && i32::from(key) == sdl_events::WEBOS_RED_KEYCODE => {
+                            if !repeat {
+                                press = None;
+                                pending = state.next_lampa_feed();
+                            }
+                        }
                         _ if native_hold => {
                             if !repeat && back_button.native_hold(Instant::now()) {
                                 press = None;
@@ -1990,6 +2117,7 @@ fn run() -> Result<(), String> {
                     if state.moving.is_none()
                         && !matches!(state.overlay, Some(Overlay::SystemKeyboard)) =>
                 {
+                    edge_pointer = Some((x, y));
                     let hovered = hit(&scene.controls, &window, x, y, &state);
                     if let Some(target) = hovered.clone() {
                         state.pointer_focus(target);
@@ -2195,6 +2323,7 @@ fn run() -> Result<(), String> {
         cs2_tick(&mut state, &cs2_service, visible);
         shows_tick(&mut state, &shows_service, visible, local_offset);
         cub_tick(&mut state, &cub_service, &cub_path, visible, local_offset);
+        app_cards_tick(&mut state, &app_cards_service, visible);
         if weather_tick(&mut state, &weather_service, visible) {
             running &= effects(
                 vec![Effect::Save],
@@ -2607,6 +2736,12 @@ fn run() -> Result<(), String> {
     }
     Ok(())
 }
+
+/// How close to the screen's side, in 1080p pixels, the pointer slides a row, after resting
+/// there `EDGE_DWELL`, one card every `EDGE_REPEAT`.
+const EDGE_ZONE: f32 = 150.;
+const EDGE_DWELL: Duration = Duration::from_millis(450);
+const EDGE_REPEAT: Duration = Duration::from_millis(400);
 
 fn pointer_position(window: &sdl2::video::Window, x: i32, y: i32) -> Option<(f32, f32)> {
     let (width, height) = window.size();

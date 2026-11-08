@@ -177,6 +177,10 @@ pub enum Request {
     RefreshInputs,
     /// An app, and for Lampa the card to open.
     Launch(String, Option<String>),
+    /// An app opened at a title it published as a card, with the card's launch `params`.
+    Open(String, Value),
+    /// Starts the Home watchdog (`luma-helper home watch`) in its own systemd unit.
+    StartWatchdog,
     Uninstall(String),
     SyncSplash(String),
     HomeTakeover(bool),
@@ -356,6 +360,23 @@ impl Platform {
                     } else {
                         Ok(())
                     }),
+                    Request::Open(id, params) => Response::Launched(if !webos {
+                        Ok(())
+                    } else if !valid_app_id(&id) {
+                        Err("Invalid application identifier".into())
+                    } else {
+                        call(
+                            "luna://com.webos.applicationManager/launch",
+                            json!({"id": id, "params": params}),
+                        )
+                        .map(|_| ())
+                    }),
+                    Request::StartWatchdog => {
+                        if webos && let Err(error) = start_watchdog() {
+                            eprintln!("Luma Home watchdog: {error}");
+                        }
+                        continue;
+                    }
                     Request::HomeTakeover(enable) => Response::HomeTakeover(if webos {
                         home_takeover(enable).map(|()| enable)
                     } else {
@@ -610,6 +631,24 @@ pub fn inventory_confirms_removal(apps: &Value, id: &str) -> Result<bool, String
 /// (after disabling the autostart method, answering its prompt) or `disable`. The script closes
 /// this instance and starts the new Home, so it runs detached and the reply only says whether it
 /// started; its output goes to /tmp/luma-home-toggle.log.
+/// Luma's heartbeat as Home, which the watchdog reads (`luma-helper home watch`).
+pub const HEARTBEAT: &str = "/tmp/luma-home.alive";
+
+/// The watchdog runs as root in its own unit, apart from Homebrew Channel's exec, which ends its
+/// children; a second start finds the unit there and changes nothing.
+fn start_watchdog() -> Result<(), String> {
+    let command = format!(
+        "systemd-run --unit=luma-home-watch --collect /bin/sh -c \"{} >>/tmp/luma-home-watch.log 2>&1\"",
+        helper_command("home", &["watch".to_owned()])?
+    );
+    let reply = call(
+        "luna://org.webosbrew.hbchannel.service/exec",
+        json!({"command": command}),
+    )?;
+    eprintln!("Luma Home watchdog: started {reply}");
+    Ok(())
+}
+
 fn home_takeover(enable: bool) -> Result<(), String> {
     let quote = |value: &str| format!("'{}'", value.replace('\'', "'\\''"));
     let script = if enable {
@@ -961,6 +1000,22 @@ pub fn normalize_apps(raw: &Value) -> Result<Vec<App>, String> {
     Ok(apps)
 }
 
+/// The name the device on a port gives itself over HDMI-CEC (SIMPLINK): the deepest one, so
+/// a console behind a receiver is named rather than the receiver.
+fn cec_name(entry: &Value) -> Option<&str> {
+    entry
+        .get("subList")?
+        .as_array()?
+        .iter()
+        .filter(|d| d.get("id").and_then(Value::as_str) == Some("SIMPLINK"))
+        .filter_map(|d| {
+            let name = d.get("osdName")?.as_str()?.trim();
+            (!name.is_empty()).then(|| (d.get("depth").and_then(Value::as_u64).unwrap_or(0), name))
+        })
+        .max_by_key(|(depth, _)| *depth)
+        .map(|(_, name)| name)
+}
+
 pub fn normalize_inputs(raw: &Value) -> Result<Vec<Input>, String> {
     let entries = raw
         .as_array()
@@ -1002,7 +1057,10 @@ pub fn normalize_inputs(raw: &Value) -> Result<Vec<Input>, String> {
         let port = format!("HDMI {number}");
         inputs.push(Input {
             id: id.into(),
-            title: title(entry.get("label").and_then(Value::as_str), &port),
+            title: title(
+                cec_name(entry).or_else(|| entry.get("label").and_then(Value::as_str)),
+                &port,
+            ),
             port,
             signal: entry.get("hdmiSignalExist").and_then(Value::as_bool),
             // Some firmware reports `connected: true` for every existing port;

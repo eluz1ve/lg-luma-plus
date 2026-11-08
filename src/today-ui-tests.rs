@@ -64,6 +64,7 @@ fn series(id: i64, name: &str) -> Show {
             .unwrap()
             .date(),
         rating: Some(8.3),
+        movie: false,
     }
 }
 
@@ -682,12 +683,26 @@ fn the_lampa_settings_choose_what_the_widget_lists() {
         );
     }
     assert!(texts(&page).iter().any(|t| t == "Watching now"));
+    // What it lists is a choice among Lampa's collections, the current one checked.
     state.focus = Target::LampaFeed;
+    state.activate();
+    assert_eq!(state.subpage, Some(crate::state::Subpage::LampaFeed));
+    assert_eq!(state.focus, Target::Choice(0));
+    let choices = texts(&at(&state));
+    for name in [
+        "Continue watching",
+        "On fire!",
+        "Top 100 films",
+        "New this year",
+    ] {
+        assert!(choices.iter().any(|t| t == name), "{name}");
+    }
+    state.focus = Target::Choice(1);
     assert_eq!(state.activate(), vec![Effect::Save]);
     assert_eq!(state.preferences.lampa_feed, LampaFeed::Continue);
+    assert_eq!(state.subpage, Some(crate::state::Subpage::Shows));
+    assert_eq!(state.focus, Target::LampaFeed);
     assert!(texts(&at(&state)).iter().any(|t| t == "Continue watching"));
-    state.activate();
-    assert_eq!(state.preferences.lampa_feed, LampaFeed::Watching);
 }
 
 #[test]

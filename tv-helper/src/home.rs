@@ -408,7 +408,7 @@ impl<'a, S: System> Home<'a, S> {
         }
         Ok(())
     }
-    fn install_scripts(&self, app: &Path) -> Result<()> {
+    pub(crate) fn install_scripts(&self, app: &Path) -> Result<()> {
         // The copied native helper lets disable/recovery work after an app package was removed.
         for (name, mode) in [("home.sh", 0o755), ("luma-helper", 0o755)] {
             let bytes = system::read(self.system, app.join(name), 16 * 1024 * 1024)?;
@@ -618,6 +618,7 @@ pub fn dispatch(
         .unwrap_or(HOME);
     let home = Home::new(system, id)?;
     match command {
+        "watch" => watch(system),
         "status" => Ok(
             json!({"enabled":saved.as_ref().is_some_and(|c|c.enabled),"method":saved.as_ref().map(|c|c.method.as_str()),"homeId":id,"homeKeyVerified":null,"availableTargets":([HOME,FULL_HOME].into_iter().filter(|id|home.exists(format!("/usr/palm/applications/{id}/appinfo.json"))).collect::<Vec<_>>()),"mounted":saved.as_ref().is_some_and(|c|if c.method=="executable"{home.exe_mounted(&c.app_dir)}else{home.mounted()}),"bootHook":hook_owned(system),"appDir":saved.as_ref().map(|c|c.app_dir.as_str())}),
         ),
@@ -628,9 +629,16 @@ pub fn dispatch(
         "apply" | "disable" | "restore" => {
             let mut config = saved.ok_or("Luma Home has not been enabled")?;
             if command == "apply" && config.enabled {
-                home.apply(&config, false)?;
+                let open = hold_auto_launch(system, &mut config).unwrap_or_else(|error| {
+                    eprintln!("Luma Home: LG's Home auto launch left as it is: {error}");
+                    false
+                });
+                home.apply(&config, open)?;
             } else {
                 config.enabled = false;
+                if let Err(error) = restore_auto_launch(system, &mut config) {
+                    eprintln!("Luma Home: LG's Home auto launch not put back: {error}");
+                }
                 system::write_json(system, CONFIG, &config)?;
                 home.restore(&config)?;
                 if hook_owned(system) {
@@ -640,5 +648,228 @@ pub fn dispatch(
             Ok(json!({"returnValue":true}))
         }
         _ => Err("Unknown Home integration command".into()),
+    }
+}
+
+/// The owner's value of LG's Home auto launch, kept while Luma holds it off.
+const AUTO_LAUNCH: &str = "lgAutoLaunch";
+
+fn setting(system: &impl System, category: &str, key: &str) -> Option<String> {
+    let reply = system::luna(
+        system,
+        "com.webos.service.settings",
+        "getSystemSettings",
+        &json!({"category": category, "keys": [key]}),
+    )
+    .ok()?;
+    reply["settings"][key].as_str().map(str::to_owned)
+}
+
+fn set_auto_launch(system: &impl System, value: &str) -> Result<()> {
+    let reply = system::luna(
+        system,
+        "com.webos.service.settings",
+        "setSystemSettings",
+        &json!({"category": "general", "settings": {"homeAutoLaunch": value}}),
+    )?;
+    if reply["returnValue"] == true {
+        Ok(())
+    } else {
+        Err(format!("the TV refused: {reply}"))
+    }
+}
+
+/// With LG's Home auto launch on, a cold start opens LG's Home some 14 s in, and it stays in
+/// front until the boot hook puts Luma in its place. So while Luma is Home and Quick Start+ is
+/// off it is held off, the owner's value kept; where it was on, the hook opens Luma itself
+/// (the answer). With Quick Start+ on the TV wakes with Luma in place, so the value goes back.
+fn hold_auto_launch(system: &impl System, config: &mut Config) -> Result<bool> {
+    let quick = setting(system, "option", "quickStartMode");
+    match quick.as_deref() {
+        Some("off") => {
+            if setting(system, "general", "homeAutoLaunch").as_deref() == Some("on") {
+                config.extra.insert(AUTO_LAUNCH.into(), json!("on"));
+                system::write_json(system, CONFIG, config)?;
+                set_auto_launch(system, "off")?;
+                eprintln!("Luma Home: LG's Home auto launch held off");
+            }
+        }
+        Some("on") => restore_auto_launch(system, config)?,
+        _ => {}
+    }
+    Ok(config.extra.get(AUTO_LAUNCH) == Some(&json!("on")))
+}
+
+fn restore_auto_launch(system: &impl System, config: &mut Config) -> Result<()> {
+    if config.extra.get(AUTO_LAUNCH) != Some(&json!("on")) {
+        return Ok(());
+    }
+    set_auto_launch(system, "on")?;
+    config.extra.remove(AUTO_LAUNCH);
+    system::write_json(system, CONFIG, config)?;
+    eprintln!("Luma Home: LG's Home auto launch put back on");
+    Ok(())
+}
+
+/// Luma's heartbeat as Home: its PID, rewritten every few seconds by its main loop.
+pub const BEAT: &str = "/tmp/luma-home.alive";
+/// Why LG Home came back, for Luma's next start.
+pub const FALLBACK: &str = "/var/run/luma-home-fallback";
+/// A heartbeat this old, while Luma is in front of a screen that is on, means it hangs.
+const HUNG_AFTER: u64 = 30;
+/// This many new Luma processes within `CRASH_WINDOW` mean it keeps crashing.
+const CRASHES: usize = 4;
+const CRASH_WINDOW: u64 = 300;
+
+/// The watchdog's memory between looks: the PID it last saw and when new ones appeared.
+#[derive(Default)]
+pub struct Watch {
+    pid: Option<u32>,
+    starts: Vec<u64>,
+}
+
+impl Watch {
+    /// One look at `now`: the heartbeat's PID and age, whether that process is alive, and
+    /// whether Luma is in front of a screen that is on. Some(reason) gives LG Home back.
+    pub fn look(
+        &mut self,
+        now: u64,
+        beat: Option<(u32, u64)>,
+        alive: bool,
+        watched: bool,
+    ) -> Option<&'static str> {
+        let (pid, age) = beat?;
+        if self.pid != Some(pid) {
+            if self.pid.is_some() {
+                self.starts.push(now);
+            }
+            self.pid = Some(pid);
+        }
+        self.starts
+            .retain(|at| now.saturating_sub(*at) <= CRASH_WINDOW);
+        if self.starts.len() >= CRASHES {
+            return Some("Luma keeps restarting");
+        }
+        (alive && watched && age > HUNG_AFTER).then_some("Luma stopped responding")
+    }
+}
+
+/// `home watch`: while Luma is Home, gives LG Home back for this session when Luma hangs or
+/// keeps crashing. The next boot applies Luma again. One watchdog runs at a time.
+pub fn watch(system: &impl System) -> Result<Value> {
+    system::root(system)?;
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(system.path(Path::new(&format!("{STATE}/watch.lock"))))
+        .map_err(|e| e.to_string())?;
+    if !system::lock(&lock) {
+        return Ok(json!({"returnValue":true,"running":true}));
+    }
+    eprintln!("Luma Home watchdog: watching");
+    // The boot hook runs the copy under /var/lib/luma-home: an updated Luma refreshes it, and
+    // LG's auto launch is settled now rather than first at the next cold start.
+    if let Some(mut config) = load(system)?.filter(|config| config.enabled) {
+        let home = Home::new(system, &config.home_id)?;
+        if let Err(error) = home.install_scripts(Path::new(&config.app_dir)) {
+            eprintln!("Luma Home watchdog: boot copy not refreshed: {error}");
+        }
+        if let Err(error) = hold_auto_launch(system, &mut config) {
+            eprintln!("Luma Home watchdog: LG's Home auto launch left as it is: {error}");
+        }
+    }
+    let mut watch = Watch::default();
+    loop {
+        for _ in 0..5 {
+            system.pause();
+        }
+        let Some(config) = load(system)?.filter(|config| config.enabled) else {
+            return Ok(json!({"returnValue":true}));
+        };
+        let home = Home::new(system, &config.home_id)?;
+        let path = system.path(Path::new(BEAT));
+        let now = std::time::SystemTime::now();
+        let beat = fs::read_to_string(&path).ok().and_then(|text| {
+            let pid = text.trim().parse::<u32>().ok()?;
+            let age = now
+                .duration_since(fs::metadata(&path).ok()?.modified().ok()?)
+                .map_or(0, |age| age.as_secs());
+            Some((pid, age))
+        });
+        let alive = beat.is_some_and(|(pid, _)| home.exists(format!("/proc/{pid}")));
+        // Only judge a quiet heartbeat while Luma is in front of a screen that is on: in
+        // standby the TV may hold its processes still.
+        let watched = alive
+            && home.foreground().is_ok_and(|id| id == home.id)
+            && system::luna(
+                system,
+                "com.webos.service.tvpower",
+                "power/getPowerState",
+                &json!({}),
+            )
+            .ok()
+            .and_then(|reply| reply["state"].as_str().map(str::to_owned))
+            .is_some_and(|state| state == "Active");
+        let unix = now
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |time| time.as_secs());
+        let Some(reason) = watch.look(unix, beat, alive, watched) else {
+            continue;
+        };
+        eprintln!("Luma Home watchdog: {reason}; LG Home comes back until the next boot");
+        if let Some((pid, _)) = beat.filter(|_| alive) {
+            let _ = system.terminate(pid);
+            for _ in 0..3 {
+                system.pause();
+            }
+            if home.exists(format!("/proc/{pid}")) {
+                let _ = system::command(system, "/bin/kill", &["-9", &pid.to_string()]);
+            }
+        }
+        system::write(system, FALLBACK, format!("{reason}\n").as_bytes(), 0o644)?;
+        home.restore(&config)?;
+        if !home.foreground().is_ok_and(|id| id == home.id) {
+            home.launch()?;
+        }
+        return Ok(json!({"returnValue":true,"restored":reason}));
+    }
+}
+
+#[cfg(test)]
+mod watch_tests {
+    use super::Watch;
+
+    #[test]
+    fn a_quiet_heartbeat_counts_only_while_luma_is_watched() {
+        let mut watch = Watch::default();
+        assert_eq!(watch.look(0, None, false, false), None);
+        assert_eq!(watch.look(10, Some((7, 5)), true, true), None);
+        assert_eq!(watch.look(20, Some((7, 60)), true, false), None, "standby");
+        assert_eq!(
+            watch.look(30, Some((7, 60)), false, true),
+            None,
+            "already gone"
+        );
+        assert_eq!(
+            watch.look(40, Some((7, 31)), true, true),
+            Some("Luma stopped responding")
+        );
+    }
+
+    #[test]
+    fn four_restarts_in_five_minutes_give_home_back() {
+        let mut watch = Watch::default();
+        assert_eq!(watch.look(0, Some((1, 0)), true, true), None);
+        for (at, pid) in [(60, 2), (120, 3), (180, 4)] {
+            assert_eq!(watch.look(at, Some((pid, 0)), true, true), None);
+        }
+        assert_eq!(
+            watch.look(240, Some((5, 0)), true, true),
+            Some("Luma keeps restarting")
+        );
+        let mut slow = Watch::default();
+        for (at, pid) in [(0, 1), (200, 2), (400, 3), (600, 4), (800, 5)] {
+            assert_eq!(slow.look(at, Some((pid, 0)), true, true), None);
+        }
     }
 }
