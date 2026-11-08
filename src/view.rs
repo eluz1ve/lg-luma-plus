@@ -2414,7 +2414,7 @@ struct TickerCoin {
 /// Returns the length of one lap in whole pixels, or 0 when the coins stand still.
 fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> f32 {
     let style = text(type_scale::CAPTION, 600, 0.);
-    let pill_style = text(type_scale::CAPTION, 650, 0.);
+    let pill_style = pill_style();
     let inner_gap = 8.;
     let coins: Vec<TickerCoin> = state
         .preferences
@@ -2505,11 +2505,11 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
                     pen += part + inner_gap;
                 }
                 if let Some((label, change)) = &coin.change {
-                    change_pill(
+                    tinted_pill(
                         out,
                         assets,
                         label,
-                        *change,
+                        market(*change, false),
                         pen,
                         line.y + 15.,
                         pill_style,
@@ -2594,6 +2594,8 @@ fn today_card(
         let text_x = icon.x + icon.w + 16.;
         // A match ends its line with the second team's logo.
         let mut second = None;
+        // A live match says so on a pill.
+        let mut on_pill = false;
         // (what, when, when's colour)
         let (title, when, tone) = match line {
             Line::Match { id } => {
@@ -2620,7 +2622,8 @@ fn today_card(
                         .flatten()
                         .collect::<Vec<_>>()
                         .join(" · ");
-                    (title, when, c(0xff8a80, 0.95))
+                    on_pill = true;
+                    (title, when, red(false))
                 } else {
                     (title, cs2_start(state, item.begins, now), c(0xe8e8e8, 0.62))
                 }
@@ -2729,15 +2732,24 @@ fn today_card(
                 continue;
             }
         };
-        let when_width = assets.width(&when, side).min(inner * 0.45);
         let right = rect.x + rect.w - 24.;
-        out.text(
-            &when,
-            Rect::new(right - when_width, row.y + 16., when_width, 28.),
-            assets.fit_text(&when, side.right(), when_width),
-            tone,
-            false,
-        );
+        let when_width = if on_pill {
+            let style = assets.fit_text(&when, pill_style(), inner * 0.45 - 2. * PILL_PAD);
+            let width = pill_width(assets, &when, style);
+            let x = right - width;
+            tinted_pill(out, assets, &when, tone, x, row.y + 15., style, false);
+            width
+        } else {
+            let width = assets.width(&when, side).min(inner * 0.45);
+            out.text(
+                &when,
+                Rect::new(right - width, row.y + 16., width, 28.),
+                assets.fit_text(&when, side.right(), width),
+                tone,
+                false,
+            );
+            width
+        };
         let logo = 32.;
         let room = right - when_width - 16. - text_x - second.map_or(0., |_| logo + 12.);
         let style = assets.fit_text(&title, main, room);
@@ -2756,12 +2768,20 @@ fn today_card(
     Some(rect)
 }
 
+/// The red of a live match and of a falling coin. `light` is for a focused line's white.
+fn red(light: bool) -> Color {
+    if light {
+        c(0xc9252d, 1.)
+    } else {
+        c(0xff6b62, 1.)
+    }
+}
+
 /// A price change's colour: green up, red down. `light` is for a focused line's white.
 fn market(change: f64, light: bool) -> Color {
     match (change < -0.005, light) {
-        (true, false) => c(0xff6b62, 1.),
+        (true, _) => red(light),
         (false, false) => c(0x5fd36e, 1.),
-        (true, true) => c(0xc9252d, 1.),
         (false, true) => c(0x15803d, 1.),
     }
 }
@@ -2775,22 +2795,28 @@ fn change_label(change: f64, decimals: usize) -> String {
     format!("{arrow} {:.*}%", decimals, rounded.abs())
 }
 
-/// Space either side of a change pill's label.
+/// Space either side of a pill's label.
 const PILL_PAD: f32 = 12.;
 
-/// A change pill's width for its label.
+/// The text on a tinted pill.
+fn pill_style() -> TextStyle {
+    text(type_scale::CAPTION, 650, 0.)
+}
+
+/// A pill's width for its label.
 fn pill_width(assets: &Assets, label: &str, style: TextStyle) -> f32 {
     assets.width(label, style) + 2. * PILL_PAD
 }
 
-/// A change as exchanges show it: a dark capsule tinted green or red, the change in the colour
-/// with its arrow, readable on any wallpaper. Its label's top is at `y`, like the text beside it.
+/// A short status readable on any wallpaper: a dark capsule tinted `tint`, the label in that
+/// colour, or a light capsule on a focused line's white. The label's top is at `y`, like the
+/// text beside it.
 #[allow(clippy::too_many_arguments)]
-fn change_pill(
+fn tinted_pill(
     out: &mut Scene,
     assets: &Assets,
     label: &str,
-    change: f64,
+    tint: Color,
     x: f32,
     y: f32,
     style: TextStyle,
@@ -2799,7 +2825,6 @@ fn change_pill(
     let width = pill_width(assets, label, style);
     let height = style.size + 14.;
     let pill = Rect::new(x, y - 6., width, height);
-    let tint = market(change, light);
     if !light {
         out.shape(pill, height / 2., c(0x000000, 0.4));
     }
@@ -3052,7 +3077,9 @@ fn today_line(
         focused
     };
     // (target, title, second line, when, when's colour)
-    let (focused, title, detail, when, tone) = match line {
+    // A live match says so on a pill, as the prices do.
+    let mut on_pill = false;
+    let (focused, title, detail, mut when, tone) = match line {
         Line::Match { id } => {
             let Some(item) = state.cs2.find(id) else {
                 return false;
@@ -3095,7 +3122,8 @@ fn today_line(
                     .flatten()
                     .collect::<Vec<_>>()
                     .join(" · ");
-                (focused, title, detail, when, c(0xff8a80, 0.95))
+                on_pill = true;
+                (focused, title, detail, when, red(focused))
             } else if finished {
                 let when = language.t("cs2Final").to_owned();
                 (focused, title, detail, when, c(0xe8e8e8, 0.62))
@@ -3204,6 +3232,25 @@ fn today_line(
     } else {
         tone
     };
+    let mut row = row;
+    if on_pill {
+        let right = row.x + row.w - 24.;
+        let room = (right - picture.x - picture.w - 20.) * 0.4;
+        let style = assets.fit_text(&when, pill_style(), room - 2. * PILL_PAD);
+        let width = pill_width(assets, &when, style);
+        tinted_pill(
+            out,
+            assets,
+            &when,
+            red(focused),
+            right - width,
+            row.y + 28.,
+            style,
+            focused,
+        );
+        row.w -= width + 16.;
+        when.clear();
+    }
     today_texts(
         out, assets, row, picture, focused, &title, &detail, &when, tone,
     );
@@ -3244,14 +3291,14 @@ fn today_coin(out: &mut Scene, state: &State, assets: &Assets, index: usize, row
         Some(quote) => {
             // The change in its pill at the line's end; the price beside it, in the ink.
             let label = change_label(quote.change, 2);
-            let style = text(type_scale::CAPTION, 650, 0.);
+            let style = pill_style();
             let width = pill_width(assets, &label, style);
             let right = row.x + row.w - 24.;
-            change_pill(
+            tinted_pill(
                 out,
                 assets,
                 &label,
-                quote.change,
+                market(quote.change, focused),
                 right - width,
                 row.y + 28.,
                 style,
@@ -3307,13 +3354,15 @@ fn today_texts(
     let right = row.x + row.w - 24.;
     let side = text(type_scale::CAPTION, 500, 0.);
     let when_width = assets.width(when, side).min((right - text_x) * 0.4);
-    out.text(
-        when,
-        Rect::new(right - when_width, row.y + 28., when_width, 28.),
-        assets.fit_text(when, side.right(), when_width),
-        tone,
-        false,
-    );
+    if !when.is_empty() {
+        out.text(
+            when,
+            Rect::new(right - when_width, row.y + 28., when_width, 28.),
+            assets.fit_text(when, side.right(), when_width),
+            tone,
+            false,
+        );
+    }
     let room = right - when_width - 24. - text_x;
     let main = text(type_scale::BODY, 550, -0.01);
     out.text(

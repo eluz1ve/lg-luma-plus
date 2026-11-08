@@ -123,6 +123,55 @@ fn opened() -> State {
     state
 }
 
+type Ink = crate::renderer::Color;
+
+/// What stands right under the text `label`, last drawn when it is drawn twice: the two
+/// fills of its capsule, if it has one, and the text's own colour.
+fn under(scene: &view::Scene, label: &str) -> (Option<Ink>, Ink, Ink) {
+    use crate::renderer::Draw;
+    let at = scene
+        .draw
+        .iter()
+        .rposition(|draw| matches!(draw, Draw::Text(text, ..) if text == label))
+        .unwrap_or_else(|| panic!("{label} is drawn"));
+    let Draw::Text(_, _, _, ink, _) = &scene.draw[at] else {
+        unreachable!()
+    };
+    let Draw::Shape(_, _, _, tint) = &scene.draw[at - 1] else {
+        panic!("{label} has no pill");
+    };
+    let veil = match &scene.draw[at - 2] {
+        Draw::Shape(_, _, _, veil) => Some(*veil),
+        _ => None,
+    };
+    (veil, *tint, *ink)
+}
+
+#[test]
+fn a_live_match_wears_live_and_its_map_on_a_tinted_pill() {
+    let (veil, tint, ink) = under(&at(&today_state()), "LIVE · Mirage");
+    let veil = veil.expect("a dark capsule on the card's glass");
+    assert!(veil[..3].iter().all(|channel| *channel == 0.) && veil[3] >= 0.3);
+    assert_eq!(tint[..3], ink[..3], "tinted its own colour");
+    assert!(tint[3] > 0. && tint[3] < 0.4, "{tint:?}");
+    assert!(ink[0] > 0.8 && ink[1] < 0.6, "red: {ink:?}");
+}
+
+#[test]
+fn a_focused_live_line_keeps_its_pill_in_a_deeper_red() {
+    let state = opened();
+    let (_, tint, ink) = under(&at(&state), "LIVE · Mirage");
+    assert_eq!(tint[..3], ink[..3]);
+    assert!(
+        tint[3] <= 0.2,
+        "a light capsule on the focused white: {tint:?}"
+    );
+    assert!(
+        ink[0] > 0.6 && ink[0] < 0.9 && ink[1] < 0.3,
+        "deep red: {ink:?}"
+    );
+}
+
 #[test]
 fn today_card_is_one_control_and_ok_opens_it_in_the_center() {
     let state = today_state();
