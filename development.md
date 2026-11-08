@@ -696,6 +696,10 @@ bind-mounts it over `/usr/palm/applications/com.webos.app.home`. SAM rereads tha
 `blockSystemApp` followed by `releaseBlockSystemApp`, including `forceBlockSystemApp: false` when
 the TV schema requires it. The script verifies the reported manifest before stopping the previous
 Home process. It attempts to restore LG Home if applying the mount or refreshing SAM fails.
+After stopping the old process it launches Home and waits about 15 s for it to reach the front,
+launching once more after 6 s, because SAM can accept the first launch without starting anything.
+Home not reaching the front keeps the takeover, since another app may hold the screen; only SAM
+refusing both launches restores LG Home.
 
 Before staging, `enable` closes the normal Luma instance with `closeByAppId` and waits up to five
 seconds for it to leave the running list. The TV's `close` endpoint identifies a process, so passing
@@ -934,6 +938,8 @@ failed reapplication attempts verified LG Home recovery. Atomic attempt-specific
 persist in `/var/lib/luma-update`. The card displays progress, ignores repeated presses while busy,
 and returns to **Check again** after failure. On restart the installer worker observes an unfinished
 attempt or reports its persisted failure. Desktop and scripted/simulated runs cannot install.
+`self-update.sh` is embedded in the running build, while `home.sh` and `luma-helper` come from the
+package being installed: a change to the script takes effect one update later than a helper change.
 
 Preview the update card without a network request:
 

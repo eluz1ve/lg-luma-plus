@@ -179,19 +179,25 @@ impl<'a, S: System> Home<'a, S> {
     fn launch(&self) -> Result<()> {
         accepted(self.luna("launch", json!({"id":self.id}))?).map(|_| ())
     }
-    fn open_executable(&self) -> Result<()> {
+    /// Launches Home and reports whether it reached the front. SAM can accept a launch right
+    /// after the old process stopped without starting anything, so launch once more after 6 s.
+    /// An error means SAM refused every launch.
+    fn open(&self) -> Result<bool> {
+        let mut launched = Err("Home was not launched".to_owned());
         for i in 0..15 {
-            if (i == 0 || i == 6)
-                && let Err(error) = self.launch()
-            {
-                eprintln!("Luma Home: {error}");
+            if i == 0 || i == 6 {
+                let launch = self.launch();
+                if let Err(error) = &launch {
+                    eprintln!("Luma Home: {error}");
+                }
+                launched = launched.or(launch);
             }
-            if self.foreground()? == self.id {
-                return Ok(());
+            if self.foreground().is_ok_and(|id| id == self.id) {
+                return Ok(true);
             }
             self.system.pause();
         }
-        Err("Home did not come to the front".into())
+        launched.map(|()| false)
     }
     fn release(&self) -> Result<()> {
         let mut last = String::new();
@@ -383,10 +389,13 @@ impl<'a, S: System> Home<'a, S> {
             }
             self.stop_home(&config.app_dir)?;
             if open || (front == self.id && self.foreground()? == self.id) {
-                if config.method == "executable" {
-                    self.open_executable()?;
-                } else {
-                    self.launch()?;
+                let opened = self.open()?;
+                if !opened && config.method == "executable" {
+                    return Err("Home did not come to the front".into());
+                }
+                // A staged manifest stays valid: another app may simply hold the screen.
+                if !opened {
+                    eprintln!("Luma Home: launched, but Home is not in front");
                 }
             }
             Ok(())

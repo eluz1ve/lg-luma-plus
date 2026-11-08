@@ -520,6 +520,64 @@ fn failed_launch_retries_once_then_restores_stock_files() {
     );
 }
 #[test]
+fn manifest_home_is_launched_again_when_sam_swallows_the_first_launch() {
+    let f = Fixture::new();
+    f.put("/etc/starfish-release", b"Rockhopper release 10.3.1");
+    home::dispatch(&f, "enable", Some(DIR), None).unwrap();
+    let h = home::Home::new(&f, home::HOME).unwrap();
+    let c = home::load(&f).unwrap().unwrap();
+    assert_eq!(c.method, "manifest");
+    *f.front.borrow_mut() = "other.app".into();
+    let before = f.calls().iter().filter(|s| s.contains("/launch ")).count();
+    // Accepted, but nothing starts: SAM can do that right after the old process stopped.
+    f.reply("launch", Ok(json!({"returnValue":true})));
+    h.apply(&c, true).unwrap();
+    assert_eq!(f.front.borrow().as_str(), home::HOME);
+    assert_eq!(
+        f.calls().iter().filter(|s| s.contains("/launch ")).count() - before,
+        2
+    );
+}
+#[test]
+fn manifest_home_keeps_the_takeover_when_another_app_holds_the_screen() {
+    let f = Fixture::new();
+    f.put("/etc/starfish-release", b"Rockhopper release 10.3.1");
+    home::dispatch(&f, "enable", Some(DIR), None).unwrap();
+    let h = home::Home::new(&f, home::HOME).unwrap();
+    let c = home::load(&f).unwrap().unwrap();
+    *f.front.borrow_mut() = "other.app".into();
+    f.launch_front.set(false);
+    h.apply(&c, true).unwrap();
+    assert!(
+        f.mounts
+            .borrow()
+            .contains_key(&format!("/usr/palm/applications/{}", home::HOME))
+    );
+    assert_eq!(f.front.borrow().as_str(), "other.app");
+}
+#[test]
+fn manifest_home_restores_lg_home_when_sam_refuses_every_launch() {
+    let f = Fixture::new();
+    f.put("/etc/starfish-release", b"Rockhopper release 10.3.1");
+    home::dispatch(&f, "enable", Some(DIR), None).unwrap();
+    let h = home::Home::new(&f, home::HOME).unwrap();
+    let c = home::load(&f).unwrap().unwrap();
+    *f.front.borrow_mut() = "other.app".into();
+    f.launch_front.set(false);
+    for _ in 0..2 {
+        f.reply(
+            "launch",
+            Ok(json!({"returnValue":false,"errorText":"refused"})),
+        );
+    }
+    assert!(h.apply(&c, true).is_err());
+    assert!(
+        !f.mounts
+            .borrow()
+            .contains_key(&format!("/usr/palm/applications/{}", home::HOME))
+    );
+}
+#[test]
 fn restoration_works_even_when_foreground_query_fails() {
     let f = Fixture::new();
     let h = home::Home::new(&f, home::HOME).unwrap();
