@@ -896,14 +896,16 @@ and weather labels. App/device names and saved city names remain real data. No g
 runtime font/translation services or telemetry are used. Weather attribution: Open-Meteo,
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-**Widgets → Crypto** (off by default) shows up to four coins with their US-dollar price and
-24-hour change. BTC, ETH, SOL, BNB, XRP, ADA, DOGE and TON are listed; **Find a coin** searches
-every coin Binance trades against USDT (its `ticker/price` list, loaded once on its own worker
-when the search first opens, up to 1 MiB), showing six matches, those starting with the text
-first. Coins found this way are listed after the usual eight while chosen. Choosing a fifth coin
-shows a notice instead. **Show as** puts them in cards below the inputs (the default; OK on one
-opens its settings) or in a block on the header's right 30%, beside the greeting; **Card background** (on by
-default) puts the block on a card, off it sits on the wallpaper. Coins follow
+**Widgets → Crypto** (off by default) shows up to 20 coins with their US-dollar price and
+24-hour change, as a line of the Today card and nowhere else. BTC, ETH, SOL, BNB, XRP, ADA, DOGE
+and TON are listed; **Find a coin** searches every coin Binance trades against USDT (its
+`ticker/price` list, loaded once on its own worker when the search first opens, up to 1 MiB),
+showing six matches, those starting with the text first. Coins found this way are listed after
+the usual eight while chosen. Choosing one past the limit shows a notice instead. Coins wider than
+the card's line run across it as a seamless ticker, one pixel a frame at 60 Hz; it stands still
+under an overlay, on other pages, during a wallpaper fade and with Reduced motion. Its frames
+redraw only that line, and leave Home counted as unchanged for work that waits for a still screen
+(`State::ticker_only`). The opened Today card lists every coin with its full price. Coins follow
 the Settings order; prices under a cent keep four significant digits. Prices come from Binance's `ticker/24hr` (USDT pairs, `type=MINI`), from
 `api.binance.com` and then `api.binance.us`, with the weather client's limits: rustls, an
 eight-second timeout, no redirects or proxy, and 64 KiB replies. One request is in flight,

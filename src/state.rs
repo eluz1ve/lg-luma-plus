@@ -19,6 +19,8 @@ pub const SECTION_COUNT: usize = 4;
 pub const HOMEBREW_UPDATES_ROW: usize = 13;
 /// How far the tab bar and Apps' filters (down to y 210) slide up to be gone.
 pub const CHROME_TRAVEL: f32 = 220.;
+/// The Today card's price ticker, in pixels a second: one a frame at 60 Hz.
+const TICKER_SPEED: f32 = 60.;
 /// The tvOS safe area's top and bottom margin.
 const SAFE_TOP: f32 = 60.;
 /// Settings › General's focus glow colour row.
@@ -151,8 +153,6 @@ pub enum Target {
     WeatherClear,
     WeatherResult(usize),
     CryptoToggle,
-    /// Widgets › Crypto: a row below the inputs or a line in Today.
-    CryptoLayout,
     /// Widgets › CS2 Scores: matches in Today or in their own row.
     Cs2Layout,
     /// Widgets › TV Shows: episodes in Today or a row of posters.
@@ -185,10 +185,7 @@ impl Target {
 
     /// A card of the widget in the center of Home.
     pub fn in_center(&self) -> bool {
-        matches!(
-            self,
-            Target::Coin(_) | Target::Cs2Match(_) | Target::Show(_)
-        )
+        matches!(self, Target::Cs2Match(_) | Target::Show(_))
     }
 }
 
@@ -450,6 +447,13 @@ pub struct State {
     pub cub_forget: bool,
     /// The first of the TV Shows cards in view; Left and Right scroll through the rest.
     pub shows_first: usize,
+    /// How far the Today card's price ticker has run into its lap, in whole pixels.
+    pub ticker: f32,
+    ticker_carry: f32,
+    /// One lap of the ticker in pixels, as last drawn; 0 while its coins stand still.
+    pub ticker_span: f32,
+    /// Whether this frame is drawn for the ticker alone, so Home still counts as unchanged.
+    pub ticker_only: bool,
     pub keyboard_field: TextField,
     pub greeting_name_draft: String,
     pub input_name: String,
@@ -515,6 +519,10 @@ impl State {
             cub: crate::cub::Cub::default(),
             cub_forget: false,
             shows_first: 0,
+            ticker: 0.,
+            ticker_carry: 0.,
+            ticker_span: 0.,
+            ticker_only: false,
             keyboard_field: TextField::Apps,
             greeting_name_draft: String::new(),
             input_name: String::new(),
@@ -730,6 +738,36 @@ impl State {
         };
         let reduced = self.preferences.reduced_motion;
         self.dirty |= self.motion.advance(selected.as_ref(), &lanes, dt, reduced);
+        self.advance_ticker(dt);
+    }
+
+    /// Whether the Today card's price ticker runs: its coins are wider than their line, and
+    /// nothing covers Home or needs it held still, as a wallpaper's fade does.
+    pub fn ticker_running(&self) -> bool {
+        self.ticker_span > 0.
+            && self.page == Page::Home
+            && self.overlay.is_none()
+            && !self.preferences.reduced_motion
+            && self.previous_background.is_none()
+            && !self.recents_open()
+            && self.recents.visibility == 0.
+    }
+
+    /// Runs the ticker on by whole pixels, which keep its glyphs from shimmering: what is left
+    /// over carries to the next frame, so steady frames all move it by the same amount.
+    fn advance_ticker(&mut self, dt: f32) {
+        self.ticker_only = false;
+        if !self.ticker_running() {
+            return;
+        }
+        self.ticker_carry += dt * TICKER_SPEED;
+        let step = self.ticker_carry.round();
+        self.ticker_carry -= step;
+        if step > 0. {
+            self.ticker = (self.ticker + step) % self.ticker_span;
+            self.ticker_only = !self.dirty;
+            self.dirty = true;
+        }
     }
 
     /// Where the page is drawn: Home eases toward `scroll`, other pages are drawn at it.
@@ -2288,7 +2326,6 @@ impl State {
                     | Target::Cs2Results
                     | Target::InputMode(_)
                     | Target::CryptoToggle
-                    | Target::CryptoLayout
                     | Target::CryptoSearch
                     | Target::CryptoResult(_)
                     | Target::CryptoCoin(_)
@@ -2333,7 +2370,6 @@ impl State {
             if matches!(
                 self.focus,
                 Target::CryptoToggle
-                    | Target::CryptoLayout
                     | Target::CryptoSearch
                     | Target::CryptoResult(_)
                     | Target::CryptoCoin(_)
@@ -2976,13 +3012,18 @@ impl State {
         }
         choices
     }
-    /// Adds or removes a coin; Home shows at most `crypto::MAX_COINS`.
+    /// Adds or removes a coin, up to `crypto::MAX_COINS`.
     fn toggle_coin(&mut self, symbol: String) -> Vec<Effect> {
         let coins = &mut self.preferences.crypto_coins;
         if let Some(position) = coins.iter().position(|coin| *coin == symbol) {
             coins.remove(position);
         } else if coins.len() >= crate::crypto::MAX_COINS {
-            self.notify(self.preferences.language.t("cryptoLimit"));
+            let limit = crate::crypto::MAX_COINS.to_string();
+            self.notify(
+                self.preferences
+                    .language
+                    .format("cryptoLimit", &[("count", &limit)]),
+            );
             return vec![];
         } else {
             coins.push(symbol);
@@ -3313,12 +3354,11 @@ impl State {
                 self.preferences.show_crypto = !self.preferences.show_crypto;
                 return vec![Effect::Save];
             }
-            Target::Cs2Layout | Target::ShowsLayout | Target::CryptoLayout => {
+            Target::Cs2Layout | Target::ShowsLayout => {
                 use crate::model::Center;
                 let widget = match self.focus {
                     Target::Cs2Layout => Center::Cs2,
-                    Target::ShowsLayout => Center::Shows,
-                    _ => Center::Crypto,
+                    _ => Center::Shows,
                 };
                 let center = self.preferences.center() != Some(widget);
                 self.preferences.place_in_center(widget, center);

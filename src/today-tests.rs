@@ -93,10 +93,9 @@ fn live_matches_come_first_then_matches_by_time_then_new_episodes() {
 }
 
 #[test]
-fn crypto_beside_is_always_the_last_line_and_the_rest_counts_as_more() {
+fn crypto_is_always_the_last_line_and_the_rest_counts_as_more() {
     let mut state = state();
     state.preferences.show_crypto = true;
-    state.preferences.crypto_beside = true;
     feed(
         &mut state,
         &[
@@ -118,7 +117,6 @@ fn the_center_widget_or_one_switched_off_adds_nothing() {
     feed(&mut state, &[("a", "live", NOW)]);
     state.shows.list = vec![show(1, 0)];
     state.preferences.show_crypto = true;
-    state.preferences.crypto_beside = false;
     state.preferences.cs2_today = false;
     state.preferences.shows_today = false;
     // Only one widget stands in the center, CS2 first; the others stay in Today.
@@ -290,7 +288,6 @@ fn the_lampa_widget_lists_whichever_its_set_to() {
 fn opened_each_widget_has_a_tab_with_all_it_has() {
     let mut state = state();
     state.preferences.show_crypto = true;
-    state.preferences.crypto_beside = true;
     feed(
         &mut state,
         &[

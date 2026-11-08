@@ -57,7 +57,6 @@ fn rects(scene: &view::Scene, wanted: impl Fn(&Target) -> bool) -> Vec<Rect> {
 fn home() -> State {
     let mut state = ready();
     state.preferences.show_crypto = true;
-    state.preferences.crypto_beside = false;
     state
 }
 
@@ -69,13 +68,7 @@ fn chrome_sits_on_glass_over_the_wallpaper() {
     menu.open_menu();
     menu.menu_motion = None;
     on_glass(&scene(&menu), view::MENU_PANEL, "the menu");
-    for rect in rects(&drawn, |t| matches!(t, Target::Coin(_))) {
-        on_glass(&drawn, rect, "a coin chip");
-    }
-    // Beside the greeting, the coins move into «Сегодня».
-    let mut today = home();
-    today.preferences.crypto_beside = true;
-    let drawn = scene(&today);
+    // The coins are a line of «Сегодня».
     let card = drawn
         .regions
         .iter()

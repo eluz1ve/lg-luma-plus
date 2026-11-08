@@ -407,15 +407,12 @@ pub struct Preferences {
     pub input_modes: BTreeMap<String, InputMode>,
     /// Custom names by input app ID; the TV's port and label stay visible as detail.
     pub input_names: BTreeMap<String, String>,
-    /// Home's row of crypto prices below the inputs.
+    /// The crypto prices, a line of the Today card.
     #[serde(deserialize_with = "crate::crypto::deserialize_flag")]
     pub show_crypto: bool,
     /// Up to `crypto::MAX_COINS` Binance coins: `crypto::COINS` in its order, then the others.
     #[serde(deserialize_with = "crate::crypto::deserialize_coins")]
     pub crypto_coins: Vec<String>,
-    /// Shows the prices in the Today card beside the greeting instead of a row below the inputs.
-    #[serde(deserialize_with = "crate::crypto::deserialize_flag")]
-    pub crypto_beside: bool,
     /// The block beside the greeting sits on a card; off, straight on the wallpaper.
     pub crypto_card: bool,
     #[serde(deserialize_with = "crate::weather::deserialize_enabled")]
@@ -471,7 +468,6 @@ impl Default for Preferences {
             input_names: BTreeMap::new(),
             show_crypto: false,
             crypto_coins: crate::crypto::default_coins(),
-            crypto_beside: false,
             crypto_card: true,
             show_weather: true,
             weather_location: None,
@@ -492,18 +488,21 @@ impl Default for Preferences {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Center {
     Cs2,
-    Crypto,
     Shows,
 }
 
 impl Preferences {
-    /// The widget in the middle of Home: the first shown outside Today, CS2, then crypto, then
-    /// shows. Rows saved before the center existed can leave several outside; the rest go
-    /// into Today.
+    /// The widget in the middle of Home: the first shown outside Today, CS2, then shows. Rows
+    /// saved before the center existed can leave both outside; the other goes into Today.
     pub fn center(&self) -> Option<Center> {
-        [Center::Cs2, Center::Crypto, Center::Shows]
+        [Center::Cs2, Center::Shows]
             .into_iter()
             .find(|&widget| self.shown(widget) && !self.placed_in_today(widget))
+    }
+
+    /// Whether the crypto prices have their line in the Today card, the only place they show.
+    pub fn crypto_in_today(&self) -> bool {
+        self.show_crypto && !self.crypto_coins.is_empty()
     }
 
     /// Whether `widget` has lines in the Today card.
@@ -523,7 +522,6 @@ impl Preferences {
     fn shown(&self, widget: Center) -> bool {
         match widget {
             Center::Cs2 => self.show_cs2,
-            Center::Crypto => self.show_crypto && !self.crypto_coins.is_empty(),
             Center::Shows => self.show_shows,
         }
     }
@@ -531,7 +529,6 @@ impl Preferences {
     fn placed_in_today(&self, widget: Center) -> bool {
         match widget {
             Center::Cs2 => self.cs2_today,
-            Center::Crypto => self.crypto_beside,
             Center::Shows => self.shows_today,
         }
     }
@@ -539,7 +536,6 @@ impl Preferences {
     fn set_in_today(&mut self, widget: Center, today: bool) {
         match widget {
             Center::Cs2 => self.cs2_today = today,
-            Center::Crypto => self.crypto_beside = today,
             Center::Shows => self.shows_today = today,
         }
     }

@@ -15,8 +15,8 @@ pub const COINS: [(&str, &str); 8] = [
     ("DOGE", "Dogecoin"),
     ("TON", "Toncoin"),
 ];
-/// Home has room for four cards in a row.
-pub const MAX_COINS: usize = 4;
+/// The Today card's line runs them past one after another, so the list can be long.
+pub const MAX_COINS: usize = 20;
 pub const REFRESH_SECONDS: i64 = 60;
 const RETRY_SECONDS: i64 = 60;
 /// Older prices are dropped instead of being shown as current.
@@ -226,7 +226,7 @@ pub fn format_price(price: f64) -> String {
     format!("${grouped}.{fraction}")
 }
 
-/// A price short enough for four coins on one line: 77.9K, 2,263, 94.30, else as `format_price`
+/// A price short enough for the Today card's ticker: 77.9K, 2,263, 94.30, else as `format_price`
 /// without its dollar sign.
 pub fn format_compact(price: f64) -> String {
     if price >= 10_000. {

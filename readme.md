@@ -42,8 +42,8 @@ https://github.com/user-attachments/assets/9c05401c-37ec-4be8-acdf-774e645542c2
   [TVmaze](https://www.tvmaze.com).
 - **CS2 Scores.** Counter-Strike 2 matches from Liquipedia with team logos, live scores and
   results, and a match dialog with maps, rounds and lineups.
-- **Crypto prices.** Up to four coins, from the usual eight or any Binance coin, with their own
-  marks, in the Today card or beside the greeting.
+- **Crypto prices.** Up to 20 coins, from the usual eight or any Binance coin, running as a ticker
+  in the Today card.
 - **A tvOS-style screen.** A side menu instead of the tab bar, glass panels, a softer focus, and
   Interface scale for the clock, names and cards.
 - **Settings with a live preview** of Home that follows every change.

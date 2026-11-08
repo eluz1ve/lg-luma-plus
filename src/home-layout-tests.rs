@@ -74,22 +74,11 @@ fn home_fits_one_screen_with_weather_six_favorites_and_four_coins() {
     );
     assert_eq!(tiles[1].x, 380.);
     assert_eq!(tiles[5].x + tiles[5].w, 1840.);
-    // The inputs are in the menu; the coins stand in the center.
+    // The inputs are in the menu; the coins are a line in Today.
     assert!(
         !controls
             .iter()
-            .any(|c| matches!(c.target, Target::Input(_)))
-    );
-    let coins: Vec<_> = controls
-        .iter()
-        .filter(|c| matches!(c.target, Target::Coin(_)))
-        .map(|c| c.rect)
-        .collect();
-    assert_eq!(coins.len(), 4);
-    assert!(
-        coins
-            .iter()
-            .all(|rect| rect.y > 400. && rect.y + rect.h < 780.)
+            .any(|c| matches!(c.target, Target::Input(_) | Target::Coin(_)))
     );
     let bottom = controls
         .iter()
@@ -146,7 +135,6 @@ fn long_greeting_shrinks_to_the_left_column_beside_today() {
     let mut state = ready();
     state.preferences.greeting_name = "Maximilian-Alexander von Hohenzollern".into();
     state.preferences.show_crypto = true;
-    state.preferences.crypto_beside = true;
     let (text, rect, style) = greeting(&state);
     assert_eq!(rect.x, 80.);
     assert!(
@@ -155,7 +143,7 @@ fn long_greeting_shrinks_to_the_left_column_beside_today() {
         measured(&text, style)
     );
     // Without the card beside it the greeting keeps its full size.
-    state.preferences.crypto_beside = false;
+    state.preferences.show_crypto = false;
     state.preferences.greeting_name = "Ada".into();
     let (_, _, style) = greeting(&state);
     assert_eq!(style.size, 76.);

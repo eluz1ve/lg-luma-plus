@@ -244,6 +244,8 @@ pub struct Scene {
     pub ground: usize,
     /// The new wallpaper's opacity while it fades in over the old one.
     pub wallpaper_fade: Option<f32>,
+    /// One lap of the Today card's price ticker in pixels; 0 when its coins stand still.
+    pub ticker: f32,
 }
 
 /// The wallpapers a scene lies on while one fades into the next: both, or either end alone.
@@ -287,6 +289,7 @@ impl Scene {
             backdrop: Vec::new(),
             ground: 0,
             wallpaper_fade: None,
+            ticker: 0.,
         }
     }
     fn shape(&mut self, rect: Rect, radius: f32, fill: Color) {
@@ -881,8 +884,6 @@ const GLASS_TINT: Color = [14. / 255., 17. / 255., 22. / 255., 0.24];
 /// The sheen's opacity at the glass's top edge, and the rim light along it.
 const GLASS_SHEEN: f32 = 0.10;
 const GLASS_RIM: f32 = 0.34;
-/// A focused chip's lighter tint.
-const GLASS_FOCUSED: Color = [52. / 255., 58. / 255., 66. / 255., 0.50];
 
 fn text(size: f32, weight: u16, tracking: f32) -> TextStyle {
     TextStyle::new(size).weight(weight).tracking(tracking)
@@ -1829,8 +1830,6 @@ const ROW_HEADING_GAP: f32 = 50.;
 /// Room under the favorites for the focused card's name.
 const CAPTION_ROOM: f32 = 40.;
 const HOME_FACE_HEIGHT: f32 = 150.;
-/// Crypto prices: four chips a row.
-const CHIP_HEIGHT: f32 = 96.;
 
 /// A Home row's heading, straight on the wallpaper.
 fn row_heading(out: &mut Scene, label: &str, y: f32) -> TextStyle {
@@ -2048,7 +2047,6 @@ fn home(out: &mut Scene, state: &State, assets: &Assets, now: OffsetDateTime) {
         return;
     };
     let (region, height) = match center {
-        Center::Crypto => (Region::Crypto, CHIP_HEIGHT),
         Center::Cs2 => (Region::Cs2, CS2_CARD_HEIGHT),
         Center::Shows => (Region::Shows, SHOW_POSTER_HEIGHT + SHOW_CAPTION),
     };
@@ -2059,7 +2057,6 @@ fn home(out: &mut Scene, state: &State, assets: &Assets, now: OffsetDateTime) {
         Rect::new(SAFE_X, y + ROW_HEADING_GAP, WIDTH, height),
     ));
     match center {
-        Center::Crypto => crypto_row(out, state, y),
         Center::Cs2 => cs2_row(out, state, assets, y, now),
         Center::Shows => shows_row(out, state, assets, y, now.date()),
     }
@@ -2397,6 +2394,108 @@ const TODAY_PAD: f32 = 20.;
 const TODAY_EYEBROW: f32 = 28.;
 const TODAY_LINE: f32 = 56.;
 
+/// The gap between two coins of the ticker, and the width over which it fades at its ends.
+const TICKER_GAP: f32 = 40.;
+const TICKER_FADE: f32 = 32.;
+
+/// A coin on the ticker: its coloured labels with their widths, and its whole width.
+struct TickerCoin {
+    parts: Vec<(String, Color, f32)>,
+    width: f32,
+}
+
+/// The Today card's prices on one `line`: as exchanges show them, the symbol quiet, the price
+/// white, the change green or red. Coins wider than the line run across it without a seam.
+/// Returns the length of one lap in whole pixels, or 0 when the coins stand still.
+fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> f32 {
+    let style = text(type_scale::CAPTION, 550, 0.);
+    let inner_gap = 7.;
+    let coins: Vec<TickerCoin> = state
+        .preferences
+        .crypto_coins
+        .iter()
+        .map(|symbol| {
+            let mut parts = vec![(symbol.clone(), c(0xf5f5f5, 0.55))];
+            if let Some(quote) = state.crypto.quotes.iter().find(|q| &q.symbol == symbol) {
+                parts.push((crate::crypto::format_compact(quote.price), WHITE));
+                parts.push((
+                    format!(
+                        "{}{:.1}%",
+                        if quote.change < 0. { "▼" } else { "▲" },
+                        quote.change.abs()
+                    ),
+                    market(quote.change),
+                ));
+            }
+            let parts: Vec<_> = parts
+                .into_iter()
+                .map(|(label, colour)| {
+                    let width = assets.width(&label, style);
+                    (label, colour, width)
+                })
+                .collect();
+            let width = parts.iter().map(|part| part.2).sum::<f32>()
+                + inner_gap * parts.len().saturating_sub(1) as f32;
+            TickerCoin { parts, width }
+        })
+        .collect();
+    let widths = coins
+        .iter()
+        .map(|coin| coin.width + TICKER_GAP)
+        .sum::<f32>();
+    let overflows = widths - TICKER_GAP > line.w;
+    let span = if overflows && !state.preferences.reduced_motion {
+        widths.ceil()
+    } else {
+        0.
+    };
+    let offset = if span > 0. {
+        state.ticker.rem_euclid(span)
+    } else {
+        0.
+    };
+    let right = line.x + line.w;
+    out.draw.push(Draw::Clip(Some(line)));
+    if overflows {
+        let left = if span > 0. {
+            [line.x, line.x + TICKER_FADE]
+        } else {
+            [0., 0.]
+        };
+        out.draw.push(Draw::EdgeFadeX(Some([
+            left[0],
+            left[1],
+            right - TICKER_FADE,
+            right,
+        ])));
+    }
+    let laps = if span > 0. { 2 } else { 1 };
+    for lap in 0..laps {
+        let mut left = line.x - offset + lap as f32 * span;
+        for coin in &coins {
+            if left < right && left + coin.width > line.x {
+                let mut pen = left;
+                for (label, colour, part) in &coin.parts {
+                    out.text(
+                        label,
+                        Rect::new(pen, line.y + 15., part + 1., 28.),
+                        style,
+                        *colour,
+                        false,
+                    );
+                    pen += part + inner_gap;
+                }
+            }
+            left += coin.width + TICKER_GAP;
+        }
+    }
+    if overflows {
+        out.draw.push(Draw::EdgeFadeX(None));
+    }
+    out.draw.push(Draw::Clip(Some(state.content_viewport())));
+    span
+}
+
 /// Home's Today card beside the greeting: live matches, today's episodes and the prices, each
 /// line with its picture, what it is, and when. None without lines; the header keeps its height.
 fn today_card(
@@ -2589,50 +2688,13 @@ fn today_card(
                     );
                     continue;
                 }
-                let coins = &state.preferences.crypto_coins;
-                let slot = (rect.x + rect.w - 24. - text_x) / coins.len().max(1) as f32;
-                for (index, symbol) in coins.iter().enumerate() {
-                    // As exchanges show it: the symbol quiet, the price white, the change green
-                    // or red.
-                    let quote = state.crypto.quotes.iter().find(|q| &q.symbol == symbol);
-                    let mut parts = vec![(symbol.clone(), c(0xf5f5f5, 0.55))];
-                    if let Some(quote) = quote {
-                        parts.push((crate::crypto::format_compact(quote.price), WHITE));
-                        parts.push((
-                            format!(
-                                "{}{:.1}%",
-                                if quote.change < 0. { "▼" } else { "▲" },
-                                quote.change.abs()
-                            ),
-                            market(quote.change),
-                        ));
-                    }
-                    let style = text(type_scale::CAPTION, 550, 0.);
-                    let gap = 7.;
-                    let whole = parts
-                        .iter()
-                        .map(|(label, _)| assets.width(label, style))
-                        .sum::<f32>()
-                        + gap * (parts.len() - 1) as f32;
-                    let room = slot - 8.;
-                    let scale = (room / whole).min(1.);
-                    let style = TextStyle {
-                        size: style.size * scale,
-                        ..style
-                    };
-                    let mut left = text_x + index as f32 * slot;
-                    for (label, colour) in parts {
-                        let width = assets.width(&label, style);
-                        out.text(
-                            &label,
-                            Rect::new(left, row.y + 15., width + 1., 28.),
-                            style,
-                            colour,
-                            false,
-                        );
-                        left += width + gap * scale;
-                    }
-                }
+                let right = rect.x + rect.w - 24.;
+                out.ticker = price_ticker(
+                    out,
+                    state,
+                    assets,
+                    Rect::new(text_x, row.y, right - text_x, row.h),
+                );
                 continue;
             }
         };
@@ -3180,90 +3242,6 @@ fn today_texts(
         today_ink(focused, 0.62),
         false,
     );
-}
-
-/// Home's crypto prices: a heading and up to four cards in the inputs' style, each with the
-/// coin, its price in US dollars and the 24-hour change.
-fn crypto_row(out: &mut Scene, state: &State, y: f32) {
-    let language = state.preferences.language;
-    row_heading(out, language.t("crypto"), y);
-    let gap = GUTTER;
-    let width = column_width(crate::crypto::MAX_COINS);
-    for (index, symbol) in state.preferences.crypto_coins.iter().enumerate() {
-        let rect = Rect::new(
-            SAFE_X + index as f32 * (width + gap),
-            y + ROW_HEADING_GAP,
-            width,
-            CHIP_HEIGHT,
-        );
-        let focused = *state.page_focus() == Target::Coin(index) && !state.pointer;
-        let hit = rect;
-        let (rect, lift_amount) = lift(out, state, &Target::Coin(index), rect, 18.4);
-        if focused {
-            out.glass_tinted(rect, 18.4, GLASS_FOCUSED, 0.24);
-        } else {
-            out.glass(rect, 18.4);
-        }
-        let name = match crate::crypto::name(symbol) {
-            name if name == symbol => "",
-            name => name,
-        };
-        let half = rect.w / 2. - 24.;
-        out.text(
-            symbol,
-            Rect::new(rect.x + 24., rect.y + 16., half, 31.2),
-            text(type_scale::BODY, 550, -0.02),
-            WHITE,
-            false,
-        );
-        out.text(
-            name,
-            Rect::new(rect.x + 24., rect.y + 51., half, 26.4),
-            text(type_scale::CAPTION, 450, 0.),
-            c(0xe8e8e8, 0.55),
-            false,
-        );
-        let right = Rect::new(rect.x + rect.w / 2., 0., half, 0.);
-        if let Some(quote) = state
-            .crypto
-            .quotes
-            .iter()
-            .find(|quote| &quote.symbol == symbol)
-        {
-            out.text(
-                crate::crypto::format_price(quote.price),
-                Rect::new(right.x, rect.y + 16., right.w, 31.2),
-                text(type_scale::BODY, 550, -0.02).right(),
-                WHITE,
-                false,
-            );
-            out.text(
-                crate::crypto::format_change(quote.change),
-                Rect::new(right.x, rect.y + 51., right.w, 26.4),
-                text(type_scale::CAPTION, 550, 0.).right(),
-                if quote.change < -0.005 {
-                    c(0xff8a80, 0.95)
-                } else {
-                    c(0x7ee2a8, 0.95)
-                },
-                false,
-            );
-        } else {
-            out.text(
-                language.t(if state.crypto.failed {
-                    "cryptoUnavailable"
-                } else {
-                    "cryptoLoading"
-                }),
-                Rect::new(right.x, rect.y + 35., right.w, 26.4),
-                text(type_scale::CAPTION, 400, 0.).right(),
-                c(0xe8e8e8, 0.55),
-                false,
-            );
-        }
-        lift_edge(out, rect, 18.4, lift_amount);
-        out.control(Target::Coin(index), hit, true);
-    }
 }
 
 const CS2_CARD_HEIGHT: f32 = 252.;
@@ -5020,17 +4998,12 @@ fn crypto_settings(out: &mut Scene, state: &State, assets: &Assets) {
         Some("eye"),
         on_off(state.preferences.show_crypto),
     );
-    simple(
-        out,
-        Target::CryptoLayout,
-        LIST_TOP + LIST_PITCH,
-        language.t("cryptoLayout"),
-        Some("sparkles"),
-        Some(place(language, state, crate::model::Center::Crypto)),
-    );
-    let mut y = LIST_TOP + 2. * LIST_PITCH + 16.;
+    let mut y = LIST_TOP + LIST_PITCH + 16.;
     out.text(
-        language.t("cryptoCoins"),
+        language.format(
+            "cryptoCoins",
+            &[("count", &crate::crypto::MAX_COINS.to_string())],
+        ),
         Rect::new(LIST_X + 24., y - s, LIST_WIDTH - 48., 28.),
         text(type_scale::CAPTION, 450, 0.).shadow(),
         c(0xf5f5f5, 0.72),

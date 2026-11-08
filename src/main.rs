@@ -537,6 +537,7 @@ fn compose(state: &mut State, assets: &view::Assets, now: OffsetDateTime) -> vie
     } else {
         scene
     };
+    state.ticker_span = scene.ticker;
     view::home_preview(&mut scene, state, assets, now);
     scene
 }
@@ -1275,6 +1276,8 @@ fn run() -> Result<(), String> {
     let mut prewarm: Vec<state::Page> = Vec::new();
     let mut prewarm_now = false;
     let mut last_present = Instant::now();
+    // When the screen last changed, leaving out frames that only ran the price ticker.
+    let mut last_change = Instant::now();
     let verify_damage = std::env::var("LUMA_DAMAGE_VERIFY").as_deref() == Ok("1");
     // Partial frames: verified, mismatched, worst pixels, largest difference; full frames alike.
     let mut damage_report = (0usize, 0usize, 0usize, 0u8);
@@ -1540,7 +1543,7 @@ fn run() -> Result<(), String> {
             && !state.animating()
             && wallpaper_cycle::settled(
                 !apps_listed || assets.artwork.pending(),
-                last_present.elapsed(),
+                last_change.elapsed(),
                 launched.elapsed(),
             )
             && (startup_cycle
@@ -2417,6 +2420,9 @@ fn run() -> Result<(), String> {
                 }
                 presented += 1;
                 last_present = Instant::now();
+                if !state.ticker_only {
+                    last_change = last_present;
+                }
                 let timing = diagnostics::Frame {
                     interval_ms: 0.,
                     compose_ms,
@@ -2490,7 +2496,7 @@ fn run() -> Result<(), String> {
         // their first appearance does not pay for text layout, logo meshes and icon uploads.
         let idle = visible
             && (prewarm_now
-                || (!state.animating() && last_present.elapsed() > Duration::from_millis(1500)));
+                || (!state.animating() && last_change.elapsed() > Duration::from_millis(1500)));
         while let Some(page) = next_prewarm(&mut prewarm, &state, idle) {
             if page != state.page {
                 let started = Instant::now();
@@ -2527,7 +2533,7 @@ fn run() -> Result<(), String> {
         // decoded need short timed wakes.
         let timeout = if !visible {
             250
-        } else if state.animating() || options.profile_frames.is_some() {
+        } else if state.animating() || state.ticker_running() || options.profile_frames.is_some() {
             0
         } else if press.is_some()
             || back_button.press.is_some()

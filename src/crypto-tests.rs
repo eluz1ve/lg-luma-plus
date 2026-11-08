@@ -61,8 +61,10 @@ fn coin_preferences_keep_listed_coins_first_then_found_ones() {
     );
     assert_eq!(
         parse(json!({"coins": ["TON", "DOGE", "ADA", "XRP", "BNB"]})),
-        symbols(&["BNB", "XRP", "ADA", "DOGE"])
+        symbols(&["BNB", "XRP", "ADA", "DOGE", "TON"])
     );
+    let many: Vec<String> = (0..MAX_COINS + 5).map(|n| format!("COIN{n}")).collect();
+    assert_eq!(parse(json!({ "coins": many })).len(), MAX_COINS);
     assert_eq!(parse(json!({"coins": "BTC"})), default_coins());
     assert!(parse(json!({"coins": []})).is_empty());
 }
