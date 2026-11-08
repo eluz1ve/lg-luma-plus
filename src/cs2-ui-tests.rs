@@ -133,14 +133,12 @@ fn cs2_cards_stand_above_the_favorites_and_open_their_match() {
         .collect();
     for expected in [
         "IEM Chengdu",
-        "BO3",
-        "Tier 1",
+        "Counter-Strike 2 · Upper bracket · Final · BO3 · Tier 1",
         "Mirage",
         "13:9",
         "Vitality",
         "ZywOo",
         "No lineup yet",
-        "Upper bracket · Final",
         "COACH",
         "XTQZZZ",
         "Liquipedia has no rounds for this map yet",
@@ -567,4 +565,102 @@ fn an_old_round_score_leaves_home_as_it_was() {
     let mut state = live_card();
     with_round(&mut state, "someone-else", "Inferno", 0, 0);
     assert_eq!(home_texts(&state), before);
+}
+
+/// Match "a" of `with_feed` open in detail, its stage set.
+fn open_match() -> State {
+    let mut state = live_card();
+    state.cs2.feed.as_mut().unwrap().matches[0].stage = "Group A".into();
+    state.focus = Target::Cs2Match(0);
+    state.activate();
+    assert!(matches!(
+        state.overlay,
+        Some(crate::state::Overlay::Cs2Match { .. })
+    ));
+    state
+}
+
+/// The feeds server's file for the open match "a", received at 0.
+pub(crate) fn with_detail(state: &mut State, extra: serde_json::Value) {
+    use crate::cs2_live::{LiveCommand, LiveReply, parse_live};
+    let commands = state.cs2_live.sync(true, false, Some("a"), true, 0);
+    let Some(LiveCommand::Match { id, .. }) = commands.into_iter().last() else {
+        panic!("the match is due");
+    };
+    let mut value = serde_json::json!({
+        "id": "a", "updated": 0, "map": "Inferno", "round": 24, "state": "started",
+        "score": [10, 13], "sides": ["ct", "t"], "players": [[], []], "log": [], "streams": []
+    });
+    for (key, field) in extra.as_object().into_iter().flatten() {
+        value[key] = field.clone();
+    }
+    let live = parse_live(&value).unwrap();
+    assert!(state.cs2_live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(live)
+        },
+        0
+    ));
+}
+
+#[test]
+fn the_match_header_says_it_all_on_one_line() {
+    let state = live_card();
+    let on_home = home_texts(&state).iter().filter(|t| *t == "BO3").count();
+    let state = open_match();
+    let page = scene(&state);
+    line(
+        &page,
+        "Counter-Strike 2 · Group A · Upper bracket · Final · BO3 · Tier 1",
+    );
+    let texts = home_texts(&state);
+    assert_eq!(
+        texts.iter().filter(|t| *t == "BO3").count(),
+        on_home,
+        "no BO3 chip"
+    );
+    assert!(!texts.iter().any(|t| t == "Tier 1"), "no tier chip");
+}
+
+#[test]
+fn the_maps_sit_inside_the_teams_block() {
+    let page = scene(&open_match());
+    let team = line(&page, "Team Vitality").0;
+    for map in ["Mirage", "Inferno"] {
+        let tile = line(&page, map).0;
+        assert!(
+            tile.y > team.y + team.h && tile.y + tile.h < team.y + 180.,
+            "{map}: {tile:?} under {team:?}"
+        );
+    }
+    assert!(
+        !drawn(&page).iter().any(|(text, ..)| text == "MAPS"),
+        "no separate maps heading"
+    );
+}
+
+#[test]
+fn the_live_map_shows_its_rounds_in_the_sides_colours() {
+    let mut state = open_match();
+    with_detail(&mut state, serde_json::json!({}));
+    let page = scene(&state);
+    let texts: Vec<String> = drawn(&page).into_iter().map(|(text, ..)| text).collect();
+    let at = texts
+        .windows(3)
+        .rposition(|w| w[0] == "10" && w[1] == ":" && w[2] == "13")
+        .unwrap_or_else(|| panic!("10 : 13 in {texts:?}"));
+    let colour = |index: usize| match &page
+        .draw
+        .iter()
+        .filter(|d| matches!(d, crate::renderer::Draw::Text(..)))
+        .nth(index)
+    {
+        Some(crate::renderer::Draw::Text(_, _, _, colour, ..)) => *colour,
+        _ => panic!(),
+    };
+    let (ct, t) = (colour(at), colour(at + 2));
+    assert!(ct[2] > ct[0], "CT is blue: {ct:?}");
+    assert!(t[0] > t[2], "T is yellow: {t:?}");
+    line(&page, "Round 24");
 }

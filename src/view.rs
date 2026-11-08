@@ -2912,7 +2912,7 @@ fn today_card(
                     Some([a, b]) => format!("{} {a}–{b} {}", side(0), side(1)),
                     None => format!("{} – {}", side(0), side(1)),
                 };
-                if let Some((_, [a, b], _)) = round {
+                if let Some(RoundNow { score: [a, b], .. }) = round {
                     title = format!("{title} · {a}:{b}");
                 }
                 if live {
@@ -3420,7 +3420,7 @@ fn today_line(
                 Some([a, b]) => format!("{} {a}–{b} {}", side(0), side(1)),
                 None => format!("{} – {}", side(0), side(1)),
             };
-            if let Some((_, [a, b], _)) = round {
+            if let Some(RoundNow { score: [a, b], .. }) = round {
                 title = format!("{title} · {a}:{b}");
             }
             let detail = [
@@ -3730,30 +3730,71 @@ const CS2_CARD_MAPS: usize = 5;
 const CS2_CT: u32 = 0x7fb2ea;
 const CS2_T: u32 = 0xeab05a;
 
-/// The round score of the map a live match is playing, from the feeds server: the map, the
-/// score in the feed's team order and, while its card has the full file, each team's side.
+/// The map a live match is playing, from the feeds server.
+#[derive(Clone, Copy)]
+struct RoundNow<'a> {
+    map: &'a str,
+    round: u32,
+    /// In the feed's team order.
+    score: [u32; 2],
+    /// Each team's side, while its card has the full file.
+    sides: Option<[crate::cs2_live::Side; 2]>,
+}
+
 fn cs2_round_score<'a>(
     state: &'a State,
     item: &crate::cs2::Match,
     now: i64,
-) -> Option<(&'a str, [u32; 2], Option<[crate::cs2_live::Side; 2]>)> {
+) -> Option<RoundNow<'a>> {
     if item.state != crate::cs2::State::Live {
         return None;
     }
     if let Some(live) = state.cs2_live.detail(&item.id, now) {
-        return Some((live.map.as_str(), live.score, Some(live.sides)));
+        return Some(RoundNow {
+            map: &live.map,
+            round: live.round,
+            score: live.score,
+            sides: Some(live.sides),
+        });
     }
     let round = state.cs2_live.round(&item.id, now)?;
-    Some((round.map.as_str(), round.score, None))
+    Some(RoundNow {
+        map: &round.map,
+        round: round.round,
+        score: round.score,
+        sides: None,
+    })
+}
+
+/// Which of `maps` is being played and its round score. Liquipedia can lag a map behind: the
+/// live file's map is found by name, and when Liquipedia has no tile for it, the tile it thinks
+/// is being played takes the live map's name (the third value says so).
+fn cs2_playing<'a>(
+    state: &'a State,
+    item: &crate::cs2::Match,
+    maps: &[crate::cs2::Map],
+    now: i64,
+) -> (Option<usize>, Option<RoundNow<'a>>, bool) {
+    let round = cs2_round_score(state, item, now);
+    let named = round
+        .filter(|round| !round.map.is_empty())
+        .and_then(|round| {
+            maps.iter()
+                .position(|map| map.winner.is_none() && map.name.eq_ignore_ascii_case(round.map))
+        });
+    let playing = named.or_else(|| {
+        item.current_map()
+            .filter(|(number, _)| item.state == crate::cs2::State::Live && *number <= maps.len())
+            .map(|(number, _)| number - 1)
+    });
+    let renamed = named.is_none() && round.is_some_and(|round| !round.map.is_empty());
+    (playing, round, renamed)
 }
 
 /// The map a live match is playing: the live file's when there is one, else Liquipedia's.
-fn cs2_live_map(
-    item: &crate::cs2::Match,
-    round: Option<(&str, [u32; 2], Option<[crate::cs2_live::Side; 2]>)>,
-) -> Option<String> {
+fn cs2_live_map(item: &crate::cs2::Match, round: Option<RoundNow>) -> Option<String> {
     round
-        .map(|(map, ..)| map.to_owned())
+        .map(|round| round.map.to_owned())
         .filter(|map| !map.is_empty())
         .or_else(|| item.current_map().map(|(_, map)| map.name.clone()))
 }
@@ -4130,16 +4171,7 @@ fn cs2_card_maps(
 ) {
     let language = state.preferences.language;
     let maps = &item.maps[..item.maps.len().min(CS2_CARD_MAPS)];
-    let round = cs2_round_score(state, item, now).filter(|(map, ..)| !map.is_empty());
-    let named = round.and_then(|(name, ..)| {
-        maps.iter()
-            .position(|map| map.winner.is_none() && map.name.eq_ignore_ascii_case(name))
-    });
-    let playing = named.or_else(|| {
-        item.current_map()
-            .filter(|_| item.state == crate::cs2::State::Live)
-            .map(|(number, _)| number - 1)
-    });
+    let (playing, round, renamed) = cs2_playing(state, item, maps, now);
     let gap = 8.;
     let count = maps.len() as f32;
     let width = ((strip.w - gap * (count - 1.)) / count).min(172.);
@@ -4165,7 +4197,7 @@ fn cs2_card_maps(
         }
         let room = width - 20.;
         let name = match round {
-            Some((live, ..)) if current && named.is_none() => live,
+            Some(round) if current && renamed => round.map,
             _ => map.name.as_str(),
         };
         out.text(
@@ -4183,7 +4215,13 @@ fn cs2_card_maps(
             false,
         );
         let place = Rect::new(chip.x + 10., chip.y + 23., room, 22.);
-        if current && let Some((_, [a, b], sides)) = round {
+        if current
+            && let Some(RoundNow {
+                score: [a, b],
+                sides,
+                ..
+            }) = round
+        {
             let style = text(18.4, 650, 0.);
             match sides {
                 // Each team's rounds in the colour of the side it plays.
@@ -4308,7 +4346,7 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
     let inner = panel.w - 96.;
     let live = item.state == Phase::Live;
 
-    // Header: the tournament with its logo, the stage and chips.
+    // Header: the tournament with its logo, and everything about the match on one line.
     let icon = item.icon.as_ref().and_then(|url| state.cs2.image(url));
     let title_x = if let Some(icon) = icon {
         out.draw.push(Draw::Picture(
@@ -4321,79 +4359,37 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
     } else {
         x
     };
+    let title_room = inner - 120. - (title_x - x);
     out.text(
         &item.tournament,
-        Rect::new(title_x, panel.y + 40., inner - 120. - (title_x - x), 36.),
-        assets.fit_text(
-            &item.tournament,
-            text(28., 650, -0.02),
-            inner - 120. - (title_x - x),
-        ),
+        Rect::new(title_x, panel.y + 40., title_room, 36.),
+        assets.fit_text(&item.tournament, text(28., 650, -0.02), title_room),
         WHITE,
         false,
     );
-    let round = cs2_round(language, item);
-    let subtitle = ["Counter-Strike 2", item.stage.as_str()]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join(" · ");
-    out.text(
-        subtitle,
-        Rect::new(title_x, panel.y + 82., inner - 120. - (title_x - x), 24.),
-        text(17.6, 400, 0.),
-        c(0xf5f5f5, 0.6),
-        false,
-    );
-    let mut chip_x = x;
-    // The tier chip is gold for the biggest events.
-    // Deciding matches stand out: the final, the grand final and the match for third place.
-    let deciding = matches!(
-        item.round,
-        Some((
-            crate::cs2::Round::Final
-                | crate::cs2::Round::GrandFinal
-                | crate::cs2::Round::ThirdPlace,
-            _
-        ))
-    );
-    for (chip, gold) in [
-        round.clone().map(|round| (round, deciding)),
-        item.best_of.map(|n| (format!("BO{n}"), false)),
-        item.tier.map(|tier| {
-            (
-                language.format("cs2Tier", &[("number", &tier.to_string())]),
-                item.major(),
-            )
-        }),
+    let subtitle = [
+        Some("Counter-Strike 2".to_owned()),
+        Some(item.stage.clone()),
+        cs2_round(language, item),
+        item.best_of.map(|n| format!("BO{n}")),
+        item.tier
+            .map(|tier| language.format("cs2Tier", &[("number", &tier.to_string())])),
     ]
     .into_iter()
     .flatten()
-    {
-        let style = text(15.2, 600, 0.02);
-        let width = assets.width(&chip, style) + 28.;
-        let rect = Rect::new(chip_x, panel.y + 118., width, 30.);
-        out.shape(
-            rect,
-            15.,
-            if gold {
-                c(0xe8c26a, 0.22)
-            } else {
-                c(0xffffff, 0.08)
-            },
-        );
-        out.text(
-            chip,
-            Rect::new(rect.x, rect.y + 6., width, 20.),
-            style,
-            WHITE,
-            true,
-        );
-        chip_x += width + 10.;
-    }
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" · ");
+    out.text(
+        &subtitle,
+        Rect::new(title_x, panel.y + 82., title_room, 24.),
+        assets.fit_text(&subtitle, text(18.4, 400, 0.), title_room),
+        c(0xf5f5f5, 0.62),
+        false,
+    );
 
-    // Hero: both teams around the score.
-    let hero = Rect::new(x, panel.y + 168., inner, 226.);
+    // Hero: both teams around the series score, the maps under them in the same block.
+    let hero = Rect::new(x, panel.y + 124., inner, 236.);
     // The map being played (or the last one) behind the teams, darkened for the text.
     match item
         .featured_map()
@@ -4424,38 +4420,50 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             c(0xffffff, 0.06)
         },
     );
+    let middle = hero.x + hero.w / 2.;
+    let name_room = hero.w / 2. - 140. - 24. - 72. - 18.;
     for side in 0..2 {
-        let center = if side == 0 {
-            hero.x + 230.
-        } else {
-            hero.x + hero.w - 230.
-        };
         let team = item.teams[side].as_ref();
-        cs2_logo(
-            out,
-            state,
-            team,
-            Rect::new(center - 56., hero.y + 26., 112., 112.),
-        );
+        let logo = if side == 0 {
+            Rect::new(hero.x + 24., hero.y + 24., 72., 72.)
+        } else {
+            Rect::new(hero.x + hero.w - 24. - 72., hero.y + 24., 72., 72.)
+        };
+        cs2_logo(out, state, team, logo);
         let name = team.map_or("TBD", |team| team.name.as_str());
+        let style = assets.fit_text(name, text(28., 650, -0.02), name_room);
+        let (place, style) = if side == 0 {
+            (
+                Rect::new(logo.x + logo.w + 18., hero.y + 41., name_room, 36.),
+                style,
+            )
+        } else {
+            (
+                Rect::new(logo.x - 18. - name_room, hero.y + 41., name_room, 36.),
+                style.right(),
+            )
+        };
         out.text(
             name,
-            Rect::new(center - 200., hero.y + 152., 400., 32.),
-            assets.fit_text(name, text(24., 650, -0.02), 400.),
-            WHITE,
-            true,
+            place,
+            style,
+            if team.is_some() {
+                WHITE
+            } else {
+                c(0xf5f5f5, 0.55)
+            },
+            false,
         );
     }
-    let middle = hero.x + hero.w / 2.;
     match item.score.filter(|_| item.state != Phase::Upcoming) {
         Some(score) => {
-            let style = text(72., 650, -0.02);
+            let style = text(64., 650, -0.02);
             for side in 0..2 {
                 let lead = score[side] >= score[1 - side];
-                let offset = if side == 0 { -150. } else { 30. };
+                let offset = if side == 0 { -132. } else { 24. };
                 out.text(
                     score[side].to_string(),
-                    Rect::new(middle + offset, hero.y + 36., 120., 86.),
+                    Rect::new(middle + offset, hero.y + 12., 108., 76.),
                     if side == 0 { style.right() } else { style },
                     c(0xffffff, if lead { 1. } else { 0.42 }),
                     false,
@@ -4463,25 +4471,25 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             }
             out.text(
                 ":",
-                Rect::new(middle - 30., hero.y + 32., 60., 86.),
-                text(64., 650, 0.),
+                Rect::new(middle - 24., hero.y + 8., 48., 76.),
+                text(56., 650, 0.),
                 c(0xffffff, 0.5),
                 true,
             );
         }
         None => out.text(
             "VS",
-            Rect::new(middle - 100., hero.y + 58., 200., 60.),
+            Rect::new(middle - 100., hero.y + 26., 200., 56.),
             text(44., 650, 0.04),
             c(0xffffff, 0.45),
             true,
         ),
     }
-    let line = if live {
+    if live {
         let label = language.t("cs2Live");
         let style = text(13.6, 650, 0.06);
         let width = assets.width(label, style) + 18.;
-        let badge = Rect::new(middle - width / 2., hero.y + 132., width, 24.);
+        let badge = Rect::new(middle - width / 2., hero.y + 92., width, 24.);
         out.shape(badge, 7., c(0xe5484d, 0.95));
         out.text(
             label,
@@ -4490,174 +4498,40 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             WHITE,
             true,
         );
-        item.current_map().map(|(number, map)| {
-            let mut parts = vec![
-                language.format("cs2Map", &[("number", &number.to_string())]),
-                map.name.clone(),
-            ];
-            if let Some([a, b]) = map.score {
-                parts.push(format!("{a}:{b}"));
-            }
-            parts.join(" · ")
-        })
-    } else if item.state == Phase::Finished {
-        Some(language.t("cs2Final").to_owned())
     } else {
-        Some(cs2_start(state, item.begins, now))
-    };
-    if let Some(line) = line {
+        let line = if item.state == Phase::Finished {
+            language.t("cs2Final").to_owned()
+        } else {
+            cs2_start(state, item.begins, now)
+        };
         out.text(
             line,
-            Rect::new(
-                middle - 240.,
-                hero.y + if live { 164. } else { 140. },
-                480.,
-                28.,
-            ),
-            text(if live { 21. } else { 22.4 }, 650, 0.),
-            if live { c(0xffe1de, 1.) } else { WHITE },
+            Rect::new(middle - 200., hero.y + 90., 400., 26.),
+            text(19.2, 650, 0.),
+            WHITE,
             true,
         );
     }
-    // Liquipedia's editors add a live map's rounds as they go; until then, say so.
-    if live
-        && item
-            .current_map()
-            .is_some_and(|(_, map)| map.score.is_none())
-    {
-        out.text(
-            language.t("cs2NoRounds"),
-            Rect::new(middle - 240., hero.y + 196., 480., 20.),
-            text(14.4, 500, 0.02),
-            c(0xffffff, 0.6),
-            true,
-        );
-    }
-
-    // Maps: one tile per map of the series.
-    let maps_y = hero.y + hero.h + 30.;
-    out.text(
-        language.t("cs2Maps").to_uppercase(),
-        Rect::new(x, maps_y, 400., 20.),
-        text(14.4, 650, 0.12),
-        c(0xf5f5f5, 0.55),
-        false,
+    cs2_dialog_maps(
+        out,
+        state,
+        assets,
+        item,
+        Rect::new(hero.x + 22., hero.y + 132., hero.w - 44., 84.),
+        now.unix_timestamp(),
     );
-    let slots = item
-        .best_of
-        .unwrap_or(1)
-        .max(item.maps.len() as u32)
-        .clamp(1, 7) as usize;
-    let gap = 14.;
-    let tile_w = (inner - gap * (slots - 1) as f32) / slots as f32;
-    let playing = item
-        .current_map()
-        .filter(|_| live)
-        .map(|(number, _)| number);
-    for slot in 0..slots {
-        let tile = Rect::new(x + slot as f32 * (tile_w + gap), maps_y + 30., tile_w, 112.);
-        let map = item.maps.get(slot);
-        let is_live = playing == Some(slot + 1);
-        let picture = map
-            .and_then(|map| map.image.as_ref())
-            .and_then(|url| state.cs2.image(url));
-        match picture {
-            Some(picture) => {
-                out.draw.push(Draw::Cover(picture, tile, 18., [1.; 4]));
-                out.draw.push(Draw::RoundedGradient(
-                    tile,
-                    18.,
-                    c(0x0b0e12, 0.55),
-                    c(0x0b0e12, 0.82),
-                ));
-            }
-            None => out.shape(
-                tile,
-                18.,
-                c(
-                    0xffffff,
-                    if map.is_some_and(|map| map.winner.is_some()) {
-                        0.07
-                    } else {
-                        0.03
-                    },
-                ),
-            ),
-        }
-        if is_live {
-            out.shape(tile, 18., c(0xe5484d, 0.18));
-        }
-        out.border(
-            tile,
-            18.,
-            1.,
-            if is_live {
-                c(0xff5a52, 0.5)
-            } else {
-                c(0xffffff, 0.07)
-            },
-        );
-        out.text(
-            format!("{:02}", slot + 1),
-            Rect::new(tile.x + tile.w - 70., tile.y + 12., 56., 40.),
-            text(34., 650, 0.).right(),
-            c(0xffffff, 0.07),
-            false,
-        );
-        let title = map.map_or_else(
-            || language.format("cs2Map", &[("number", &(slot + 1).to_string())]),
-            |map| map.name.clone(),
-        );
-        out.text(
-            &title,
-            Rect::new(tile.x + 18., tile.y + 16., tile.w - 90., 28.),
-            assets.fit_text(&title, text(21., 650, -0.01), tile.w - 90.),
-            c(0xffffff, if map.is_some() { 1. } else { 0.45 }),
-            false,
-        );
-        let bottom = tile.y + tile.h - 40.;
-        if let Some([a, b]) = map.and_then(|map| map.score) {
-            out.text(
-                format!("{a}:{b}"),
-                Rect::new(tile.x + tile.w - 118., bottom, 100., 26.),
-                text(21., 650, 0.).right(),
-                WHITE,
-                false,
-            );
-        }
-        if is_live {
-            out.text(
-                language.t("cs2Live"),
-                Rect::new(tile.x + 18., bottom + 3., 120., 20.),
-                text(15.2, 650, 0.06),
-                c(0xff7b72, 1.),
-                false,
-            );
-        } else if let Some(winner) = map
-            .and_then(|map| map.winner)
-            .and_then(|side| item.teams[side].as_ref())
-        {
-            cs2_logo(
-                out,
-                state,
-                Some(winner),
-                Rect::new(tile.x + 18., bottom, 26., 26.),
-            );
-            out.text(
-                &winner.short,
-                Rect::new(tile.x + 52., bottom + 2., tile.w - 180., 24.),
-                text(17.6, 600, 0.),
-                WHITE,
-                false,
-            );
-        }
-    }
 
-    // Lineups.
-    let lists_y = maps_y + 30. + 112. + 26.;
+    // Lineups, down to the footer.
+    let lists_y = hero.y + hero.h + 24.;
     let column_w = (inner - 24.) / 2.;
     for side in 0..2 {
-        let column = Rect::new(x + side as f32 * (column_w + 24.), lists_y, column_w, 290.);
+        let column = Rect::new(
+            x + side as f32 * (column_w + 24.),
+            lists_y,
+            column_w,
+            // Five players at most 62 apart under the heading, short of the footer.
+            (panel.y + panel.h - 64. - lists_y).min(74. + 62. * 5.),
+        );
         out.shape(column, 20., c(0xffffff, 0.04));
         let team = item.teams[side].as_ref();
         cs2_logo(
@@ -4735,7 +4609,7 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         }
         // Five players sit roomy; a stand-in as the sixth tightens every row.
         let top = column.y + 62.;
-        let pitch = (column.h - 62. - 12.) / players.len().clamp(5, 6) as f32;
+        let pitch = ((column.h - 62. - 12.) / players.len().clamp(5, 6) as f32).min(62.);
         for (row, player) in players.iter().take(6).enumerate() {
             let middle = top + (row as f32 + 0.5) * pitch;
             let flag = Rect::new(column.x + 20., middle - 11., 30., 22.);
@@ -4770,6 +4644,160 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             c(0xf5f5f5, 0.6),
             false,
         );
+    }
+}
+
+/// The map tiles of a match in detail: each map with its score, the one being played marked,
+/// with its rounds in the sides' colours and the round number while the feeds server has them.
+fn cs2_dialog_maps(
+    out: &mut Scene,
+    state: &State,
+    assets: &Assets,
+    item: &crate::cs2::Match,
+    strip: Rect,
+    now: i64,
+) {
+    let language = state.preferences.language;
+    let slots = item
+        .best_of
+        .unwrap_or(1)
+        .max(item.maps.len() as u32)
+        .clamp(1, 7) as usize;
+    let (playing, round, renamed) = cs2_playing(state, item, &item.maps, now);
+    let gap = 12.;
+    let tile_w = (strip.w - gap * (slots - 1) as f32) / slots as f32;
+    for slot in 0..slots {
+        let tile = Rect::new(
+            strip.x + slot as f32 * (tile_w + gap),
+            strip.y,
+            tile_w,
+            strip.h,
+        );
+        let map = item.maps.get(slot);
+        let current = playing == Some(slot);
+        out.shape(
+            tile,
+            14.,
+            if current {
+                c(0x781e26, 0.45)
+            } else {
+                c(0x000000, 0.25)
+            },
+        );
+        out.border(
+            tile,
+            14.,
+            if current { 2. } else { 1. },
+            if current {
+                c(0xd9484f, 1.)
+            } else {
+                c(0xffffff, 0.08)
+            },
+        );
+        let title = match (map, round) {
+            (_, Some(round)) if current && renamed => round.map.to_owned(),
+            (Some(map), _) => map.name.clone(),
+            (None, _) => language.format("cs2Map", &[("number", &(slot + 1).to_string())]),
+        };
+        let score_room = 120.;
+        let room = tile.w - 32. - score_room;
+        out.text(
+            &title,
+            Rect::new(
+                tile.x + 16.,
+                tile.y + if current { 13. } else { 28. },
+                room,
+                28.,
+            ),
+            assets.fit_text(&title, text(20., 600, -0.01), room),
+            c(0xffffff, if map.is_some() || current { 1. } else { 0.45 }),
+            false,
+        );
+        let right = tile.x + tile.w - 16.;
+        if current {
+            // LIVE beside the name, the round under it.
+            let title_style = assets.fit_text(&title, text(20., 600, -0.01), room);
+            let label = language.t("cs2Live");
+            let label_style = text(13.6, 650, 0.06);
+            let label_x = tile.x + 16. + assets.width(&title, title_style).min(room) + 10.;
+            if label_x + assets.width(label, label_style) <= tile.x + 16. + room {
+                out.text(
+                    label,
+                    Rect::new(label_x, tile.y + 18., 80., 18.),
+                    label_style,
+                    c(0xff6b62, 1.),
+                    false,
+                );
+            }
+            let below = match round {
+                Some(round) if round.round > 0 => {
+                    language.format("cs2RoundNumber", &[("number", &round.round.to_string())])
+                }
+                Some(_) => String::new(),
+                None if map.is_none_or(|map| map.score.is_none()) => {
+                    language.t("cs2NoRounds").to_owned()
+                }
+                None => String::new(),
+            };
+            let below_room = tile.w - 32. - if round.is_some() { score_room } else { 0. };
+            out.text(
+                &below,
+                Rect::new(tile.x + 16., tile.y + 47., below_room, 20.),
+                assets.fit_text(&below, text(14.4, 600, 0.04), below_room),
+                c(0xf0c6c8, 1.),
+                false,
+            );
+        }
+        match (current, round, map.and_then(|map| map.score)) {
+            (true, Some(round), _) => {
+                let style = text(28., 650, 0.);
+                let [a, b] = round.score;
+                let parts = [
+                    (
+                        a.to_string(),
+                        round.sides.map(|sides| cs2_side_color(sides[0], 1.)),
+                    ),
+                    (":".to_owned(), Some(c(0xffffff, 0.6))),
+                    (
+                        b.to_string(),
+                        round.sides.map(|sides| cs2_side_color(sides[1], 1.)),
+                    ),
+                ];
+                let spacing = 6.;
+                let total: f32 = parts
+                    .iter()
+                    .map(|(part, _)| assets.width(part, style))
+                    .sum::<f32>()
+                    + spacing * 2.;
+                let mut x = right - total;
+                for (part, tone) in parts {
+                    let width = assets.width(&part, style);
+                    out.text(
+                        &part,
+                        Rect::new(x, tile.y + 24., width + 2., 36.),
+                        style,
+                        tone.unwrap_or(WHITE),
+                        false,
+                    );
+                    x += width + spacing;
+                }
+            }
+            (_, _, Some([a, b])) => out.text(
+                format!("{a}:{b}"),
+                Rect::new(right - score_room, tile.y + 27., score_room, 30.),
+                text(22.4, 650, 0.).right(),
+                WHITE,
+                false,
+            ),
+            _ if !current => out.text(
+                "—",
+                Rect::new(right - score_room, tile.y + 27., score_room, 30.),
+                text(22.4, 600, 0.).right(),
+                c(0xf5f5f5, 0.36),
+                false,
+            ),
+            _ => {}
+        }
     }
 }
 

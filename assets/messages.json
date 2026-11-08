@@ -1919,6 +1919,22 @@
     "sv": "Liquipedia har inga ronder för den här kartan än",
     "cs": "Liquipedie zatím nemá kola této mapy"
   },
+  "cs2RoundNumber": {
+    "zh-tw": "第 {number} 回合",
+    "en": "Round {number}",
+    "de": "Runde {number}",
+    "zh": "第 {number} 回合",
+    "es": "Ronda {number}",
+    "pt": "Round {number}",
+    "it": "Round {number}",
+    "ru": "Раунд {number}",
+    "pl": "Runda {number}",
+    "fr": "Manche {number}",
+    "vi": "Hiệp {number}",
+    "nl": "Ronde {number}",
+    "sv": "Rond {number}",
+    "cs": "Kolo {number}"
+  },
   "location": {
     "zh-tw": "地點",
     "en": "Location",
