@@ -1,6 +1,6 @@
 //! The CS2 Score worker: one HTTP job at a time off the SDL thread, newest request wins.
 use crate::app_artwork::Artwork;
-use crate::cs2::{Command, Feed, LOGO_ORIGIN, parse_feed};
+use crate::cs2::{Command, Feed, image_allowed, parse_feed};
 use std::{
     io::Read,
     net::SocketAddr,
@@ -60,10 +60,10 @@ impl Client {
             .new_agent();
         Ok(Self { agent, urls })
     }
-    /// A logo or a map's screenshot from Liquipedia's commons, decoded and scaled on this
+    /// A logo or a map's screenshot from an allowed origin, decoded and scaled on this
     /// worker.
     pub fn image(&self, url: &str, backdrop: bool) -> Option<Arc<Artwork>> {
-        if !url.starts_with(LOGO_ORIGIN) {
+        if !image_allowed(url) {
             return None;
         }
         let mut response = self

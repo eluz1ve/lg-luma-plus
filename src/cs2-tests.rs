@@ -199,3 +199,17 @@ fn rounds_coaches_and_the_featured_map_are_read() {
     assert!(!coaches[0].assistant && coaches[1].assistant);
     assert!(feed.coaches(a.teams[1].as_ref().unwrap()).is_empty());
 }
+
+#[test]
+fn pictures_may_come_from_liquipedia_or_the_feeds_server() {
+    assert!(image_allowed("https://liquipedia.net/commons/images/a.png"));
+    assert!(image_allowed("https://luma.eluzive.dev/img/0123abcd.png"));
+    for refused in [
+        "https://example.com/a.png",
+        "http://luma.eluzive.dev/img/a.png",
+        "https://luma.eluzive.dev/cs2/matches.json",
+        "https://luma.eluzive.dev.example.com/img/a.png",
+    ] {
+        assert!(!image_allowed(refused), "{refused}");
+    }
+}

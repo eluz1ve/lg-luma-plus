@@ -985,7 +985,7 @@ minute while Home shows the widget, from the fixed `luma.eluzive.dev` origin, or
 `eluz1ve.github.io` when that fails, with the weather client's limits (rustls, eight-second timeout, no
 redirects or proxy, 256 KiB). A feed older than 30 minutes is still shown, with "Last updated"
 and its time beside the heading, so a stalled feed shows old scores rather than none. Team and tournament logos and map screenshots come only from
-`liquipedia.net/commons/images/`, one at a time on their own worker, at most 1 MiB each, decoded
+`liquipedia.net/commons/images/` or the feed server's `luma.eluzive.dev/img/`, one at a time on their own worker, at most 1 MiB each, decoded
 with app artwork's limits (logos at 256 px, map screenshots at 640 px for the dialog) and kept in
 memory up to 64. `--cs2-test-server` accepts only a literal loopback HTTP origin and is refused in
 TV builds.

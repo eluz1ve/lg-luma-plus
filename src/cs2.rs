@@ -10,8 +10,11 @@ use time::OffsetDateTime;
 
 pub const REFRESH_SECONDS: i64 = 60;
 const RETRY_SECONDS: i64 = 60;
-/// Where team logos may come from.
-pub const LOGO_ORIGIN: &str = "https://liquipedia.net/commons/images/";
+/// Where logos and map screenshots may come from: Liquipedia's commons or the feed's own server.
+const IMAGE_ORIGINS: [&str; 2] = [
+    "https://liquipedia.net/commons/images/",
+    "https://luma.eluzive.dev/img/",
+];
 /// Logos kept in memory; more are forgotten and fetched again if needed.
 const LOGO_CACHE: usize = 64;
 /// A feed older than this is shown with when it was last updated, as it may be behind.
@@ -149,10 +152,14 @@ impl Feed {
     }
 }
 
-fn liquipedia_image(value: &Value) -> Option<String> {
+pub fn image_allowed(url: &str) -> bool {
+    IMAGE_ORIGINS.iter().any(|origin| url.starts_with(origin))
+}
+
+fn feed_image(value: &Value) -> Option<String> {
     value
         .as_str()
-        .filter(|url| url.starts_with(LOGO_ORIGIN) && url.len() <= 300)
+        .filter(|url| image_allowed(url) && url.len() <= 300)
         .map(String::from)
 }
 
@@ -221,7 +228,7 @@ fn team(value: &Value) -> Option<Team> {
         return None;
     }
     let short = text(&value["short"], 16);
-    let logo = liquipedia_image(&value["image"]);
+    let logo = feed_image(&value["image"]);
     let page = Some(text(&value["page"], 120)).filter(|page| !page.is_empty());
     Some(Team {
         short: if short.is_empty() {
@@ -277,7 +284,7 @@ fn parse_match(value: &Value) -> Option<Match> {
             .filter(|n| (1..=7).contains(n))
             .map(|n| n as u32),
         tournament: text(&value["tournament"], 80),
-        icon: liquipedia_image(&value["icon"]),
+        icon: feed_image(&value["icon"]),
         stage: text(&value["stage"], 40),
         round: round(&value["round"]),
         tier: value["tier"]
@@ -297,7 +304,7 @@ fn parse_match(value: &Value) -> Option<Match> {
                     name,
                     score: pair(&map["score"]),
                     winner: side(&map["winner"]),
-                    image: liquipedia_image(&map["image"]),
+                    image: feed_image(&map["image"]),
                 })
             })
             .collect(),
