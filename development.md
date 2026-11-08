@@ -1003,11 +1003,10 @@ by default. The widget is named "CS2 Scores" in every language. A result counts 
 feed's `finished_at`, when the feed first saw the match over, against its own `updated`, so a
 wrong clock on the TV does not matter.
 
-The data is the shared feed `cs2/matches.json` of
-[eluz1ve/luma-feeds](https://github.com/eluz1ve/luma-feeds), rebuilt from LiquipediaDB on the feeds'
-own server; the LiquipediaDB key stays there and never reaches a TV. Luma reads the file every
-minute while Home shows the widget, from the fixed `luma.eluzive.dev` origin, or from
-`eluz1ve.github.io` when that fails, with the weather client's limits (rustls, eight-second timeout, no
+The data is the shared feed `cs2/matches.json`, rebuilt from LiquipediaDB on the feeds' own
+server; the LiquipediaDB key stays there and never reaches a TV. Luma reads the file every
+minute while Home shows the widget, from the fixed `luma.eluzive.dev` origin only, with the
+weather client's limits (rustls, eight-second timeout, no
 redirects or proxy, 256 KiB). A feed older than 30 minutes is still shown, with "Last updated"
 and its time beside the heading, so a stalled feed shows old scores rather than none. Team and tournament logos and map screenshots come only from
 `liquipedia.net/commons/images/` or the feed server's `luma.eluzive.dev/img/`, one at a time on their own worker, at most 1 MiB each, decoded

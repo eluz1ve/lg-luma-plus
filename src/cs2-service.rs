@@ -17,11 +17,8 @@ const LIMIT: usize = 256 * 1024;
 const LOGO_LIMIT: usize = 1024 * 1024;
 /// Map screenshots stand behind text, so they keep more width than a logo.
 const BACKDROP_WIDTH: u32 = 640;
-/// The feed from its own server, then the copy on GitHub Pages for when that fails.
-const FEEDS: [&str; 2] = [
-    "https://luma.eluzive.dev/cs2/matches.json",
-    "https://eluz1ve.github.io/luma-feeds/cs2/matches.json",
-];
+/// The feed from its own server.
+const FEEDS: [&str; 1] = ["https://luma.eluzive.dev/cs2/matches.json"];
 
 #[derive(Clone)]
 pub struct Client {

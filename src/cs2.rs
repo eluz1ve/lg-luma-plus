@@ -1,5 +1,5 @@
 //! CS2 Scores: Counter-Strike 2 matches for Home from a shared feed built from LiquipediaDB
-//! (https://github.com/eluz1ve/luma-feeds). The feed holds the API key on its side and is
+//! on luma.eluzive.dev. The feed holds the API key on its side and is
 //! rebuilt every two minutes; the TV only reads the published file, every minute while Home
 //! shows the widget, and the teams' logos from Liquipedia's commons once each.
 use crate::app_artwork::Artwork;
