@@ -85,7 +85,14 @@ esac
   try {
     const result = spawnSync(
       '/bin/sh',
-      [`${dir}/installer.sh`, `${dir}/luma-update-${attempt}/package.ipk`, sha, '9.0.0', app, attempt],
+      [
+        `${dir}/installer.sh`,
+        `${dir}/luma-update-${attempt}/package.ipk`,
+        sha,
+        '9.0.0',
+        app,
+        attempt,
+      ],
       {
         env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
         encoding: 'utf8',
