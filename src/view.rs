@@ -4139,15 +4139,19 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
             out,
             state,
             team,
-            Rect::new(column.x + 18., column.y + 16., 26., 26.),
+            Rect::new(column.x + 20., column.y + 16., 32., 32.),
         );
+        let heading = language.format(
+            "cs2Lineup",
+            &[("team", team.map_or("TBD", |team| team.short.as_str()))],
+        );
+        let heading_style = text(22.4, 600, 0.);
+        let heading_w = assets.width(&heading, heading_style);
+        let heading_x = column.x + 64.;
         out.text(
-            language.format(
-                "cs2Lineup",
-                &[("team", team.map_or("TBD", |team| team.short.as_str()))],
-            ),
-            Rect::new(column.x + 54., column.y + 18., column.w - 72., 24.),
-            text(17.6, 600, 0.),
+            heading,
+            Rect::new(heading_x, column.y + 18., heading_w, 28.),
+            heading_style,
             WHITE,
             false,
         );
@@ -4155,8 +4159,8 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         if players.is_empty() {
             out.text(
                 language.t("cs2NoLineup"),
-                Rect::new(column.x + 18., column.y + 64., column.w - 36., 24.),
-                text(17.6, 400, 0.),
+                Rect::new(column.x + 20., column.y + 68., column.w - 40., 28.),
+                text(20.8, 400, 0.),
                 c(0xf5f5f5, 0.5),
                 false,
             );
@@ -4168,59 +4172,60 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
                 .as_ref()
                 .map_or(&[][..], |feed| feed.coaches(team))
         });
-        if !coaches.is_empty() {
-            let line = column.y + column.h - 40.;
-            out.shape(
-                Rect::new(column.x + 18., line - 10., column.w - 36., 1.),
-                0.,
-                c(0xffffff, 0.1),
-            );
-            let label = language.t("cs2Coach").to_uppercase();
-            let style = text(13.6, 650, 0.1);
+        // Coaches share the heading's line, as many as fit beside it, so the players get the height.
+        let label = language.t("cs2Coach").to_uppercase();
+        let label_style = text(15.2, 650, 0.1);
+        let label_w = assets.width(&label, label_style);
+        let names_style = text(20.8, 600, 0.);
+        let right = column.x + column.w - 20.;
+        let room = right - (heading_x + heading_w) - 24. - label_w - 12.;
+        let names = (1..=coaches.len())
+            .rev()
+            .map(|count| {
+                coaches[..count]
+                    .iter()
+                    .map(|coach| coach.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            })
+            .find(|names| assets.width(names, names_style) <= room);
+        if let Some(names) = names {
+            let names_w = assets.width(&names, names_style);
             out.text(
                 &label,
-                Rect::new(column.x + 18., line + 3., 160., 20.),
-                style,
+                Rect::new(
+                    right - names_w - 12. - label_w,
+                    column.y + 24.,
+                    label_w,
+                    20.,
+                ),
+                label_style,
                 c(0xf5f5f5, 0.5),
                 false,
             );
-            let names = coaches
-                .iter()
-                .map(|coach| coach.name.as_str())
-                .collect::<Vec<_>>()
-                .join(" · ");
             out.text(
                 names,
-                Rect::new(
-                    column.x + 30. + assets.width(&label, style),
-                    line,
-                    column.w - 60.,
-                    24.,
-                ),
-                text(17.6, 600, 0.),
+                Rect::new(right - names_w, column.y + 20., names_w, 28.),
+                names_style,
                 WHITE,
                 false,
             );
         }
+        // Five players sit roomy; a stand-in as the sixth tightens every row.
+        let top = column.y + 62.;
+        let pitch = (column.h - 62. - 12.) / players.len().clamp(5, 6) as f32;
         for (row, player) in players.iter().take(6).enumerate() {
-            let y = column.y + 58. + row as f32 * 32.;
+            let middle = top + (row as f32 + 0.5) * pitch;
+            let flag = Rect::new(column.x + 20., middle - 13.5, 36., 27.);
+            match crate::cs2_flags::code(&player.flag) {
+                Some(code) => out.image(assets.path(format!("flags/{code}.png")), flag, 4., false),
+                None => out.shape(flag, 4., c(0xffffff, 0.06)),
+            }
             out.text(
                 &player.name,
-                Rect::new(column.x + 18., y, column.w * 0.6, 26.),
-                text(19.2, 600, -0.01),
+                Rect::new(flag.x + flag.w + 14., middle - 16., column.w - 90., 32.),
+                text(25.6, 600, -0.01),
                 WHITE,
-                false,
-            );
-            out.text(
-                player.flag.to_uppercase(),
-                Rect::new(
-                    column.x + column.w * 0.55,
-                    y + 3.,
-                    column.w * 0.45 - 18.,
-                    22.,
-                ),
-                text(13.6, 600, 0.08).right(),
-                c(0xf5f5f5, 0.5),
                 false,
             );
         }

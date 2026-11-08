@@ -32,6 +32,9 @@
 - QR Code generator (`qrcodegen`): Project Nayuki, MIT; `assets/licenses/qrcodegen.txt`.
 - Local interface discovery (`if-addrs`): MaidSafe.net limited and messense, MIT;
   `assets/licenses/if-addrs.txt`.
+- Country flags in `assets/flags/`: the 4:3 set of [flag-icons](https://github.com/lipis/flag-icons)
+  7.6.0, MIT, notice at `assets/licenses/flag-icons.txt`. `tools/flag-assets.mjs` renders them to
+  the small PNGs beside player names on the CS2 match page.
 - `assets/ui-icons/upload.svg` and `assets/wallpaper-upload/`: original Luma artwork/UI, MIT.
 
 The bundled icon/logo SVG sources are compiled into derived `.lvec` triangles with the same

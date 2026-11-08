@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
+import { generateFlagAssets } from './flag-assets.mjs';
 import { generateVectorAssets } from './vector-assets.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -180,6 +181,7 @@ for (const [brand, [top, bottom]] of Object.entries(surfaces)) {
     .toFile(path.join(out, 'surfaces', `${brand}.png`));
 }
 await generateVectorAssets();
+await generateFlagAssets();
 await sharp(path.join(source, 'app-icon.svg'))
   .resize(80, 80)
   .png()

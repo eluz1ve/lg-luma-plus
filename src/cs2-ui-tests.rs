@@ -1,4 +1,5 @@
 use super::*;
+use crate::{renderer::TextStyle, state::Rect};
 
 fn with_feed(state: &mut State) {
     let feed = crate::cs2::parse_feed(&serde_json::json!({
@@ -138,7 +139,6 @@ fn cs2_cards_stand_above_the_favorites_and_open_their_match() {
         "13:9",
         "Vitality lineup",
         "ZywOo",
-        "FRANCE",
         "No lineup yet",
         "Upper bracket · Final",
         "COACH",
@@ -314,4 +314,153 @@ fn a_card_names_the_players_and_scores_each_map() {
     ] {
         assert!(text.iter().any(|t| t == expected), "{expected} in {text:?}");
     }
+}
+
+/// The page of a live match whose first team has these players and coaches.
+fn match_page(players: serde_json::Value, staff: serde_json::Value) -> view::Scene {
+    let mut state = ready();
+    state.preferences.show_cs2 = true;
+    state.preferences.cs2_today = false;
+    state.preferences.cs2_major_only = false;
+    let feed = crate::cs2::parse_feed(&serde_json::json!({
+        "updated": 0,
+        "staff": {"Team_A": staff},
+        "matches": [{
+            "id": "a", "begin_at": "1970-01-01T00:00:00Z", "state": "live", "best_of": 3,
+            "tournament": "IEM Chengdu",
+            "teams": [{"name": "Alpha", "short": "Alpha", "page": "Team_A"}, {"name": "Beta"}],
+            "maps": [], "lineups": [players, []]
+        }]
+    }))
+    .unwrap();
+    let (Some(command), _) = state.cs2.sync(true, true, 0) else {
+        panic!();
+    };
+    state.cs2.accept(command.id, Ok(feed), 0);
+    state.focus = Target::Cs2Match(0);
+    state.activate();
+    assert!(state.overlay.is_some());
+    scene(&state)
+}
+
+fn drawn(page: &view::Scene) -> Vec<(String, Rect, TextStyle)> {
+    page.draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::Text(text, rect, style, ..) => {
+                Some((text.clone(), *rect, *style))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn line(page: &view::Scene, wanted: &str) -> (Rect, TextStyle) {
+    drawn(page)
+        .into_iter()
+        // The page is drawn last, over a card that can carry the same words.
+        .rfind(|(text, ..)| text == wanted)
+        .map(|(_, rect, style)| (rect, style))
+        .unwrap_or_else(|| panic!("{wanted} in {:?}", drawn(page)))
+}
+
+fn flags(page: &view::Scene) -> Vec<(String, Rect)> {
+    page.draw
+        .iter()
+        .filter_map(|draw| match draw {
+            // A page that is still fading in tints its images.
+            crate::renderer::Draw::Image(path, rect, ..)
+            | crate::renderer::Draw::TintedImage(path, rect, ..)
+                if path.contains("flags/") =>
+            {
+                Some((path.clone(), *rect))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn players(names: &[&str]) -> serde_json::Value {
+    names
+        .iter()
+        .map(|name| serde_json::json!({"name": name, "flag": "France"}))
+        .collect()
+}
+
+#[test]
+fn a_players_flag_stands_left_of_the_name_instead_of_the_country() {
+    let page = match_page(players(&["ZywOo"]), serde_json::json!([]));
+    let flags = flags(&page);
+    assert_eq!(flags.len(), 1);
+    let (path, flag) = &flags[0];
+    assert!(path.ends_with("flags/fr.png"), "{path}");
+    let (name, _) = line(&page, "ZywOo");
+    assert!(flag.x + flag.w <= name.x);
+    assert!(flag.y < name.y + name.h && name.y < flag.y + flag.h);
+    assert!(!drawn(&page).iter().any(|(text, ..)| text == "FRANCE"));
+}
+
+#[test]
+fn a_player_without_a_flag_stays_in_line() {
+    let page = match_page(
+        serde_json::json!([
+            {"name": "ZywOo", "flag": "France"},
+            {"name": "ghost", "flag": "Atlantis"},
+            {"name": "nobody"}
+        ]),
+        serde_json::json!([]),
+    );
+    assert_eq!(flags(&page).len(), 1);
+    let x = line(&page, "ZywOo").0.x;
+    assert_eq!(line(&page, "ghost").0.x, x);
+    assert_eq!(line(&page, "nobody").0.x, x);
+}
+
+#[test]
+fn lineups_read_from_the_sofa() {
+    let page = match_page(
+        players(&["ZywOo"]),
+        serde_json::json!([{"name": "XTQZZZ", "role": "Head Coach"}]),
+    );
+    assert!(line(&page, "ZywOo").1.size >= 24.);
+    assert!(line(&page, "Alpha lineup").1.size >= 22.);
+    assert!(line(&page, "XTQZZZ").1.size >= 20.);
+}
+
+#[test]
+fn six_players_and_a_coach_fit_above_the_footer() {
+    let page = match_page(
+        players(&["p0", "p1", "p2", "p3", "p4", "p5"]),
+        serde_json::json!([{"name": "XTQZZZ", "role": "Head Coach"}]),
+    );
+    let footer = drawn(&page)
+        .into_iter()
+        .find(|(text, ..)| text.ends_with("CC BY-SA 3.0"))
+        .unwrap()
+        .1;
+    let first = line(&page, "p0").0;
+    let second = line(&page, "p1").0;
+    let last = line(&page, "p5").0;
+    assert!(second.y >= first.y + 30.);
+    assert!(last.y + last.h + 20. <= footer.y);
+    let coach = line(&page, "XTQZZZ").0;
+    assert!(coach.y + coach.h <= first.y);
+}
+
+#[test]
+fn coaches_who_would_run_into_the_heading_stay_off_the_line() {
+    let names: Vec<_> = (0..5)
+        .map(|i| serde_json::json!({"name": format!("LongCoachName{i}"), "role": "Coach"}))
+        .collect();
+    let page = match_page(players(&["ZywOo"]), serde_json::json!(names));
+    let text = drawn(&page);
+    let (shown, coach, _) = text
+        .iter()
+        .find(|(text, ..)| text.starts_with("LongCoachName0"))
+        .unwrap();
+    assert!(!shown.contains("LongCoachName4"), "{shown}");
+    let label = line(&page, "COACH").0;
+    assert!(label.x < coach.x);
+    let heading = line(&page, "Alpha lineup").0;
+    assert!(heading.x + heading.w <= label.x);
 }
