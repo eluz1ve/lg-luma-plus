@@ -459,6 +459,8 @@ pub struct State {
     pub weather: weather::Weather,
     pub crypto: crate::crypto::Crypto,
     pub cs2: crate::cs2::Scores,
+    /// Round scores and the open match's live file from the feeds server.
+    pub cs2_live: crate::cs2_live::LiveScores,
     /// The first of the CS2 Scores cards in view; Left and Right scroll through the rest.
     pub cs2_first: usize,
     pub shows: crate::shows::Shows,
@@ -537,6 +539,7 @@ impl State {
             weather: weather::Weather::default(),
             crypto: crate::crypto::Crypto::default(),
             cs2: crate::cs2::Scores::default(),
+            cs2_live: Default::default(),
             cs2_first: 0,
             shows: crate::shows::Shows::default(),
             cub: crate::cub::Cub::default(),

@@ -17,10 +17,10 @@ mod crypto;
 #[path = "crypto-service.rs"]
 mod crypto_service;
 mod cs2;
-#[path = "cs2-live.rs"]
-mod cs2_live;
 #[path = "cs2-flags.rs"]
 mod cs2_flags;
+#[path = "cs2-live.rs"]
+mod cs2_live;
 #[path = "cs2-service.rs"]
 mod cs2_service;
 #[path = "cs2-wash.rs"]
@@ -914,10 +914,27 @@ fn cs2_tick(state: &mut State, service: &cs2_service::Service, visible: bool) {
     if let Some(command) = command {
         service.send(command);
     }
+    let open = match &state.overlay {
+        Some(state::Overlay::Cs2Match { id, .. }) => Some(id.as_str()),
+        _ => None,
+    };
+    let open_is_live = open
+        .and_then(|id| state.cs2.find(id))
+        .is_some_and(|m| m.state == cs2::State::Live);
+    for command in state.cs2_live.sync(
+        state.preferences.show_cs2,
+        visible && state.page == state::Page::Home,
+        open,
+        open_is_live,
+        now,
+    ) {
+        service.live(command);
+    }
     while let Ok(response) = service.receiver.try_recv() {
         state.dirty |= match response {
             cs2_service::Response::Feed { id, result } => state.cs2.accept(id, result, now),
             cs2_service::Response::Logo { url, image } => state.cs2.accept_logo(url, image),
+            cs2_service::Response::Live(reply) => state.cs2_live.accept(reply, now),
         };
     }
     // Logos of the shown cards and of an open match.

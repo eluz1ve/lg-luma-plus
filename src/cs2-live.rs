@@ -346,6 +346,167 @@ pub fn parse_index(value: &Value) -> Result<(i64, HashMap<String, RoundScore>), 
     Ok((updated, matches))
 }
 
+/// Round scores for Home are asked for this often while Home shows the widget.
+pub const INDEX_SECONDS: i64 = 60;
+/// A failed request for them is tried again after this long.
+const INDEX_RETRY: i64 = 30;
+/// The open match is asked for this often.
+pub const DETAIL_SECONDS: i64 = 2;
+/// The open match's file counts as live this long after it last changed; the server rewrites
+/// it at least every 10 s.
+pub const DETAIL_MAX_AGE: i64 = 30;
+/// Round scores count this long after the index last changed; it is written every 30 s.
+pub const INDEX_MAX_AGE: i64 = 180;
+/// The largest live file read.
+pub const LIVE_LIMIT: usize = 128 * 1024;
+/// A TV clock this far from the server's is wrong; ages are then counted from arrival.
+const CLOCK_SKEW: i64 = 3600;
+
+pub enum LiveCommand {
+    Index { id: u64 },
+    Match { id: u64, match_id: String },
+}
+
+pub enum LiveReply {
+    Index {
+        id: u64,
+        result: Result<(i64, HashMap<String, RoundScore>), String>,
+    },
+    Match {
+        id: u64,
+        result: Result<Live, String>,
+    },
+}
+
+/// When data written at `updated` by the server's clock last changed, by the TV's clock.
+fn changed_at(updated: i64, now: i64) -> i64 {
+    let age = now - updated;
+    if age.abs() > CLOCK_SKEW {
+        now
+    } else {
+        now - age.max(0)
+    }
+}
+
+/// Only names the server writes as files reach a URL.
+fn file_name(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id != "index"
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+/// What the TV fetches from `cs2/live/`: the index of round scores while Home shows the
+/// widget, and the file of the match whose card is open while it is live.
+#[derive(Default)]
+pub struct LiveScores {
+    id: u64,
+    index: HashMap<String, RoundScore>,
+    index_updated: i64,
+    index_changed: Option<i64>,
+    index_pending: Option<u64>,
+    next_index: i64,
+    open: Option<String>,
+    detail: Option<Live>,
+    detail_changed: i64,
+    detail_pending: Option<u64>,
+    next_detail: i64,
+}
+impl LiveScores {
+    /// The requests now due.
+    pub fn sync(
+        &mut self,
+        enabled: bool,
+        home_visible: bool,
+        open: Option<&str>,
+        open_is_live: bool,
+        now: i64,
+    ) -> Vec<LiveCommand> {
+        let mut commands = Vec::new();
+        if !enabled || !home_visible {
+            self.index_pending = None;
+        } else if self.index_pending.is_none() && now >= self.next_index {
+            self.id += 1;
+            self.index_pending = Some(self.id);
+            commands.push(LiveCommand::Index { id: self.id });
+        }
+        let open = open.filter(|id| enabled && open_is_live && file_name(id));
+        if open != self.open.as_deref() {
+            self.open = open.map(str::to_owned);
+            self.detail = None;
+            self.detail_pending = None;
+            self.next_detail = 0;
+        }
+        if let Some(match_id) = &self.open
+            && self.detail_pending.is_none()
+            && now >= self.next_detail
+        {
+            self.id += 1;
+            self.detail_pending = Some(self.id);
+            commands.push(LiveCommand::Match {
+                id: self.id,
+                match_id: match_id.clone(),
+            });
+        }
+        commands
+    }
+    /// Takes the reply to a request in flight; others are ignored. Returns whether it was taken.
+    pub fn accept(&mut self, reply: LiveReply, now: i64) -> bool {
+        match reply {
+            LiveReply::Index { id, result } => {
+                if self.index_pending != Some(id) {
+                    return false;
+                }
+                self.index_pending = None;
+                match result {
+                    Ok((updated, matches)) => {
+                        if self.index_changed.is_none() || updated > self.index_updated {
+                            self.index_changed = Some(changed_at(updated, now));
+                        }
+                        self.index_updated = updated;
+                        self.index = matches;
+                        self.next_index = now + INDEX_SECONDS;
+                    }
+                    Err(_) => self.next_index = now + INDEX_RETRY,
+                }
+            }
+            LiveReply::Match { id, result } => {
+                if self.detail_pending != Some(id) {
+                    return false;
+                }
+                self.detail_pending = None;
+                self.next_detail = now + DETAIL_SECONDS;
+                if let Ok(live) = result {
+                    let moved = self
+                        .detail
+                        .as_ref()
+                        .is_none_or(|old| live.updated > old.updated);
+                    if moved {
+                        self.detail_changed = changed_at(live.updated, now);
+                    }
+                    self.detail = Some(live);
+                }
+            }
+        }
+        true
+    }
+    /// The round score of a match being played, while the index is fresh.
+    pub fn round(&self, id: &str, now: i64) -> Option<&RoundScore> {
+        let changed = self.index_changed?;
+        (now - changed <= INDEX_MAX_AGE).then(|| self.index.get(id))?
+    }
+    /// The open match's live file, while it is fresh.
+    pub fn detail(&self, id: &str, now: i64) -> Option<&Live> {
+        let live = self.detail.as_ref()?;
+        (self.open.as_deref() == Some(id)
+            && live.id == id
+            && now - self.detail_changed <= DETAIL_MAX_AGE)
+            .then_some(live)
+    }
+}
+
 #[cfg(test)]
 #[path = "cs2-live-tests.rs"]
 mod tests;

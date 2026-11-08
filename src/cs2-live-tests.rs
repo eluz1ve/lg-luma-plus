@@ -185,3 +185,216 @@ fn cs2_live_reads_the_index() {
     );
     assert!(parse_index(&json!({"matches": {}})).is_err());
 }
+
+const NOW: i64 = 1_794_171_823;
+
+fn index_at(updated: i64) -> (i64, HashMap<String, RoundScore>) {
+    let score = RoundScore {
+        map: "Anubis".into(),
+        round: 23,
+        score: [10, 12],
+    };
+    (updated, HashMap::from([("m1".to_owned(), score)]))
+}
+
+fn match_at(updated: i64) -> Live {
+    let mut live = parse_live(&live()).unwrap();
+    live.id = "m1".into();
+    live.updated = updated;
+    live
+}
+
+fn index_id(commands: &[LiveCommand]) -> Option<u64> {
+    commands.iter().find_map(|command| match command {
+        LiveCommand::Index { id } => Some(*id),
+        _ => None,
+    })
+}
+
+fn match_id(commands: &[LiveCommand]) -> Option<(u64, String)> {
+    commands.iter().find_map(|command| match command {
+        LiveCommand::Match { id, match_id } => Some((*id, match_id.clone())),
+        _ => None,
+    })
+}
+
+#[test]
+fn cs2_live_asks_for_the_index_once_a_minute_while_home_shows() {
+    let mut live = LiveScores::default();
+    assert!(live.sync(true, false, None, false, NOW).is_empty());
+    assert!(live.sync(false, true, None, false, NOW).is_empty());
+    let id = index_id(&live.sync(true, true, None, false, NOW)).unwrap();
+    assert!(
+        live.sync(true, true, None, false, NOW + 1).is_empty(),
+        "one request at a time"
+    );
+    assert!(live.accept(
+        LiveReply::Index {
+            id,
+            result: Ok(index_at(NOW))
+        },
+        NOW + 1
+    ));
+    assert!(live.sync(true, true, None, false, NOW + 30).is_empty());
+    assert!(index_id(&live.sync(true, true, None, false, NOW + 1 + INDEX_SECONDS)).is_some());
+}
+
+#[test]
+fn cs2_live_asks_for_the_open_live_match_every_two_seconds() {
+    let mut live = LiveScores::default();
+    let (id, wanted) = match_id(&live.sync(true, false, Some("m1"), true, NOW)).unwrap();
+    assert_eq!(wanted, "m1");
+    assert!(live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(match_at(NOW))
+        },
+        NOW
+    ));
+    assert!(match_id(&live.sync(true, false, Some("m1"), true, NOW + 1)).is_none());
+    assert!(match_id(&live.sync(true, false, Some("m1"), true, NOW + DETAIL_SECONDS)).is_some());
+}
+
+#[test]
+fn cs2_live_asks_nothing_for_a_closed_or_finished_match() {
+    let mut live = LiveScores::default();
+    assert!(match_id(&live.sync(true, false, None, false, NOW)).is_none());
+    assert!(match_id(&live.sync(true, false, Some("m1"), false, NOW)).is_none());
+    assert!(match_id(&live.sync(false, false, Some("m1"), true, NOW)).is_none());
+}
+
+#[test]
+fn cs2_live_ignores_a_reply_for_a_card_closed_since() {
+    let mut live = LiveScores::default();
+    let (old, _) = match_id(&live.sync(true, false, Some("m1"), true, NOW)).unwrap();
+    live.sync(true, false, None, false, NOW);
+    let (new, wanted) = match_id(&live.sync(true, false, Some("m2"), true, NOW)).unwrap();
+    assert_eq!(wanted, "m2");
+    assert!(!live.accept(
+        LiveReply::Match {
+            id: old,
+            result: Ok(match_at(NOW))
+        },
+        NOW
+    ));
+    assert!(live.detail("m1", NOW).is_none());
+    assert!(live.detail("m2", NOW).is_none());
+    let mut other = match_at(NOW);
+    other.id = "m2".into();
+    assert!(live.accept(
+        LiveReply::Match {
+            id: new,
+            result: Ok(other)
+        },
+        NOW
+    ));
+    assert!(live.detail("m2", NOW).is_some());
+}
+
+#[test]
+fn cs2_live_drops_an_open_match_older_than_thirty_seconds() {
+    let mut live = LiveScores::default();
+    let (id, _) = match_id(&live.sync(true, false, Some("m1"), true, NOW)).unwrap();
+    live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(match_at(NOW - 5)),
+        },
+        NOW,
+    );
+    assert!(live.detail("m1", NOW).is_some());
+    assert!(live.detail("m1", NOW - 5 + DETAIL_MAX_AGE).is_some());
+    assert!(live.detail("m1", NOW - 4 + DETAIL_MAX_AGE).is_none());
+    assert!(live.detail("m2", NOW).is_none());
+}
+
+#[test]
+fn cs2_live_judges_age_by_its_own_clock_when_the_tv_clock_is_off() {
+    let mut live = LiveScores::default();
+    let wrong = NOW + 5 * 3600;
+    let (id, _) = match_id(&live.sync(true, false, Some("m1"), true, wrong)).unwrap();
+    live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(match_at(NOW)),
+        },
+        wrong,
+    );
+    assert!(live.detail("m1", wrong + 10).is_some());
+    // The same file again: the scores have not moved for longer than the limit.
+    let (id, _) = match_id(&live.sync(true, false, Some("m1"), true, wrong + 20)).unwrap();
+    live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(match_at(NOW)),
+        },
+        wrong + 20,
+    );
+    assert!(live.detail("m1", wrong + DETAIL_MAX_AGE + 1).is_none());
+}
+
+#[test]
+fn cs2_live_drops_round_scores_older_than_three_minutes() {
+    let mut live = LiveScores::default();
+    let id = index_id(&live.sync(true, true, None, false, NOW)).unwrap();
+    live.accept(
+        LiveReply::Index {
+            id,
+            result: Ok(index_at(NOW)),
+        },
+        NOW,
+    );
+    assert_eq!(live.round("m1", NOW + INDEX_MAX_AGE).unwrap().round, 23);
+    assert!(live.round("m1", NOW + INDEX_MAX_AGE + 1).is_none());
+    assert!(live.round("m2", NOW).is_none());
+}
+
+#[test]
+fn cs2_live_keeps_the_last_data_when_a_request_fails() {
+    let mut live = LiveScores::default();
+    let id = index_id(&live.sync(true, true, None, false, NOW)).unwrap();
+    live.accept(
+        LiveReply::Index {
+            id,
+            result: Ok(index_at(NOW)),
+        },
+        NOW,
+    );
+    let id = index_id(&live.sync(true, true, None, false, NOW + INDEX_SECONDS)).unwrap();
+    live.accept(
+        LiveReply::Index {
+            id,
+            result: Err("down".into()),
+        },
+        NOW + INDEX_SECONDS,
+    );
+    assert!(live.round("m1", NOW + INDEX_SECONDS).is_some());
+    let (id, _) = match_id(&live.sync(true, false, Some("m1"), true, NOW)).unwrap();
+    live.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(match_at(NOW)),
+        },
+        NOW,
+    );
+    let (id, _) = match_id(&live.sync(true, false, Some("m1"), true, NOW + 2)).unwrap();
+    live.accept(
+        LiveReply::Match {
+            id,
+            result: Err("down".into()),
+        },
+        NOW + 2,
+    );
+    assert!(live.detail("m1", NOW + 2).is_some());
+}
+
+#[test]
+fn cs2_live_never_asks_for_an_id_that_is_not_a_file_name() {
+    let mut live = LiveScores::default();
+    for id in ["../index", "a/b", "", "index", "a b"] {
+        assert!(
+            match_id(&live.sync(true, false, Some(id), true, NOW)).is_none(),
+            "{id}"
+        );
+    }
+}

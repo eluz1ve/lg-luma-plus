@@ -1,6 +1,11 @@
 //! The CS2 Scores worker: one HTTP job at a time off the SDL thread, newest request wins.
 use crate::app_artwork::Artwork;
 use crate::cs2::{Command, Feed, image_allowed, parse_feed};
+use crate::cs2_live::{
+    LIVE_LIMIT, Live, LiveCommand, LiveReply, RoundScore, parse_index, parse_live,
+};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::{
     io::Read,
     net::SocketAddr,
@@ -19,11 +24,15 @@ const LOGO_LIMIT: usize = 1024 * 1024;
 const BACKDROP_WIDTH: u32 = 640;
 /// The feed from its own server.
 const FEEDS: [&str; 1] = ["https://luma.eluzive.dev/cs2/matches.json"];
+/// The live match files, from the same server only.
+const LIVE: &str = "https://luma.eluzive.dev/cs2/live/";
 
 #[derive(Clone)]
 pub struct Client {
     agent: ureq::Agent,
     urls: Vec<String>,
+    /// The folder of live match files, ending in "/".
+    live: String,
 }
 impl Client {
     pub fn new(test_server: Option<&str>) -> Result<Self, String> {
@@ -49,13 +58,17 @@ impl Client {
         } else {
             FEEDS.map(String::from).to_vec()
         };
+        let live = match &urls[..] {
+            [url] if test_server.is_some() => url.replace("matches.json", "live/"),
+            _ => LIVE.to_owned(),
+        };
         let agent = ureq::Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(8)))
             .max_redirects(0)
             .proxy(None)
             .build()
             .new_agent();
-        Ok(Self { agent, urls })
+        Ok(Self { agent, urls, live })
     }
     /// A logo or a map's screenshot from an allowed origin, decoded and scaled on this
     /// worker.
@@ -99,6 +112,37 @@ impl Client {
             });
         }
         Some(Arc::new(artwork))
+    }
+    /// Round scores of the matches being played.
+    pub fn live_index(&self) -> Result<(i64, HashMap<String, RoundScore>), String> {
+        parse_index(&self.json(&format!("{}index.json", self.live))?)
+    }
+    /// The live file of one match; `id` is a file name the scheduler checked.
+    pub fn live_match(&self, id: &str) -> Result<Live, String> {
+        parse_live(&self.json(&format!("{}{id}.json", self.live))?)
+    }
+    fn json(&self, url: &str) -> Result<Value, String> {
+        let mut response = self
+            .agent
+            .get(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "LumaNative")
+            .call()
+            .map_err(|_| "Live scores are unavailable.")?;
+        if !response.status().is_success() {
+            return Err("Live scores are unavailable.".into());
+        }
+        let mut bytes = Vec::new();
+        response
+            .body_mut()
+            .as_reader()
+            .take(LIVE_LIMIT as u64 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "The live scores could not be read")?;
+        if bytes.len() > LIVE_LIMIT {
+            return Err("The live scores are too large".into());
+        }
+        serde_json::from_slice(&bytes).map_err(|_| "The live scores are unreadable".into())
     }
     pub fn feed(&self) -> Result<Feed, String> {
         let mut failure = String::new();
@@ -171,11 +215,13 @@ pub enum Response {
         url: String,
         image: Option<Arc<Artwork>>,
     },
+    Live(LiveReply),
 }
 
 pub struct Service {
     sender: Option<mpsc::Sender<Command>>,
     logos: Option<mpsc::Sender<(String, bool)>>,
+    live: Option<mpsc::Sender<LiveCommand>>,
     generation: Arc<AtomicU64>,
     pub receiver: mpsc::Receiver<Response>,
 }
@@ -193,6 +239,41 @@ impl Service {
             for (url, backdrop) in wanted {
                 let image = logo_client.image(&url, backdrop);
                 if logo_responses.send(Response::Logo { url, image }).is_err() {
+                    break;
+                }
+            }
+        });
+        // Live files on a worker of their own: the open match every 2 s, the index for Home;
+        // of each kind only the newest waiting request runs.
+        let (live, live_jobs) = mpsc::channel::<LiveCommand>();
+        let live_client = client.clone();
+        let live_responses = responses.clone();
+        thread::spawn(move || {
+            while let Ok(first) = live_jobs.recv() {
+                let (mut index, mut detail) = (None, None);
+                for job in std::iter::once(first).chain(live_jobs.try_iter()) {
+                    match job {
+                        LiveCommand::Index { id } => index = Some(id),
+                        LiveCommand::Match { id, match_id } => detail = Some((id, match_id)),
+                    }
+                }
+                let mut replies = Vec::new();
+                if let Some((id, match_id)) = detail {
+                    replies.push(LiveReply::Match {
+                        id,
+                        result: live_client.live_match(&match_id),
+                    });
+                }
+                if let Some(id) = index {
+                    replies.push(LiveReply::Index {
+                        id,
+                        result: live_client.live_index(),
+                    });
+                }
+                if replies
+                    .into_iter()
+                    .any(|reply| live_responses.send(Response::Live(reply)).is_err())
+                {
                     break;
                 }
             }
@@ -219,6 +300,7 @@ impl Service {
         Self {
             sender: Some(sender),
             logos: Some(logos),
+            live: Some(live),
             generation,
             receiver,
         }
@@ -230,6 +312,11 @@ impl Service {
     pub fn image(&self, url: String, backdrop: bool) {
         if let Some(logos) = &self.logos {
             let _ = logos.send((url, backdrop));
+        }
+    }
+    pub fn live(&self, command: LiveCommand) {
+        if let Some(live) = &self.live {
+            let _ = live.send(command);
         }
     }
     pub fn send(&self, command: Command) {
@@ -244,6 +331,7 @@ impl Drop for Service {
         self.generation.store(u64::MAX, Ordering::SeqCst);
         self.sender.take();
         self.logos.take();
+        self.live.take();
     }
 }
 
@@ -307,6 +395,36 @@ mod tests {
     #[test]
     fn every_feed_failing_is_an_error() {
         assert!(client(vec![serve(REFUSED), NOBODY.into()]).feed().is_err());
+    }
+
+    const INDEX: &str = "HTTP/1.1 200 OK\r\nContent-Length: 69\r\nConnection: close\r\n\r\n\
+                         {\"updated\":9,\"matches\":{\"m1\":{\"map\":\"Nuke\",\"round\":4,\"score\":[1,2]}}}";
+    const MATCH: &str = "HTTP/1.1 200 OK\r\nContent-Length: 66\r\nConnection: close\r\n\r\n\
+                         {\"id\":\"m1\",\"updated\":9,\"score\":[1,2],\"sides\":[\"ct\",\"t\"],\"round\":4}";
+
+    /// A client whose live files come from `url`'s server.
+    fn live_client(url: String) -> Client {
+        let mut client = client(Vec::new());
+        client.live = url.trim_end_matches("matches.json").to_owned();
+        client
+    }
+
+    #[test]
+    fn cs2_live_files_come_from_the_live_folder() {
+        let (updated, matches) = live_client(serve(INDEX)).live_index().unwrap();
+        assert_eq!((updated, matches["m1"].round), (9, 4));
+        let live = live_client(serve(MATCH)).live_match("m1").unwrap();
+        assert_eq!((live.id.as_str(), live.score), ("m1", [1, 2]));
+        assert!(live_client(serve(REFUSED)).live_match("m1").is_err());
+        assert!(live_client(serve(UNREADABLE)).live_index().is_err());
+        assert_eq!(
+            Client::new(Some("http://127.0.0.1:1234")).unwrap().live,
+            "http://127.0.0.1:1234/luma-feeds/cs2/live/"
+        );
+        assert_eq!(
+            Client::new(None).unwrap().live,
+            "https://luma.eluzive.dev/cs2/live/"
+        );
     }
 
     #[test]
