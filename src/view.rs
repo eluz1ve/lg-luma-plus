@@ -4582,19 +4582,7 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         }
         None => out.shape(hero, 22., c(0xffffff, 0.04)),
     }
-    if live {
-        out.shape(hero, 22., c(0xe5484d, 0.12));
-    }
-    out.border(
-        hero,
-        22.,
-        1.,
-        if live {
-            c(0xff5a52, 0.32)
-        } else {
-            c(0xffffff, 0.06)
-        },
-    );
+    out.border(hero, 22., 1., c(0xffffff, 0.06));
     let middle = hero.x + hero.w / 2.;
     let name_room = hero.w / 2. - 140. - 24. - 72. - 18.;
     for side in 0..2 {
