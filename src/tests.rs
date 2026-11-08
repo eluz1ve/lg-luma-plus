@@ -2413,7 +2413,7 @@ fn interface_scale_is_chosen_like_input_visibility_and_stays_open() {
     let mut state = ready();
     state.open(2);
     state.direction(Direction::Right, &controls(&state));
-    for _ in 0..5 {
+    for _ in 0..6 {
         state.direction(Direction::Down, &controls(&state));
     }
     assert_eq!(
@@ -4575,4 +4575,20 @@ fn changes_belong_to_the_version_on_offer() {
     state.changes_response("9.1.0".into(), vec!["Listed".into()]);
     state.install_response(crate::update::Response::Finished(Ok(())));
     assert!(state.update_changes.is_empty());
+}
+
+#[test]
+fn favorites_can_follow_the_last_launch() {
+    let mut state = ready();
+    let before = state.preferences.favorites(&state.inventory.apps);
+    let last = before.last().unwrap().clone();
+    state.preferences.note_launch(&last, 100);
+    assert_eq!(state.preferences.favorites(&state.inventory.apps), before);
+    state.open(2);
+    state.focus = Target::Setting(crate::state::FAVORITES_RECENT_ROW);
+    assert!(controls(&state).iter().any(|c| c.target == state.focus));
+    assert_eq!(state.activate(), vec![Effect::Save]);
+    let after = state.preferences.favorites(&state.inventory.apps);
+    assert_eq!(after[0], last);
+    assert_eq!(&after[1..], &before[..before.len() - 1]);
 }

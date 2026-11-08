@@ -352,6 +352,13 @@ fn launch(state: &mut State, platform: &Platform, id: String, request: Request) 
     if state.launching {
         return;
     }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |time| time.as_secs());
+    state.preferences.note_launch(&id, now);
+    if state.preferences.favorites_recent {
+        state.dirty = true;
+    }
     if platform.webos {
         state.launching = true;
         state.notify(state.preferences.language.t("opening"));
@@ -401,15 +408,22 @@ fn effects(
                     platform.send(Request::Refresh);
                 }
             }
-            Effect::Launch(id) => launch(state, platform, id.clone(), Request::Launch(id, None)),
-            Effect::OpenCard { app, card } => launch(
-                state,
-                platform,
-                app.clone(),
-                Request::Launch(app, Some(card)),
-            ),
-            Effect::OpenContent { app, params } => {
-                launch(state, platform, app.clone(), Request::Open(app, params))
+            effect @ (Effect::Launch(_) | Effect::OpenCard { .. } | Effect::OpenContent { .. }) => {
+                let (id, request) = match effect {
+                    Effect::Launch(id) => (id.clone(), Request::Launch(id, None)),
+                    Effect::OpenCard { app, card } => {
+                        (app.clone(), Request::Launch(app, Some(card)))
+                    }
+                    Effect::OpenContent { app, params } => {
+                        (app.clone(), Request::Open(app, params))
+                    }
+                    _ => unreachable!(),
+                };
+                launch(state, platform, id, request);
+                // Kept for favorites ordered by last launch.
+                if let Err(error) = storage::save(preferences, &state.preferences) {
+                    eprintln!("{error}");
+                }
             }
             Effect::FireWebhook(tile) => webhook.send(tile),
             Effect::UpdateDownload(release) => updates.request(update::Request::Download(release)),

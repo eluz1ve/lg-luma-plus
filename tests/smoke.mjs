@@ -370,14 +370,14 @@ try {
   assert.ok(system.ui_text.includes('Quit app'));
   const scale = await scenario(
     'interface-scale',
-    'settings,enter,down,down,down,down,down,enter,down,down,enter',
+    'settings,enter,down,down,down,down,down,down,enter,down,down,enter',
   );
   assert.equal(scale.subpage, 'Appearance');
   assert.equal(scale.preferences.ui_scale, 'larger');
   assert.ok(scale.ui_text.includes('Extra large'));
   const scaleBack = await scenario(
     'interface-scale-back',
-    'settings,enter,down,down,down,down,down,enter,back',
+    'settings,enter,down,down,down,down,down,down,enter,back',
   );
   assert.deepEqual(scaleBack.focus, { Setting: 8 });
   // Later scenarios render at normal scale; keep everything else they rely on, like favorites.

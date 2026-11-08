@@ -453,6 +453,10 @@ pub struct Preferences {
     pub apps_today: bool,
     /// Apps whose cards the Apps widget leaves out (`app_cards.rs`).
     pub apps_off: Vec<String>,
+    /// Favorites ordered by when each was last opened from Luma, rather than by hand.
+    pub favorites_recent: bool,
+    /// When each app or input was last opened from Luma, in Unix seconds.
+    pub launched: BTreeMap<String, u64>,
     /// Liquipedia's tier 1 and 2 events only.
     #[serde(deserialize_with = "crate::cs2::deserialize_enabled")]
     pub cs2_major_only: bool,
@@ -520,6 +524,8 @@ impl Default for Preferences {
             show_apps: false,
             apps_today: true,
             apps_off: Vec::new(),
+            favorites_recent: false,
+            launched: BTreeMap::new(),
             cs2_major_only: true,
             cs2_results: true,
             input_modes: BTreeMap::new(),
@@ -610,6 +616,30 @@ impl Preferences {
     }
 
     pub fn favorites(&self, apps: &[App]) -> Vec<String> {
+        let mut ids = self.chosen_favorites(apps);
+        if self.favorites_recent {
+            // Stable: those never opened from Luma keep their order after the others.
+            ids.sort_by_key(|id| std::cmp::Reverse(self.launched.get(id).copied().unwrap_or(0)));
+        }
+        ids
+    }
+
+    /// Notes an app or input opened from Luma, for favorites ordered by last launch.
+    pub fn note_launch(&mut self, id: &str, now: u64) {
+        self.launched.insert(id.to_owned(), now);
+        if self.launched.len() > 200 {
+            let oldest = self
+                .launched
+                .iter()
+                .min_by_key(|(_, at)| **at)
+                .map(|(id, _)| id.clone());
+            if let Some(oldest) = oldest {
+                self.launched.remove(&oldest);
+            }
+        }
+    }
+
+    fn chosen_favorites(&self, apps: &[App]) -> Vec<String> {
         self.favorites.clone().unwrap_or_else(|| {
             let mut ids = Vec::new();
             for brand in [

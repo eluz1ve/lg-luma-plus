@@ -5487,6 +5487,38 @@
     "sv": "Färg på skenet runt det markerade kortet",
     "cs": "Barva záře kolem vybrané karty"
   },
+  "favoritesRecent": {
+    "en": "Favorites by last opened",
+    "de": "Favoriten nach letzter Nutzung",
+    "es": "Favoritos por último uso",
+    "zh": "收藏按最近打开排序",
+    "zh-tw": "最愛依最近開啟排序",
+    "pt": "Favoritos por último uso",
+    "it": "Preferiti per ultimo utilizzo",
+    "ru": "Избранное по последнему запуску",
+    "pl": "Ulubione według ostatniego użycia",
+    "fr": "Favoris par dernière ouverture",
+    "vi": "Mục yêu thích theo lần mở gần nhất",
+    "nl": "Favorieten op laatst geopend",
+    "sv": "Favoriter efter senast öppnad",
+    "cs": "Oblíbené podle posledního otevření"
+  },
+  "favoritesRecentAbout": {
+    "en": "The app you opened last comes first on Home",
+    "de": "Die zuletzt geöffnete App steht auf Home vorn",
+    "es": "La última app que abriste va primero en Inicio",
+    "zh": "最近打开的应用排在主页最前",
+    "zh-tw": "最近開啟的應用程式排在主畫面最前",
+    "pt": "O último app aberto aparece primeiro no Início",
+    "it": "L'ultima app aperta viene prima nella Home",
+    "ru": "Последнее открытое приложение — первым на главном экране",
+    "pl": "Ostatnio otwarta aplikacja jest pierwsza na ekranie głównym",
+    "fr": "La dernière app ouverte passe en premier sur l'accueil",
+    "vi": "Ứng dụng mở gần nhất đứng đầu ở Màn hình chính",
+    "nl": "De laatst geopende app staat vooraan op Home",
+    "sv": "Den senast öppnade appen kommer först på Hem",
+    "cs": "Naposledy otevřená aplikace je na Domů první"
+  },
   "uiScaleAbout": {
     "en": "Size of cards, text and icons",
     "de": "Größe von Karten, Text und Symbolen",

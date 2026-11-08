@@ -25,6 +25,8 @@ const TICKER_SPEED: f32 = 60.;
 const SAFE_TOP: f32 = 60.;
 /// Settings › General's focus glow colour row.
 pub const FOCUS_GLOW_ROW: usize = 14;
+/// Settings › General's favorites-by-last-launch row.
+pub const FAVORITES_RECENT_ROW: usize = 15;
 pub const SETTINGS_BOTTOM_PADDING: f32 = 64.;
 pub const SETTINGS_LIST_BOTTOM_PADDING: f32 = 48.;
 pub const APPS_COLUMNS: usize = 6;
@@ -3647,6 +3649,9 @@ impl State {
                     2 => self.preferences.reduced_motion = !self.preferences.reduced_motion,
                     FOCUS_GLOW_ROW => {
                         self.preferences.focus_glow = self.preferences.focus_glow.next()
+                    }
+                    FAVORITES_RECENT_ROW => {
+                        self.preferences.favorites_recent = !self.preferences.favorites_recent;
                     }
                     4 => {
                         self.subpage = Some(Subpage::Language);

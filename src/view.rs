@@ -6593,6 +6593,18 @@ fn settings_content(out: &mut Scene, state: &State, assets: &Assets) {
                     false,
                 ),
                 (
+                    crate::state::FAVORITES_RECENT_ROW,
+                    "favoritesRecent",
+                    "favoritesRecentAbout",
+                    "clock",
+                    Some(language.t(if state.preferences.favorites_recent {
+                        "stateOn"
+                    } else {
+                        "stateOff"
+                    })),
+                    false,
+                ),
+                (
                     crate::state::INTERFACE_SCALE_ROW,
                     "uiScale",
                     "uiScaleAbout",
