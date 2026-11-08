@@ -2395,7 +2395,11 @@ const TODAY_EYEBROW: f32 = 28.;
 const TODAY_LINE: f32 = 56.;
 
 /// The gap between two coins of the ticker, and the width over which it fades at its ends.
-const TICKER_GAP: f32 = 40.;
+const TICKER_GAP: f32 = 12.;
+/// A coin's dark plate, round its mark on the left and its change's pill on the right.
+const TICKER_PLATE_HEIGHT: f32 = 44.;
+const TICKER_PLATE_LEAD: f32 = 9.;
+const TICKER_PLATE_END: f32 = 4.;
 const TICKER_FADE: f32 = 32.;
 /// A coin's mark before its symbol on the ticker.
 const TICKER_MARK: f32 = 26.;
@@ -2437,12 +2441,15 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
                 })
                 .collect();
             let change = quote.map(|quote| (change_label(quote.change, 1), quote.change));
-            let width = TICKER_MARK
+            let width = TICKER_PLATE_LEAD
+                + TICKER_MARK
                 + inner_gap
                 + parts.iter().map(|part| part.2 + inner_gap).sum::<f32>()
-                + change.as_ref().map_or(-inner_gap, |(label, _)| {
-                    pill_width(assets, label, pill_style)
-                });
+                + change
+                    .as_ref()
+                    .map_or(TICKER_PLATE_LEAD - inner_gap, |(label, _)| {
+                        pill_width(assets, label, pill_style) + TICKER_PLATE_END
+                    });
             TickerCoin {
                 mark: crate::crypto::mark(symbol),
                 parts,
@@ -2486,14 +2493,25 @@ fn price_ticker(out: &mut Scene, state: &State, assets: &Assets, line: Rect) -> 
         let mut left = line.x - offset + lap as f32 * span;
         for coin in &coins {
             if left < right && left + coin.width > line.x {
+                out.shape(
+                    Rect::new(
+                        left,
+                        line.y + (line.h - TICKER_PLATE_HEIGHT) / 2. - 1.,
+                        coin.width,
+                        TICKER_PLATE_HEIGHT,
+                    ),
+                    TICKER_PLATE_HEIGHT / 2.,
+                    c(0x000000, 0.36),
+                );
                 let (mark, tint) = coin.mark;
+                let mark_x = left + TICKER_PLATE_LEAD;
                 out.icon(
                     assets,
                     mark,
-                    Rect::new(left, line.y + 14., TICKER_MARK, TICKER_MARK),
+                    Rect::new(mark_x, line.y + 14., TICKER_MARK, TICKER_MARK),
                     c(tint, 0.95),
                 );
-                let mut pen = left + TICKER_MARK + inner_gap;
+                let mut pen = mark_x + TICKER_MARK + inner_gap;
                 for (label, colour, part) in &coin.parts {
                     out.text(
                         label,

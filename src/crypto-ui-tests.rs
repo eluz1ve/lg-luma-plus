@@ -470,3 +470,48 @@ fn every_interface_icon_is_white_underneath_its_tint() {
         }
     }
 }
+
+/// Marks in their colours get lost on a light wallpaper's glass: each coin has a dark plate
+/// reaching from its mark to the end of its change, under all of them.
+#[test]
+fn each_coin_on_the_ticker_stands_on_a_dark_plate_around_all_it_says() {
+    use crate::renderer::Draw;
+    let drawn = scene(&priced(&["BTC", "ETH"]));
+    let dark: Vec<_> = drawn
+        .draw
+        .iter()
+        .enumerate()
+        .filter_map(|(at, draw)| match draw {
+            Draw::Shape(rect, _, _, color) if color[..3] == [0.; 3] && color[3] >= 0.25 => {
+                Some((at, *rect))
+            }
+            _ => None,
+        })
+        .collect();
+    for (mark, symbol) in [("coin-btc", "BTC"), ("coin-eth", "ETH")] {
+        let icon = icons_at(&drawn, mark)[0];
+        let name = text_at(&drawn, symbol).unwrap();
+        let pill = dark
+            .iter()
+            .map(|(_, rect)| *rect)
+            .filter(|rect| rect.x > name.x)
+            .min_by(|a, b| a.x.total_cmp(&b.x))
+            .unwrap();
+        let plate = dark.iter().find(|(_, rect)| {
+            rect.h < 56.
+                && rect.x < icon.x
+                && rect.x + rect.w >= pill.x + pill.w
+                && rect.y <= icon.y.min(pill.y)
+                && rect.y + rect.h >= (icon.y + icon.h).max(pill.y + pill.h)
+        });
+        let Some((at, _)) = plate else {
+            panic!("{symbol} has no plate around it");
+        };
+        let mark_at = drawn
+            .draw
+            .iter()
+            .position(|draw| matches!(draw, Draw::TintedImage(_, rect, ..) if rect.x == icon.x && rect.y == icon.y))
+            .unwrap();
+        assert!(*at < mark_at, "{symbol}'s plate is under its mark");
+    }
+}
