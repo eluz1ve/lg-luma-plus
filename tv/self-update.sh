@@ -22,7 +22,9 @@ esac
 umask 077
 [ ! -L "$STATE" ] || exit 1
 if [ ! -d "$STATE" ]; then mkdir -m 700 "$STATE" || exit 1; fi
-[ "$(stat -c '%u %a' "$STATE")" = '0 700' ] || exit 1
+[ "$(stat -c %u "$STATE")" = 0 ] || exit 1
+# luma-helper's Homebrew app updates create this directory too, with the default mode.
+chmod 700 "$STATE" || exit 1
 RESULT="$STATE/result.$ATTEMPT.json"
 OWN_LOCK=false
 publish() {

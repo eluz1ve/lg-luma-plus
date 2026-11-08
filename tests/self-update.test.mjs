@@ -17,6 +17,8 @@ function run({
   method = 'executable',
   homeId = 'com.webos.app.home',
   pretty = false,
+  stateMode = null,
+  stateOwner = 0,
 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luma-installer-'));
   const app = `${dir}/app`;
@@ -24,6 +26,10 @@ function run({
   const homeState = `${dir}/home`;
   const bin = `${dir}/bin`;
   for (const d of [app, homeState, bin]) fs.mkdirSync(d);
+  if (stateMode !== null) {
+    fs.mkdirSync(state);
+    fs.chmodSync(state, stateMode);
+  }
   const write = (file, contents) => fs.writeFileSync(file, contents, { mode: 0o755 });
   write(`${dir}/package.ipk`, 'test package');
   // tools/package.mjs and the native helper pretty-print; the saved stock manifest has its own
@@ -41,7 +47,7 @@ function run({
   write(`${bin}/id`, '#!/bin/sh\necho 0\n');
   // The installer must not need the TV's Node runtime.
   write(`${bin}/node`, '#!/bin/sh\nexit 127\n');
-  write(`${bin}/stat`, '#!/bin/sh\necho "0 700"\n');
+  write(`${bin}/stat`, `#!/bin/sh\necho ${stateOwner}\n`);
   write(`${bin}/sleep`, '#!/bin/sh\n/bin/sleep 0.01\n');
   write(
     `${bin}/luna-send`,
@@ -78,10 +84,13 @@ esac
       },
     );
     assert.equal(result.signal, null, result.stderr);
-    const status = JSON.parse(fs.readFileSync(`${state}/result.${attempt}.json`, 'utf8'));
-    assert.deepEqual(status, JSON.parse(fs.readFileSync(`${state}/result.json`, 'utf8')));
     const calls = fs.existsSync(`${dir}/calls`) ? fs.readFileSync(`${dir}/calls`, 'utf8') : '';
-    return { status, calls, exit: result.status };
+    const resultFile = `${state}/result.${attempt}.json`;
+    if (!fs.existsSync(resultFile)) return { status: null, calls, exit: result.status };
+    const status = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+    assert.deepEqual(status, JSON.parse(fs.readFileSync(`${state}/result.json`, 'utf8')));
+    const mode = fs.statSync(state).mode & 0o777;
+    return { status, calls, exit: result.status, mode };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -115,6 +124,19 @@ test('both Home methods refresh from the new package and fail visibly when reapp
     assert.equal(unrecovered.status.state, 'failed');
     assert.doesNotMatch(unrecovered.calls, /launch/);
   }
+});
+test('a state directory left with the default mode is made private, not a silent stop', () => {
+  // luma-helper's app updates create /var/lib/luma-update/apps, and with it this directory.
+  const result = run({ stateMode: 0o755 });
+  assert.equal(result.exit, 0);
+  assert.equal(result.status?.state, 'success');
+  assert.equal(result.mode, 0o700);
+});
+test('a state directory owned by someone else is never used', () => {
+  const result = run({ stateMode: 0o755, stateOwner: 1000 });
+  assert.equal(result.exit, 1);
+  assert.equal(result.status, null);
+  assert.doesNotMatch(result.calls, /dev\/install/);
 });
 test('a rejected launch is not reported as a successful update', () => {
   assert.equal(run({ launch: false }).status.state, 'failed');
