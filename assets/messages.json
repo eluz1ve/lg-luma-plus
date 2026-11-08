@@ -2127,6 +2127,22 @@
     "sv": "Rond {number}",
     "cs": "Kolo {number}"
   },
+  "cs2Watch": {
+    "zh-tw": "觀看",
+    "en": "Watch",
+    "de": "Ansehen",
+    "zh": "观看",
+    "es": "Ver",
+    "pt": "Assistir",
+    "it": "Guarda",
+    "ru": "Смотреть",
+    "pl": "Oglądaj",
+    "fr": "Regarder",
+    "vi": "Xem",
+    "nl": "Kijken",
+    "sv": "Titta",
+    "cs": "Sledovat"
+  },
   "location": {
     "zh-tw": "地點",
     "en": "Location",

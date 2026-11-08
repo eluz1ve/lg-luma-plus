@@ -398,3 +398,100 @@ fn cs2_live_never_asks_for_an_id_that_is_not_a_file_name() {
         );
     }
 }
+
+fn stream(platform: Platform, channel: &str, url: &str) -> Stream {
+    Stream {
+        platform,
+        channel: channel.into(),
+        name: channel.into(),
+        url: url.into(),
+        language: None,
+        viewers: 0,
+    }
+}
+
+#[test]
+fn a_twitch_stream_opens_its_channel_in_the_twitch_app() {
+    let twitch = stream(Platform::Twitch, "ESL_CSGO", "https://www.twitch.tv/eslcs");
+    assert_eq!(
+        launch_params(&twitch),
+        Some((
+            "twitch.adamffdev.v1",
+            serde_json::json!({"channel": "eslcs"})
+        ))
+    );
+}
+
+#[test]
+fn a_twitch_url_without_a_login_opens_nothing() {
+    for url in [
+        "https://www.twitch.tv/",
+        "https://www.twitch.tv/a/b?c",
+        "https://twitch.tv/x y",
+    ] {
+        assert_eq!(
+            launch_params(&stream(Platform::Twitch, "x", url)),
+            None,
+            "{url}"
+        );
+    }
+}
+
+#[test]
+fn a_youtube_stream_opens_its_video_in_the_youtube_app() {
+    let target = serde_json::json!({"contentTarget": "https://www.youtube.com/tv?v=jfKfPfyJRdk"});
+    for url in [
+        "https://www.youtube.com/watch?v=jfKfPfyJRdk",
+        "https://www.youtube.com/watch?feature=x&v=jfKfPfyJRdk",
+        "https://youtu.be/jfKfPfyJRdk",
+        "https://www.youtube.com/live/jfKfPfyJRdk?si=1",
+        "https://www.youtube.com/embed/jfKfPfyJRdk",
+    ] {
+        assert_eq!(
+            launch_params(&stream(Platform::Youtube, "x", url)),
+            Some(("youtube.leanback.v4", target.clone())),
+            "{url}"
+        );
+    }
+    for url in [
+        "https://www.youtube.com/@channel",
+        "https://www.youtube.com/watch?v=short",
+    ] {
+        assert_eq!(
+            launch_params(&stream(Platform::Youtube, "x", url)),
+            None,
+            "{url}"
+        );
+    }
+}
+
+#[test]
+fn kick_streams_open_nothing() {
+    let kick = stream(Platform::Kick, "x", "https://kick.com/x");
+    assert_eq!(launch_params(&kick), None);
+}
+
+#[test]
+fn the_open_match_keeps_its_streams_after_the_file_goes_stale() {
+    let mut scores = LiveScores::default();
+    let commands = scores.sync(true, false, Some("a"), true, 0);
+    let Some(LiveCommand::Match { id, .. }) = commands.into_iter().last() else {
+        panic!("the match is due");
+    };
+    let live = parse_live(&serde_json::json!({
+        "id": "a", "updated": 0, "map": "Inferno", "round": 1, "state": "started",
+        "score": [0, 0], "sides": ["ct", "t"], "players": [[], []], "log": [],
+        "streams": [{"platform": "twitch", "channel": "eslcs", "name": "ESL",
+            "url": "https://www.twitch.tv/eslcs", "language": "en", "viewers": 10}]
+    }))
+    .unwrap();
+    assert!(scores.accept(
+        LiveReply::Match {
+            id,
+            result: Ok(live)
+        },
+        0
+    ));
+    assert_eq!(scores.streams("a").len(), 1);
+    assert!(scores.streams("b").is_empty());
+}

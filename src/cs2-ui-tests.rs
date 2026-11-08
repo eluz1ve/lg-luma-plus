@@ -914,3 +914,124 @@ fn the_log_stops_at_the_bottom_of_its_place() {
         assert!(rect.y + rect.h <= area.y + area.h, "{rect:?}");
     }
 }
+
+/// Match "a" open with three streams: Twitch with the fewest viewers, YouTube, Twitch with the most.
+fn with_streams(apps: &[&str]) -> State {
+    let mut state = open_match();
+    // The demo TV has YouTube; each test says which stream apps it has.
+    state
+        .inventory
+        .apps
+        .retain(|app| !BOTH.contains(&app.id.as_str()));
+    for app in apps {
+        state
+            .inventory
+            .apps
+            .push(crate::model::App::new(app, "Streaming"));
+    }
+    with_detail(
+        &mut state,
+        serde_json::json!({"streams": [
+            {"platform": "twitch", "channel": "cct_ru", "name": "CCT RU", "url": "https://www.twitch.tv/cct_ru", "language": "ru", "viewers": 900},
+            {"platform": "youtube", "channel": "CCT Counter-Strike", "name": "CCT", "url": "https://www.youtube.com/watch?v=jfKfPfyJRdk", "language": "en", "viewers": 2000},
+            {"platform": "twitch", "channel": "CCT_CS2", "name": "CCT", "url": "https://www.twitch.tv/cct_cs2", "language": "en", "viewers": 5000},
+            {"platform": "kick", "channel": "cct_cs", "name": "CCT", "url": "https://kick.com/cct_cs", "language": "en", "viewers": 9000}
+        ]}),
+    );
+    state
+}
+
+const BOTH: [&str; 2] = ["twitch.adamffdev.v1", "youtube.leanback.v4"];
+
+fn chips(page: &view::Scene) -> Vec<Rect> {
+    page.controls
+        .iter()
+        .filter_map(|c| match c.target {
+            Target::Cs2Stream(_) => Some(c.rect),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_streams_line_up_by_viewers_under_the_title() {
+    let page = scene(&with_streams(&BOTH));
+    line(&page, "Watch");
+    let order: Vec<f32> = [
+        "Twitch · CCT_CS2",
+        "YouTube · CCT Counter-Strike",
+        "Twitch · cct_ru",
+    ]
+    .iter()
+    .map(|name| line(&page, name).0.x)
+    .collect();
+    assert!(order.windows(2).all(|w| w[0] < w[1]), "{order:?}");
+    assert_eq!(chips(&page).len(), 3, "no Kick chip");
+    let chip = chips(&page)[0];
+    assert!(
+        chip.y >= 60. + 110. && chip.y + chip.h <= 60. + 124. + 60.,
+        "{chip:?}"
+    );
+}
+
+#[test]
+fn a_stream_shows_only_with_its_app() {
+    let page = scene(&with_streams(&["youtube.leanback.v4"]));
+    assert_eq!(chips(&page).len(), 1);
+    line(&page, "YouTube · CCT Counter-Strike");
+    assert!(
+        !drawn(&page)
+            .iter()
+            .any(|(text, ..)| text.starts_with("Twitch"))
+    );
+}
+
+#[test]
+fn without_a_stream_app_the_header_stays_up() {
+    let without = scene(&with_streams(&[]));
+    assert!(chips(&without).is_empty());
+    assert!(!drawn(&without).iter().any(|(text, ..)| text == "Watch"));
+    let with = scene(&with_streams(&BOTH));
+    let team = |page: &view::Scene| line(page, "Team Vitality").0.y;
+    assert_eq!(team(&with) - team(&without), 60.);
+}
+
+#[test]
+fn the_streams_take_the_focus_between_close_and_the_card() {
+    let mut state = with_streams(&BOTH);
+    let controls = |state: &State| scene(state).controls;
+    assert_eq!(state.focus, Target::Cs2Close);
+    state.direction(Direction::Down, &controls(&state));
+    assert_eq!(state.focus, Target::Cs2Stream(0));
+    state.direction(Direction::Left, &controls(&state));
+    assert_eq!(state.focus, Target::Cs2Stream(0), "Left stops at the first");
+    state.direction(Direction::Right, &controls(&state));
+    state.direction(Direction::Right, &controls(&state));
+    state.direction(Direction::Right, &controls(&state));
+    assert_eq!(state.focus, Target::Cs2Stream(2), "Right stops at the last");
+    state.direction(Direction::Down, &controls(&state));
+    assert_eq!(state.focus, Target::Cs2Stream(2), "nothing to focus below");
+    state.direction(Direction::Up, &controls(&state));
+    assert_eq!(state.focus, Target::Cs2Close);
+}
+
+#[test]
+fn ok_on_a_stream_opens_it_in_its_app() {
+    let mut state = with_streams(&BOTH);
+    state.focus = Target::Cs2Stream(1);
+    assert_eq!(
+        state.activate(),
+        vec![Effect::OpenContent {
+            app: "youtube.leanback.v4".into(),
+            params: serde_json::json!({"contentTarget": "https://www.youtube.com/tv?v=jfKfPfyJRdk"}),
+        }]
+    );
+    state.focus = Target::Cs2Stream(0);
+    assert_eq!(
+        state.activate(),
+        vec![Effect::OpenContent {
+            app: "twitch.adamffdev.v1".into(),
+            params: serde_json::json!({"channel": "cct_cs2"}),
+        }]
+    );
+}

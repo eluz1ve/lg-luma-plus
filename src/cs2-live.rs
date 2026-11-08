@@ -400,6 +400,59 @@ fn file_name(id: &str) -> bool {
 
 /// What the TV fetches from `cs2/live/`: the index of round scores while Home shows the
 /// widget, and the file of the match whose card is open while it is live.
+/// The app that plays a stream on the TV and what to launch it with, found on the TV
+/// (2026-11-08). Kick has an app, but it does not play streams properly, so it gets nothing.
+pub fn launch_params(stream: &Stream) -> Option<(&'static str, Value)> {
+    let rest = stream.url.strip_prefix("https://")?;
+    let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
+    match stream.platform {
+        Platform::Twitch => {
+            if !matches!(host, "twitch.tv" | "www.twitch.tv" | "m.twitch.tv") {
+                return None;
+            }
+            let login = path
+                .split(['?', '#'])
+                .next()
+                .unwrap_or("")
+                .trim_end_matches('/');
+            let valid = (1..=25).contains(&login.len())
+                && login
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_');
+            valid.then(|| {
+                (
+                    "twitch.adamffdev.v1",
+                    serde_json::json!({"channel": login.to_ascii_lowercase()}),
+                )
+            })
+        }
+        Platform::Youtube => {
+            let (path, query) = path.split_once('?').unwrap_or((path, ""));
+            let id = match host {
+                "youtu.be" => Some(path),
+                "youtube.com" | "www.youtube.com" | "m.youtube.com" => match path {
+                    "watch" => query.split('&').find_map(|pair| pair.strip_prefix("v=")),
+                    _ => path
+                        .strip_prefix("live/")
+                        .or_else(|| path.strip_prefix("embed/")),
+                },
+                _ => None,
+            }?;
+            let valid = id.len() == 11
+                && id
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+            valid.then(|| {
+                (
+                    "youtube.leanback.v4",
+                    serde_json::json!({"contentTarget": format!("https://www.youtube.com/tv?v={id}")}),
+                )
+            })
+        }
+        Platform::Kick => None,
+    }
+}
+
 #[derive(Default)]
 pub struct LiveScores {
     id: u64,
@@ -504,6 +557,13 @@ impl LiveScores {
             && live.id == id
             && now - self.detail_changed <= DETAIL_MAX_AGE)
             .then_some(live)
+    }
+    /// The open match's streams as last read, however old: they change rarely.
+    pub fn streams(&self, id: &str) -> &[Stream] {
+        match &self.detail {
+            Some(live) if self.open.as_deref() == Some(id) && live.id == id => &live.streams,
+            _ => &[],
+        }
     }
 }
 

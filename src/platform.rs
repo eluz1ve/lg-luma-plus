@@ -172,6 +172,10 @@ pub fn redirect_to_home() -> Result<bool, String> {
     Ok(false)
 }
 
+/// Apps that read their launch params only when they start, so they are closed before
+/// being opened somewhere else: the webosbrew Twitch app (seen on the TV, 2026-11-08).
+const READS_PARAMS_AT_START: [&str; 1] = ["twitch.adamffdev.v1"];
+
 pub enum Request {
     Refresh,
     RefreshInputs,
@@ -365,6 +369,13 @@ impl Platform {
                     } else if !valid_app_id(&id) {
                         Err("Invalid application identifier".into())
                     } else {
+                        if READS_PARAMS_AT_START.contains(&id.as_str()) {
+                            // Not running is an error too, and both are fine.
+                            let _ = call(
+                                "luna://com.webos.applicationManager/closeByAppId",
+                                json!({"id": id}),
+                            );
+                        }
                         call(
                             "luna://com.webos.applicationManager/launch",
                             json!({"id": id, "params": params}),

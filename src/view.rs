@@ -4311,6 +4311,107 @@ fn cs2_logo(out: &mut Scene, state: &State, team: Option<&crate::cs2::Team>, rec
 }
 
 /// A CS2 Scores match in detail: the series, its maps and both lineups, live while it is open.
+/// "Watch" and a chip per stream, most watched first, as many as fit; false without any.
+fn cs2_streams_row(
+    out: &mut Scene,
+    state: &State,
+    assets: &Assets,
+    x: f32,
+    y: f32,
+    width: f32,
+) -> bool {
+    use crate::cs2_live::Platform;
+    let streams = state.cs2_streams();
+    if streams.is_empty() {
+        return false;
+    }
+    let label = state.preferences.language.t("cs2Watch");
+    let label_style = text(17.6, 550, 0.);
+    let mut left = x;
+    out.text(
+        label,
+        Rect::new(left, y + 10., 200., 24.),
+        label_style,
+        c(0xf5f5f5, 0.56),
+        false,
+    );
+    left += assets.width(label, label_style) + 16.;
+    let name_style = text(17.6, 550, 0.);
+    let tag_style = text(13.6, 600, 0.04);
+    for (index, (stream, ..)) in streams.iter().enumerate() {
+        let (platform, icon, tint) = match stream.platform {
+            Platform::Twitch => ("Twitch", "stream-twitch", 0xa970ff),
+            Platform::Youtube => ("YouTube", "stream-youtube", 0xff3b3b),
+            // Kick streams never get here: its TV app cannot play them (`launch_params`).
+            Platform::Kick => continue,
+        };
+        let name = format!("{platform} · {}", stream.channel);
+        let tag = stream.language.as_deref().map(str::to_uppercase);
+        let tag_width = tag
+            .as_ref()
+            .map_or(0., |tag| assets.width(tag, tag_style) + 12.);
+        let chip_width = 16.
+            + 20.
+            + 10.
+            + assets.width(&name, name_style).min(320.)
+            + tag.as_ref().map_or(0., |_| 10. + tag_width)
+            + 16.;
+        if left + chip_width > x + width {
+            break;
+        }
+        let chip = Rect::new(left, y, chip_width, 44.);
+        let focused = *state.page_focus() == Target::Cs2Stream(index) && !state.pointer;
+        out.shape(chip, 14., c(0xffffff, if focused { 0.96 } else { 0.1 }));
+        out.icon(
+            assets,
+            icon,
+            Rect::new(chip.x + 16., chip.y + 12., 20., 20.),
+            c(tint, 1.),
+        );
+        let ink = if focused {
+            c(0x1c1c1e, 1.)
+        } else {
+            c(0xf5f5f5, 0.92)
+        };
+        let name_x = chip.x + 46.;
+        let shown = assets.ellipsize(&name, name_style, 320.);
+        out.text(
+            &shown,
+            Rect::new(name_x, chip.y + 10., 320., 24.),
+            name_style,
+            ink,
+            false,
+        );
+        if let Some(tag) = tag {
+            let pill = Rect::new(
+                name_x + assets.width(&shown, name_style) + 10.,
+                chip.y + 12.,
+                tag_width,
+                20.,
+            );
+            out.shape(
+                pill,
+                5.,
+                if focused {
+                    c(0x1c1c1e, 0.12)
+                } else {
+                    c(0xffffff, 0.12)
+                },
+            );
+            out.text(
+                &tag,
+                Rect::new(pill.x + 6., pill.y + 2., tag_width, 17.),
+                tag_style,
+                ink,
+                false,
+            );
+        }
+        out.control(Target::Cs2Stream(index), chip, true);
+        left += chip_width + 10.;
+    }
+    true
+}
+
 fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: OffsetDateTime) {
     use crate::cs2::State as Phase;
     let language = state.preferences.language;
@@ -4392,8 +4493,12 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         false,
     );
 
+    // The match's streams that an app on the TV can play, then the hero under them.
+    let streams = cs2_streams_row(out, state, assets, x, panel.y + 120., inner);
+    let shift = if streams { 60. } else { 0. };
+
     // Hero: both teams around the series score, the maps under them in the same block.
-    let hero = Rect::new(x, panel.y + 124., inner, 236.);
+    let hero = Rect::new(x, panel.y + 124. + shift, inner, 236.);
     // The map being played (or the last one) behind the teams, darkened for the text.
     match item
         .featured_map()

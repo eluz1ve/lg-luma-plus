@@ -133,6 +133,8 @@ pub enum Target {
     Cs2Match(usize),
     /// The close button of a CS2 Scores match's dialog.
     Cs2Close,
+    /// A stream of the open CS2 match, by position in `State::cs2_streams`.
+    Cs2Stream(usize),
     /// Widgets › TV Shows: show the row.
     ShowsToggle,
     /// A show card in Home's TV Shows row, by position.
@@ -2151,6 +2153,47 @@ impl State {
         self.dirty = true;
     }
 
+    /// The open CS2 match's streams that an installed app can play, most watched first, each
+    /// with the app and what to launch it with.
+    pub fn cs2_streams(&self) -> Vec<(&crate::cs2_live::Stream, &'static str, serde_json::Value)> {
+        let Some(Overlay::Cs2Match { id, .. }) = &self.overlay else {
+            return vec![];
+        };
+        let mut streams: Vec<_> = self
+            .cs2_live
+            .streams(id)
+            .iter()
+            .filter_map(|stream| {
+                let (app, params) = crate::cs2_live::launch_params(stream)?;
+                self.inventory
+                    .apps
+                    .iter()
+                    .any(|installed| installed.id == app)
+                    .then_some((stream, app, params))
+            })
+            .collect();
+        streams.sort_by(|a, b| b.0.viewers.cmp(&a.0.viewers));
+        streams
+    }
+
+    /// In a CS2 match's dialog: Down from close reaches the first stream, Left and Right walk
+    /// the streams and stop at either end, Up goes back to close. None leaves it to the layout.
+    fn cs2_stream_direction(&self, direction: Direction) -> Option<Target> {
+        let count = self.cs2_streams().len();
+        match (&self.focus, direction) {
+            (Target::Cs2Close, Direction::Down) if count > 0 => Some(Target::Cs2Stream(0)),
+            (Target::Cs2Stream(_), Direction::Up) => Some(Target::Cs2Close),
+            (Target::Cs2Stream(index), Direction::Left) => {
+                Some(Target::Cs2Stream(index.saturating_sub(1)))
+            }
+            (Target::Cs2Stream(index), Direction::Right) => {
+                Some(Target::Cs2Stream((index + 1).min(count.saturating_sub(1))))
+            }
+            (Target::Cs2Stream(index), Direction::Down) => Some(Target::Cs2Stream(*index)),
+            _ => None,
+        }
+    }
+
     pub fn direction(&mut self, direction: Direction, controls: &[Control]) -> Vec<Effect> {
         self.pointer = false;
         self.dirty = true;
@@ -2215,6 +2258,12 @@ impl State {
             if let Some(control) = next.and_then(|index| lines.get(index)) {
                 self.focus(control.target.clone(), controls);
             }
+            return vec![];
+        }
+        if matches!(self.overlay, Some(Overlay::Cs2Match { .. }))
+            && let Some(next) = self.cs2_stream_direction(direction)
+        {
+            self.focus(next, controls);
             return vec![];
         }
         if let Some(id) = self.moving.clone() {
@@ -3375,6 +3424,14 @@ impl State {
                 self.panel_started = Some(Instant::now());
             }
             Target::Cs2Close => return self.back(),
+            Target::Cs2Stream(index) => {
+                if let Some((_, app, params)) = self.cs2_streams().into_iter().nth(index) {
+                    return vec![Effect::OpenContent {
+                        app: app.into(),
+                        params,
+                    }];
+                }
+            }
             Target::ShowsToggle => {
                 self.preferences.show_shows = !self.preferences.show_shows;
                 return vec![Effect::Save];
