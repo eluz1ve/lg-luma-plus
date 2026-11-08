@@ -937,6 +937,7 @@ fn cs2_tick(state: &mut State, service: &cs2_service::Service, visible: bool) {
             cs2_service::Response::Live(reply) => state.cs2_live.accept(reply, now),
         };
     }
+    state.cs2_fill_logos();
     // Logos of the shown cards and of an open match.
     if state.preferences.show_cs2 && visible {
         let mut ids: Vec<String> = state.cs2.feed.as_ref().map_or_else(Vec::new, |feed| {

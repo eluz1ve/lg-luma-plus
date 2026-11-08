@@ -142,6 +142,8 @@ pub struct RoundScore {
     pub map: String,
     pub round: u32,
     pub score: [u32; 2],
+    /// The feeds server's copies of HLTV's logos, for teams Liquipedia has none for.
+    pub logos: [Option<String>; 2],
 }
 
 fn text(value: &Value) -> String {
@@ -362,6 +364,14 @@ pub fn parse_index(value: &Value) -> Result<(i64, HashMap<String, RoundScore>), 
                     map,
                     round: number(&item["round"]),
                     score,
+                    logos: [0, 1].map(|team| {
+                        item["logos"][team]
+                            .as_str()
+                            .filter(|url| {
+                                url.starts_with("https://luma.eluzive.dev/img/") && url.len() <= 300
+                            })
+                            .map(str::to_owned)
+                    }),
                 },
             ))
         })
@@ -580,6 +590,13 @@ impl LiveScores {
             && live.id == id
             && now - self.detail_changed <= DETAIL_MAX_AGE)
             .then_some(live)
+    }
+    /// Each match's logos from the feeds server, however old the index: a logo does not change.
+    pub fn logos(&self) -> impl Iterator<Item = (&str, &[Option<String>; 2])> {
+        self.index
+            .iter()
+            .filter(|(_, score)| score.logos.iter().any(Option::is_some))
+            .map(|(id, score)| (id.as_str(), &score.logos))
     }
     /// The open match's maps as last read, however old.
     pub fn maps(&self, id: &str) -> &[LiveMap] {

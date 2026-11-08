@@ -1057,3 +1057,37 @@ fn hltv_maps_with_their_picks_stand_in_for_a_feed_without_them() {
     line(&page, "Round 24 · Pick: Vitality");
     line(&page, "Decider");
 }
+
+#[test]
+fn a_team_without_a_logo_takes_the_one_the_feeds_server_keeps() {
+    use crate::cs2_live::{LiveCommand, LiveReply, parse_index};
+    let mut state = live_card();
+    let kept = "https://luma.eluzive.dev/img/abc.png";
+    let theirs = Some("https://liquipedia.net/commons/images/vitality.png".to_owned());
+    let teams = &mut state.cs2.feed.as_mut().unwrap().matches[0].teams;
+    teams[0].as_mut().unwrap().logo = theirs.clone();
+    teams[1].as_mut().unwrap().logo = None;
+    let commands = state.cs2_live.sync(true, true, None, false, 0);
+    let Some(LiveCommand::Index { id }) = commands.into_iter().next() else {
+        panic!("the index is due");
+    };
+    let index = parse_index(&serde_json::json!({"updated": 0, "matches": {"a": {
+        "map": "Mirage", "round": 3, "score": [2, 0],
+        "logos": ["https://luma.eluzive.dev/img/other.png", kept]}}}))
+    .unwrap();
+    assert!(state.cs2_live.accept(
+        LiveReply::Index {
+            id,
+            result: Ok(index)
+        },
+        0
+    ));
+    state.cs2_fill_logos();
+    let teams = &state.cs2.find("a").unwrap().teams;
+    assert_eq!(
+        teams[0].as_ref().unwrap().logo,
+        theirs,
+        "Liquipedia's stays"
+    );
+    assert_eq!(teams[1].as_ref().unwrap().logo.as_deref(), Some(kept));
+}

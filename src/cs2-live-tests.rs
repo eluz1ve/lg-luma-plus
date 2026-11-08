@@ -180,7 +180,8 @@ fn cs2_live_reads_the_index() {
         RoundScore {
             map: "Mirage".into(),
             round: 24,
-            score: [10, 13]
+            score: [10, 13],
+            logos: [None, None],
         }
     );
     assert!(parse_index(&json!({"matches": {}})).is_err());
@@ -193,6 +194,7 @@ fn index_at(updated: i64) -> (i64, HashMap<String, RoundScore>) {
         map: "Anubis".into(),
         round: 23,
         score: [10, 12],
+        logos: [None, None],
     };
     (updated, HashMap::from([("m1".to_owned(), score)]))
 }
@@ -554,4 +556,21 @@ fn a_file_without_maps_reads() {
     }))
     .unwrap();
     assert!(live.maps.is_empty());
+}
+
+#[test]
+fn the_index_names_logos_only_on_the_feed_server() {
+    let (_, matches) = parse_index(&json!({
+        "updated": 1,
+        "matches": {"a": {"map": "Mirage", "round": 2, "score": [1, 0],
+            "logos": ["https://luma.eluzive.dev/img/abc.png", "https://img-cdn.hltv.org/teamlogo/x.png"]}}
+    }))
+    .unwrap();
+    assert_eq!(
+        matches["a"].logos,
+        [
+            Some("https://luma.eluzive.dev/img/abc.png".to_owned()),
+            None
+        ]
+    );
 }

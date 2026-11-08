@@ -2153,6 +2153,26 @@ impl State {
         self.dirty = true;
     }
 
+    /// Gives a team Liquipedia has no logo for the feeds server's copy of HLTV's, until
+    /// Liquipedia has one: the feed is replaced on each refresh, so this runs after each.
+    pub fn cs2_fill_logos(&mut self) {
+        let Some(feed) = self.cs2.feed.as_mut() else {
+            return;
+        };
+        for (id, logos) in self.cs2_live.logos() {
+            let Some(item) = feed.matches.iter_mut().find(|item| item.id == id) else {
+                continue;
+            };
+            for (team, logo) in item.teams.iter_mut().zip(logos) {
+                if let (Some(team), Some(logo)) = (team, logo)
+                    && team.logo.is_none()
+                {
+                    team.logo = Some(logo.clone());
+                }
+            }
+        }
+    }
+
     /// The open CS2 match's streams that an installed app can play, most watched first, each
     /// with the app and what to launch it with.
     pub fn cs2_streams(&self) -> Vec<(&crate::cs2_live::Stream, &'static str, serde_json::Value)> {
