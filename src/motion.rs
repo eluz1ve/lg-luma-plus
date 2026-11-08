@@ -67,6 +67,17 @@ pub enum Lane {
     Today,
 }
 
+impl Lane {
+    /// How close counts as there, in the lane's own unit: about a pixel.
+    fn settled_within(self) -> f32 {
+        match self {
+            // These two count whole cards rather than pixels.
+            Lane::Cs2 | Lane::Shows => 0.002,
+            _ => 0.5,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Motion {
     focus: BTreeMap<String, Spring>,
@@ -128,7 +139,7 @@ impl Motion {
             let spring = self.lanes.entry(lane).or_insert_with(|| Spring::at(target));
             spring.target = target;
             changed |= spring.moving();
-            spring.advance(dt, SCROLL_OMEGA, reduced, 0.5);
+            spring.advance(dt, SCROLL_OMEGA, reduced, lane.settled_within());
         }
         changed
     }
@@ -193,6 +204,24 @@ mod tests {
         assert!(!motion.animating());
         motion.advance(None, &[], 1. / 60., false);
         assert_eq!(motion.shown(Lane::Favorites, 50.), 50.);
+    }
+
+    #[test]
+    fn a_row_counted_in_cards_moves_like_one_counted_in_pixels() {
+        const PITCH: f32 = 240.;
+        let mut motion = Motion::default();
+        let start = [(Lane::Shows, 0.), (Lane::Favorites, 0.)];
+        motion.advance(None, &start, 1. / 60., false);
+        let step = [(Lane::Shows, 1.), (Lane::Favorites, PITCH)];
+        for frame in 0..60 {
+            motion.advance(None, &step, 1. / 60., false);
+            let cards = motion.shown(Lane::Shows, 1.) * PITCH;
+            let pixels = motion.shown(Lane::Favorites, PITCH);
+            assert!(
+                (cards - pixels).abs() <= 1.,
+                "frame {frame}: the cards are at {cards}px, the favorites at {pixels}px"
+            );
+        }
     }
 
     #[test]
