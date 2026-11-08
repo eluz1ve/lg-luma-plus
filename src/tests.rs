@@ -1127,8 +1127,16 @@ fn system_category_owns_refresh_and_quit_and_restores_sidebar_focus() {
     assert_eq!(state.activate(), vec![Effect::Save]);
     assert!(state.preferences.homebrew_updates);
     state.direction(Direction::Down, &controls(&state));
+    assert_eq!(
+        state.focus,
+        Target::Setting(crate::state::HOME_TAKEOVER_ROW)
+    );
+    // Closing the app comes last, past everything that keeps it running.
+    state.direction(Direction::Down, &controls(&state));
     assert_eq!(state.focus, Target::Setting(5));
     assert_eq!(state.activate(), vec![Effect::Quit]);
+    state.direction(Direction::Down, &controls(&state));
+    assert_eq!(state.focus, Target::Setting(5));
     state.back();
     assert_eq!(state.focus, Target::Sidebar(crate::state::SYSTEM_SECTION));
     state.direction(Direction::Down, &controls(&state));

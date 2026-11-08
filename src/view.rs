@@ -6241,14 +6241,6 @@ fn settings_content(out: &mut Scene, state: &State, assets: &Assets) {
                     false,
                 ),
                 (
-                    5,
-                    language.t("quitApp"),
-                    "quitAppAbout",
-                    "power",
-                    None,
-                    false,
-                ),
-                (
                     crate::state::HOME_TAKEOVER_ROW,
                     language.t("homeTakeover"),
                     "homeTakeoverAbout",
@@ -6259,6 +6251,14 @@ fn settings_content(out: &mut Scene, state: &State, assets: &Assets) {
                         "stateOff"
                     })),
                     true,
+                ),
+                (
+                    5,
+                    language.t("quitApp"),
+                    "quitAppAbout",
+                    "power",
+                    None,
+                    false,
                 ),
             ];
             let update = if state.available_update.is_some() {
