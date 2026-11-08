@@ -664,3 +664,140 @@ fn the_live_map_shows_its_rounds_in_the_sides_colours() {
     assert!(t[0] > t[2], "T is yellow: {t:?}");
     line(&page, "Round 24");
 }
+
+fn live_player(nick: &str, alive: bool) -> serde_json::Value {
+    serde_json::json!({"nick": nick, "alive": alive, "hp": if alive { 64 } else { 0 }, "money": 4150,
+        "kills": 18, "hs": 10, "assists": 3, "deaths": 16, "adr": 79.9, "kast": 60.9,
+        "entry": [0, 2], "weapon": "ak47"})
+}
+
+fn team_of(prefix: &str, count: usize) -> serde_json::Value {
+    serde_json::Value::Array(
+        (0..count)
+            .map(|i| live_player(&format!("{prefix}{i}"), i != 3))
+            .collect(),
+    )
+}
+
+/// Match "a" open with the feeds server's file: 23 rounds played.
+fn scoreboard_page(players: serde_json::Value) -> view::Scene {
+    let mut state = open_match();
+    let history: Vec<_> = (1..=23)
+        .map(|round| {
+            let kind = ["elimination", "bomb", "defuse", "time"][round as usize % 4];
+            serde_json::json!({"round": round, "winner": round % 2, "type": kind})
+        })
+        .collect();
+    with_detail(
+        &mut state,
+        serde_json::json!({"players": players, "history": history, "round": 24}),
+    );
+    scene(&state)
+}
+
+/// Where the scoreboard is drawn: the left part of the card under the header.
+fn scoreboard_area() -> Rect {
+    Rect::new(296. + 48., 60. + 360., 760., 540.)
+}
+
+fn inside(rect: Rect, area: Rect) -> bool {
+    rect.x >= area.x
+        && rect.x + rect.w <= area.x + area.w
+        && rect.y >= area.y
+        && rect.y + rect.h <= area.y + area.h
+}
+
+#[test]
+fn the_scoreboard_lists_both_teams_inside_its_place() {
+    let page = scoreboard_page(serde_json::json!([team_of("a", 5), team_of("b", 5)]));
+    for nick in ["a0", "a1", "a2", "a3", "a4", "b0", "b1", "b2", "b3", "b4"] {
+        let (rect, _) = line(&page, nick);
+        assert!(inside(rect, scoreboard_area()), "{nick}: {rect:?}");
+    }
+    line(&page, "18 (10)");
+    line(&page, "60.9%");
+    line(&page, "0:2");
+    line(&page, "79.9");
+    line(&page, "R: 24 · Inferno");
+}
+
+#[test]
+fn a_long_nick_stays_in_its_column() {
+    let page = scoreboard_page(serde_json::json!([
+        [live_player("Bukhavez_Bukhave", true)],
+        team_of("b", 5)
+    ]));
+    let (nick, _) = line(&page, "Bukhavez_Bukhave");
+    let money = drawn(&page)
+        .into_iter()
+        .filter(|(text, ..)| text == "4 150")
+        .map(|(_, rect, _)| rect)
+        .last()
+        .unwrap();
+    assert!(
+        nick.x + nick.w <= money.x - 70.,
+        "{nick:?} before HP and {money:?}"
+    );
+}
+
+#[test]
+fn four_players_keep_the_scoreboard_as_tall() {
+    let full = scoreboard_page(serde_json::json!([team_of("a", 5), team_of("b", 5)]));
+    let short = scoreboard_page(serde_json::json!([team_of("a", 4), team_of("b", 5)]));
+    let (full_b0, short_b0) = (line(&full, "b0").0, line(&short, "b0").0);
+    assert_eq!((full_b0.x, full_b0.y), (short_b0.x, short_b0.y));
+    assert!(!drawn(&short).iter().any(|(text, ..)| text == "a4"));
+}
+
+#[test]
+fn the_round_history_has_an_icon_a_round() {
+    let page = scoreboard_page(serde_json::json!([team_of("a", 5), team_of("b", 5)]));
+    let icons = page
+        .draw
+        .iter()
+        .filter(|draw| {
+            matches!(draw, crate::renderer::Draw::TintedImage(path, ..) if path.contains("ui-icons/cs-win-"))
+        })
+        .count();
+    assert_eq!(icons, 23);
+}
+
+#[test]
+fn without_a_live_file_the_card_keeps_its_lineups() {
+    let page = scene(&open_match());
+    line(&page, "ZywOo");
+    assert!(
+        !drawn(&page)
+            .iter()
+            .any(|(text, ..)| text.starts_with("R: "))
+    );
+}
+
+#[test]
+fn a_player_without_health_is_dimmed_even_when_hltv_calls_him_alive() {
+    let mut zero = live_player("zero", true);
+    zero["hp"] = serde_json::json!(0);
+    let page = scoreboard_page(serde_json::json!([
+        [live_player("full", true), zero],
+        team_of("b", 5)
+    ]));
+    let alpha = |nick: &str| {
+        page.draw
+            .iter()
+            .rev()
+            .find_map(|draw| match draw {
+                crate::renderer::Draw::Text(text, _, _, colour, _) if text == nick => {
+                    Some(colour[3])
+                }
+                _ => None,
+            })
+            .unwrap()
+    };
+    // The page may still be fading in, so compare the two.
+    assert!(
+        alpha("zero") < alpha("full") * 0.5,
+        "{} against {}",
+        alpha("zero"),
+        alpha("full")
+    );
+}

@@ -28,6 +28,8 @@ const MAIN_TOP: f32 = 108.8;
 const FACE_HEIGHT: f32 = 154.4;
 const RECENTS_BACKDROP_OPACITY: f32 = 0.86;
 
+#[path = "cs2-live-view.rs"]
+mod cs2_live_view;
 #[path = "recents-view.rs"]
 mod recents_view;
 
@@ -4521,6 +4523,20 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         now.unix_timestamp(),
     );
 
+    // While the feeds server has the match: its scoreboard; else the lineups.
+    if let Some(live) = state.cs2_live.detail(&item.id, now.unix_timestamp()) {
+        let top = hero.y + hero.h + 20.;
+        cs2_live_view::scoreboard(
+            out,
+            state,
+            assets,
+            live,
+            item,
+            Rect::new(x, top, 760., panel.y + 900. - top),
+        );
+        cs2_footer(out, state, x, inner, panel, now);
+        return;
+    }
     // Lineups, down to the footer.
     let lists_y = hero.y + hero.h + 24.;
     let column_w = (inner - 24.) / 2.;
@@ -4627,7 +4643,19 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
         }
     }
 
-    // Footer: where the data comes from.
+    cs2_footer(out, state, x, inner, panel, now);
+}
+
+/// Where a match card's data comes from, and when the feed was last rebuilt.
+fn cs2_footer(
+    out: &mut Scene,
+    state: &State,
+    x: f32,
+    inner: f32,
+    panel: Rect,
+    now: OffsetDateTime,
+) {
+    let language = state.preferences.language;
     out.text(
         format!("{} · CC BY-SA 3.0", language.t("cs2Credit")),
         Rect::new(x, panel.y + panel.h - 44., inner, 20.),
