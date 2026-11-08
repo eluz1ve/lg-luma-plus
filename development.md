@@ -932,7 +932,8 @@ size and SHA-256. It downloads into a private random directory and verifies both
 to `tv/self-update.sh`, detached through Homebrew Channel's root service into a systemd unit.
 The handoff escapes dollar signs for systemd as well as quoting for the
 exec service's shell, so systemd cannot expand the embedded script before `/bin/sh` runs it.
-The installer locks, stages and re-verifies a root-owned copy, waits for installation completion and
+The installer locks, stages and re-verifies a root-owned copy, removes the download (and download
+directories over an hour old, which earlier runs left), waits for installation completion and
 checks the installed version before reopening Luma. Home takeover refreshes from the new package;
 failed reapplication attempts verified LG Home recovery. Atomic attempt-specific results and a log
 persist in `/var/lib/luma-update`. The card displays progress, ignores repeated presses while busy,

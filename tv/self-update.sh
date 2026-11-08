@@ -55,6 +55,17 @@ publish starting 'Preparing the verified package.'
 cp "$IPK" "$WORK/package.ipk" || fail 'Cannot stage the downloaded package.'
 IPK="$WORK/package.ipk"
 [ "$(sha256sum "$IPK" | cut -d' ' -f1)" = "$SHA" ] || fail 'Package checksum mismatch.'
+# Installing can end Luma before it removes its download, so drop it here and sweep what earlier
+# runs left. A directory under an hour old may be a Homebrew app update still in progress.
+discard() {
+  name=${1##*/luma-update-}
+  case "$name" in ''|*[!0-9a-f]*) return ;; esac
+  [ ${#name} = 32 ] && [ -d "$1" ] && [ ! -L "$1" ] || return
+  rm -f "$1/package.ipk"
+  rmdir "$1" 2>/dev/null
+}
+discard "/tmp/luma-update-$ATTEMPT"
+for old in $(find /tmp -maxdepth 1 -name 'luma-update-*' -mmin +60 2>/dev/null); do discard "$old"; done
 publish installing 'Installing Luma.'
 log "installing $VERSION"
 OUT="$WORK/install"

@@ -19,6 +19,7 @@ function run({
   pretty = false,
   stateMode = null,
   stateOwner = 0,
+  fixtures = () => {},
 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luma-installer-'));
   const app = `${dir}/app`;
@@ -31,7 +32,14 @@ function run({
     fs.chmodSync(state, stateMode);
   }
   const write = (file, contents) => fs.writeFileSync(file, contents, { mode: 0o755 });
-  write(`${dir}/package.ipk`, 'test package');
+  const attempt = 'a'.repeat(32);
+  const download = (name) => {
+    fs.mkdirSync(`${dir}/${name}`);
+    write(`${dir}/${name}/package.ipk`, 'test package');
+    return `${dir}/${name}`;
+  };
+  download(`luma-update-${attempt}`);
+  fixtures({ dir, download });
   // tools/package.mjs and the native helper pretty-print; the saved stock manifest has its own
   // "version" and "id", which must not be mistaken for Luma's version or the Home target.
   const json = (value) => (pretty ? `${JSON.stringify(value, null, 2)}\n` : JSON.stringify(value));
@@ -69,14 +77,15 @@ esac
     .replaceAll('/var/lib/luma-home', homeState)
     .replaceAll('/media/developer/apps/usr/palm/applications/com.eluz1ve.lumaplus', app)
     .replaceAll('/proc/mounts', `${dir}/mounts`)
-    .replaceAll('/var/run/luma-home', `${dir}/marker`);
+    .replaceAll('/var/run/luma-home', `${dir}/marker`)
+    .replaceAll('/tmp/luma-update-', `${dir}/luma-update-`)
+    .replaceAll('find /tmp ', `find ${dir} `);
   write(`${dir}/installer.sh`, script);
-  const attempt = 'a'.repeat(32);
   const sha = checksum ? createHash('sha256').update('test package').digest('hex') : '0'.repeat(64);
   try {
     const result = spawnSync(
       '/bin/sh',
-      [`${dir}/installer.sh`, `${dir}/package.ipk`, sha, '9.0.0', app, attempt],
+      [`${dir}/installer.sh`, `${dir}/luma-update-${attempt}/package.ipk`, sha, '9.0.0', app, attempt],
       {
         env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
         encoding: 'utf8',
@@ -86,11 +95,12 @@ esac
     assert.equal(result.signal, null, result.stderr);
     const calls = fs.existsSync(`${dir}/calls`) ? fs.readFileSync(`${dir}/calls`, 'utf8') : '';
     const resultFile = `${state}/result.${attempt}.json`;
-    if (!fs.existsSync(resultFile)) return { status: null, calls, exit: result.status };
+    const downloads = fs.readdirSync(dir).filter((name) => name.startsWith('luma-update-'));
+    if (!fs.existsSync(resultFile)) return { status: null, calls, exit: result.status, downloads };
     const status = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
     assert.deepEqual(status, JSON.parse(fs.readFileSync(`${state}/result.json`, 'utf8')));
     const mode = fs.statSync(state).mode & 0o777;
-    return { status, calls, exit: result.status, mode };
+    return { status, calls, exit: result.status, mode, downloads };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -137,6 +147,36 @@ test('a state directory owned by someone else is never used', () => {
   assert.equal(result.exit, 1);
   assert.equal(result.status, null);
   assert.doesNotMatch(result.calls, /dev\/install/);
+});
+test('the downloaded package does not outlive its verified copy', () => {
+  // Installing can end Luma before it removes the download itself.
+  const result = run();
+  assert.equal(result.status.state, 'success');
+  assert.deepEqual(result.downloads, []);
+});
+test('a package that failed its checksum stays for Luma to report and remove', () => {
+  const result = run({ checksum: false });
+  assert.deepEqual(result.downloads, [`luma-update-${'a'.repeat(32)}`]);
+});
+test('only abandoned download directories are swept', () => {
+  const hours = new Date(Date.now() - 2 * 3600 * 1000);
+  const recent = `luma-update-${'c'.repeat(32)}`;
+  const link = `luma-update-${'d'.repeat(32)}`;
+  let kept;
+  const result = run({
+    fixtures: ({ dir, download }) => {
+      fs.utimesSync(download(`luma-update-${'b'.repeat(32)}`), hours, hours);
+      fs.utimesSync(download('luma-update-notours'), hours, hours);
+      download(recent);
+      kept = `${dir}/target/package.ipk`;
+      fs.mkdirSync(`${dir}/target`);
+      fs.writeFileSync(kept, 'someone else');
+      fs.symlinkSync(`${dir}/target`, `${dir}/${link}`);
+      fs.lutimesSync(`${dir}/${link}`, hours, hours);
+    },
+  });
+  assert.equal(result.status.state, 'success');
+  assert.deepEqual(result.downloads.sort(), [recent, link, 'luma-update-notours'].sort());
 });
 test('a rejected launch is not reported as a successful update', () => {
   assert.equal(run({ launch: false }).status.state, 'failed');
