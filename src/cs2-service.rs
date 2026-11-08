@@ -17,16 +17,20 @@ const LIMIT: usize = 256 * 1024;
 const LOGO_LIMIT: usize = 1024 * 1024;
 /// Map screenshots stand behind text, so they keep more width than a logo.
 const BACKDROP_WIDTH: u32 = 640;
-const FEED: &str = "https://eluz1ve.github.io/luma-feeds/cs2/matches.json";
+/// The feed from its own server, then the copy on GitHub Pages for when that fails.
+const FEEDS: [&str; 2] = [
+    "https://luma.eluzive.dev/cs2/matches.json",
+    "https://eluz1ve.github.io/luma-feeds/cs2/matches.json",
+];
 
 #[derive(Clone)]
 pub struct Client {
     agent: ureq::Agent,
-    url: String,
+    urls: Vec<String>,
 }
 impl Client {
     pub fn new(test_server: Option<&str>) -> Result<Self, String> {
-        let url = if let Some(server) = test_server {
+        let urls = if let Some(server) = test_server {
             let uri: ureq::http::Uri = server
                 .parse()
                 .map_err(|e| format!("Invalid CS2 test server: {e}"))?;
@@ -44,9 +48,9 @@ impl Client {
             {
                 return Err("CS2 test server must be an HTTP loopback origin".into());
             }
-            format!("http://{address}/luma-feeds/cs2/matches.json")
+            vec![format!("http://{address}/luma-feeds/cs2/matches.json")]
         } else {
-            FEED.into()
+            FEEDS.map(String::from).to_vec()
         };
         let agent = ureq::Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(8)))
@@ -54,7 +58,7 @@ impl Client {
             .proxy(None)
             .build()
             .new_agent();
-        Ok(Self { agent, url })
+        Ok(Self { agent, urls })
     }
     /// A logo or a map's screenshot from Liquipedia's commons, decoded and scaled on this
     /// worker.
@@ -90,9 +94,19 @@ impl Client {
         Some(Arc::new(artwork))
     }
     pub fn feed(&self) -> Result<Feed, String> {
+        let mut failure = String::new();
+        for url in &self.urls {
+            match self.fetch(url) {
+                Ok(feed) => return Ok(feed),
+                Err(error) => failure = error,
+            }
+        }
+        Err(failure)
+    }
+    fn fetch(&self, url: &str) -> Result<Feed, String> {
         let mut response = self
             .agent
-            .get(&self.url)
+            .get(url)
             .header("Accept", "application/json")
             .header("User-Agent", "LumaNative")
             .call()
@@ -228,6 +242,65 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use std::net::TcpListener;
+
+    const GOOD: &str = "HTTP/1.1 200 OK\r\nContent-Length: 26\r\nConnection: close\r\n\r\n\
+                        {\"updated\":7,\"matches\":[]}";
+    const REFUSED: &str =
+        "HTTP/1.1 525 SSL handshake failed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+    const UNREADABLE: &str =
+        "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nnope";
+    const NOBODY: &str = "http://127.0.0.1:1/matches.json";
+
+    /// A loopback server that answers one request with `response`.
+    fn serve(response: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0; 2048];
+            let _ = stream.read(&mut request);
+            let _ = stream.write_all(response.as_bytes());
+        });
+        format!("http://{address}/matches.json")
+    }
+
+    fn client(urls: Vec<String>) -> Client {
+        let mut client = Client::new(Some("http://127.0.0.1:1")).unwrap();
+        client.urls = urls;
+        client
+    }
+
+    #[test]
+    fn the_first_feed_is_used_when_it_answers() {
+        let feed = client(vec![serve(GOOD), NOBODY.into()]).feed().unwrap();
+        assert_eq!(feed.updated, 7);
+    }
+
+    #[test]
+    fn a_feed_the_server_refuses_falls_back_to_the_next() {
+        let feed = client(vec![serve(REFUSED), serve(GOOD)]).feed().unwrap();
+        assert_eq!(feed.updated, 7);
+    }
+
+    #[test]
+    fn an_unreachable_feed_falls_back_to_the_next() {
+        let feed = client(vec![NOBODY.into(), serve(GOOD)]).feed().unwrap();
+        assert_eq!(feed.updated, 7);
+    }
+
+    #[test]
+    fn an_unreadable_feed_falls_back_to_the_next() {
+        let feed = client(vec![serve(UNREADABLE), serve(GOOD)]).feed().unwrap();
+        assert_eq!(feed.updated, 7);
+    }
+
+    #[test]
+    fn every_feed_failing_is_an_error() {
+        assert!(client(vec![serve(REFUSED), NOBODY.into()]).feed().is_err());
+    }
+
     #[test]
     fn mock_origins_are_loopback_only() {
         assert!(Client::new(Some("http://127.0.0.1:1234")).is_ok());
