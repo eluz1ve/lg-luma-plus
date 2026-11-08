@@ -351,6 +351,15 @@ fn icon_piece(name: String, height: f32) -> Option<Piece> {
 /// The game log in `rect`: one pill an event, newest on top, as many as fit.
 pub(super) fn game_log(out: &mut Scene, state: &State, assets: &Assets, live: &Live, rect: Rect) {
     let language = state.preferences.language;
+    // The same panel as the scoreboard beside it, so both start and end level.
+    out.shape(rect, 18., c(0x1a1d24, 0.82));
+    out.border(rect, 18., 1., c(0x333845, 1.));
+    let rect = Rect::new(
+        rect.x + PAD,
+        rect.y + PAD,
+        rect.w - PAD * 2.,
+        rect.h - PAD * 2.,
+    );
     let mut y = rect.y;
     // Events are newest first; a round's start ends the events of the round before it.
     let mut round = live.round.max(1);
