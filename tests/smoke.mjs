@@ -88,7 +88,8 @@ try {
   assert.ok(!recents.ui_text.includes('Netflix'));
   assert.ok(!recents.ui_text.includes('YouTube'));
   assert.ok(!recents.ui_text.includes('1 / 8'));
-  assert.ok(!recents.ui_text.includes('Close all'));
+  // The switcher's one label: the Close all control.
+  assert.deepEqual(recents.ui_text, ['Close all']);
   assert.ok(
     !recents.ui_text.some((value) => value.includes('Switch') && value.includes('Close app')),
   );
@@ -130,27 +131,24 @@ try {
   assert.deepEqual(recentHomeBack.focus, { Recent: 'netflix' });
   const recentYoutube = await scenario('recents-youtube', 'recents,await-recents,right');
   assert.deepEqual(recentYoutube.focus, { Recent: 'youtube.leanback.v4' });
-  const appOptions = await scenario('app-options', 'apps,down,enter');
+  const appOptions = await scenario('app-options', 'apps,enter');
   assert.deepEqual(appOptions.focus, 'OpenApp');
   assert.ok(appOptions.ui_text.includes('Delete app'));
-  const deleteFocused = await scenario('delete-focused', 'apps,down,enter,down,down,down');
+  const deleteFocused = await scenario('delete-focused', 'apps,enter,down,down,down');
   assert.deepEqual(deleteFocused.focus, { Option: 2 });
-  const deleteConfirm = await scenario('delete-confirm', 'apps,down,enter,down,down,down,enter');
+  const deleteConfirm = await scenario('delete-confirm', 'apps,enter,down,down,down,enter');
   assert.deepEqual(deleteConfirm.focus, 'CancelDelete');
   assert.ok(deleteConfirm.ui_text.some((value) => value.includes('uninstall “Netflix”')));
-  const deleteCancel = await scenario(
-    'delete-cancel',
-    'apps,down,enter,down,down,down,enter,enter',
-  );
+  const deleteCancel = await scenario('delete-cancel', 'apps,enter,down,down,down,enter,enter');
   assert.deepEqual(deleteCancel.focus, { Option: 2 });
   assert.ok(deleteCancel.apps.includes('netflix'));
-  const hidden = await scenario('apps', 'apps,down,enter,down,down,enter');
+  const hidden = await scenario('apps', 'apps,enter,down,down,enter');
   assert.ok(hidden.preferences.hidden.includes('netflix'));
   assert.deepEqual(hidden.focus, { App: 'youtube.leanback.v4' });
   // Reload from disk, find Netflix in Hidden, and restore it.
   const restored = await scenario(
     'restored',
-    'apps,down,up,right,right,right,right,enter,down,enter,down,down,enter',
+    'apps,up,right,right,right,right,right,enter,down,enter,down,down,enter',
   );
   assert.deepEqual(restored.preferences.hidden, []);
   const searched = await scenario('search', 'apps,type:YouTube,back');
@@ -167,14 +165,14 @@ try {
     assert.deepEqual(koreanApp.apps, [id]);
     assert.ok(koreanApp.ui_text.includes(title));
   }
-  const settings = await scenario('settings', 'settings,down,down,enter,down,enter,enter');
+  const settings = await scenario('settings', 'settings,down,enter,down,left,enter,enter');
   assert.equal(settings.preferences.background, 'forest');
-  const saved = await scenario('saved', 'down,hold,right,back');
+  const saved = await scenario('saved', 'down,hold,down,enter,right,back');
   assert.equal(saved.preferences.background, 'forest');
   assert.deepEqual(saved.preferences.favorites.slice(0, 2), ['youtube.leanback.v4', 'netflix']);
   const upload = await scenario(
     'wallpaper-upload',
-    'settings,down,down,enter,up,up,up,enter,await-upload',
+    'settings,down,enter,down,down,enter,await-upload',
   );
   assert.equal(upload.modal, true);
   assert.equal(upload.focus, 'CloseDialog');
@@ -189,7 +187,7 @@ try {
   );
   const uploadClosed = await scenario(
     'wallpaper-upload-closed',
-    'settings,down,down,enter,up,up,up,enter,await-upload,back',
+    'settings,down,enter,down,down,enter,await-upload,back',
   );
   assert.equal(uploadClosed.modal, false);
   assert.equal(uploadClosed.focus, 'UploadWallpaper');
@@ -203,7 +201,7 @@ try {
     .jpeg()
     .toFile(path.join(customDirectory, 'thumbnail.jpg'));
   await fs.writeFile(path.join(customDirectory, 'metadata.json'), JSON.stringify({ id: customId }));
-  const custom = await scenario('wallpaper-custom', 'settings,down,down,enter,down,enter,enter');
+  const custom = await scenario('wallpaper-custom', 'settings,down,enter,down,left,enter,enter');
   assert.equal(custom.preferences.background, customId);
   assert.equal(custom.modal, false);
   assert.deepEqual(custom.focus, { Background: 9 });
@@ -211,22 +209,22 @@ try {
   assert.equal(customRestored.preferences.background, customId);
   const bundledRestored = await scenario(
     'wallpaper-bundled-restored',
-    'settings,down,down,enter,up,enter,enter',
+    'settings,down,enter,up,right,enter,enter',
   );
   assert.equal(bundledRestored.preferences.background, 'forest');
-  const clock = await scenario('clock', 'settings,click:900:284');
+  const clock = await scenario('clock', 'settings,click:700:336');
   assert.equal(clock.subpage, 'Clock');
   assert.equal(clock.focus, 'ClockFormat');
   assert.ok(clock.ui_text.includes('Clock format'));
   assert.ok(clock.ui_text.includes('Time format'));
-  const inputsPage = 'settings,down,down,down,enter,down,down,down,down,enter';
+  const inputsPage = 'settings,down,down,enter,down,down,down,down,enter';
   const inputs = await scenario('inputs-page', inputsPage);
   assert.equal(inputs.subpage, 'Inputs');
   assert.deepEqual(inputs.focus, { InputMode: 'com.webos.app.hdmi1' });
   const input = await scenario('inputs', `${inputsPage},enter,up,enter`);
   assert.equal(input.preferences.input_modes['com.webos.app.hdmi1'], 'Off');
   assert.equal(input.subpage, 'Inputs');
-  const closed = await scenario('dialog-closed', 'apps,down,menu,click:100:900');
+  const closed = await scenario('dialog-closed', 'apps,menu,click:100:900');
   assert.equal(closed.modal, false);
   assert.deepEqual(closed.focus, { App: 'youtube.leanback.v4' });
   const fixedTime = ['--time', '2026-10-21T20:41:00+02:00'];
@@ -279,7 +277,7 @@ try {
   assert.equal(profiled.render.profile.presented, 24);
   assert.ok(profiled.render.profile.pacing.samples > 0);
   assert.ok(profiled.render.profile.cpu_submission.mean_ms >= 0);
-  const widgetsPage = 'settings,down,down,down,enter';
+  const widgetsPage = 'settings,down,down,enter';
   const widgets = await scenario('widgets-settings', widgetsPage);
   assert.deepEqual(widgets.focus, { Widget: 4 });
   assert.ok(widgets.ui_text.includes('Widgets'));
@@ -318,22 +316,24 @@ try {
   assert.equal(greeting.focus, 'GreetingNameClear');
   assert.ok(greeting.ui_text.includes('Clear name'));
 
-  const appNamesEditor = 'settings,down,enter,enter';
+  const appNamesEditor = 'settings,enter,enter';
   const appNames = await scenario('app-name-settings', appNamesEditor);
   assert.equal(appNames.subpage, 'AppNames');
   assert.ok(appNames.ui_text.includes('Show on Home'));
   assert.ok(appNames.ui_text.includes('Show on Apps'));
   assert.equal(appNames.preferences.show_home_names, false);
-  assert.equal(appNames.preferences.show_app_names, true);
+  assert.equal(appNames.preferences.app_names, 'focus');
   const customNames = await scenario(
     'home-names-enabled',
-    `${appNamesEditor},enter,down,enter,back,home`,
+    // Show on Apps cycles On focus → Always → Off.
+    `${appNamesEditor},enter,down,enter,enter,back,home`,
   );
   assert.equal(customNames.preferences.show_home_names, true);
-  assert.equal(customNames.preferences.show_app_names, false);
-  assert.ok(customNames.ui_text.includes('Netflix'));
+  assert.equal(customNames.preferences.app_names, 'off');
+  // Home names the focused favorite: YouTube, first since the reorder above.
+  assert.ok(customNames.ui_text.includes('YouTube'));
   const hiddenNames = await scenario('app-names-disabled', 'apps');
-  assert.equal(hiddenNames.preferences.show_app_names, false);
+  assert.equal(hiddenNames.preferences.app_names, 'off');
   assert.ok(!hiddenNames.ui_text.includes('Netflix'));
 
   const renamedInput = await scenario(
@@ -343,7 +343,7 @@ try {
   assert.equal(renamedInput.focus, 'InputRename');
   assert.equal(renamedInput.preferences.input_names['com.webos.app.hdmi2'], 'Console');
   assert.ok(renamedInput.ui_text.includes('Clear name'));
-  const clockEditor = 'settings,down,enter,down,enter';
+  const clockEditor = 'settings,enter,down,enter';
   const timeFormat = await scenario('clock-time-format', `${clockEditor},down,enter`);
   assert.equal(timeFormat.subpage, 'TimeFormat');
   assert.deepEqual(timeFormat.focus, { Choice: 0 });
@@ -362,7 +362,7 @@ try {
   assert.deepEqual(clockFocus.focus, { Choice: 1 });
   const system = await scenario(
     'system-settings',
-    'settings,down,down,down,down,right,down,down,down,down',
+    'settings,down,down,down,right,down,down,down,down',
   );
   assert.deepEqual(system.focus, { Setting: 5 });
   assert.ok(system.ui_text.includes('Refresh apps & inputs'));
@@ -370,14 +370,14 @@ try {
   assert.ok(system.ui_text.includes('Quit app'));
   const scale = await scenario(
     'interface-scale',
-    'settings,down,enter,down,down,down,down,enter,down,down,enter',
+    'settings,enter,down,down,down,down,down,enter,down,down,enter',
   );
   assert.equal(scale.subpage, 'Appearance');
   assert.equal(scale.preferences.ui_scale, 'larger');
   assert.ok(scale.ui_text.includes('Extra large'));
   const scaleBack = await scenario(
     'interface-scale-back',
-    'settings,down,enter,down,down,down,down,enter,back',
+    'settings,enter,down,down,down,down,down,enter,back',
   );
   assert.deepEqual(scaleBack.focus, { Setting: 8 });
   // Later scenarios render at normal scale; keep everything else they rely on, like favorites.
@@ -387,13 +387,13 @@ try {
   assert.ok(system.ui_text.includes('Update Homebrew apps automatically'));
   assert.equal(system.preferences.homebrew_updates, false);
   // The opt-in only changes the saved preference; desktop runs never contact the repository.
-  const homebrewPath = 'settings,down,down,down,down,right,down,down,down,enter';
+  const homebrewPath = 'settings,down,down,down,right,down,down,down,enter';
   const homebrewOn = await scenario('homebrew-updates-on', homebrewPath);
   assert.deepEqual(homebrewOn.focus, { Setting: 13 });
   assert.equal(homebrewOn.preferences.homebrew_updates, true);
   const homebrewOff = await scenario('homebrew-updates-off', homebrewPath);
   assert.equal(homebrewOff.preferences.homebrew_updates, false);
-  const updatePreview = await scenario('update-preview', 'settings,down,down,down,down,right', [
+  const updatePreview = await scenario('update-preview', 'settings,down,down,down,right', [
     '--test-update-version',
     '99.0.0',
   ]);
@@ -403,7 +403,7 @@ try {
   assert.ok(updatePreview.ui_text.includes('Install 99.0.0'));
   const afterUpdatePreview = await scenario(
     'update-preview-cleared',
-    'settings,down,down,down,down,right',
+    'settings,down,down,down,right',
   );
   assert.equal(afterUpdatePreview.focus, 'CheckUpdates');
   assert.ok(!afterUpdatePreview.ui_text.includes('Update available'));
@@ -412,7 +412,7 @@ try {
   ).version;
   const latestPreview = await scenario(
     'update-current-preview',
-    'settings,down,down,down,down,right,enter',
+    'settings,down,down,down,right,enter',
     ['--test-update-version', currentVersion],
   );
   assert.equal(latestPreview.focus, 'CheckUpdates');
@@ -422,13 +422,13 @@ try {
   assert.ok(latestPreview.ui_text.includes('Check again'));
   assert.ok(latestPreview.ui_text.includes(`Current version: ${currentVersion}`));
   assert.ok(!latestPreview.ui_text.some((label) => label.startsWith('Luma v')));
-  const textOptions = 'settings,down,down,down,down,right,down,down,enter';
+  const textOptions = 'settings,down,down,down,right,down,down,enter';
   const textRendering = await scenario('text-rendering-options', textOptions);
   assert.equal(textRendering.subpage, 'TextRendering');
   assert.deepEqual(textRendering.focus, { Choice: 0 });
   assert.ok(textRendering.ui_text.includes('MSAA (default)'));
   assert.ok(textRendering.ui_text.includes('Analytic'));
-  assert.ok(textRendering.ui_text.includes('Restart Luma to apply changes.'));
+  assert.ok(textRendering.ui_text.includes('Restart Luma+ to apply changes.'));
   const analyticSaved = await scenario('text-rendering-saved', `${textOptions},down,enter`);
   assert.equal(analyticSaved.preferences.text_rendering, 'analytic');
   assert.deepEqual(analyticSaved.focus, { Setting: 7 });
@@ -518,22 +518,19 @@ try {
     preferences,
     JSON.stringify({ favorites: edgeFavorites, show_weather: false }),
   );
-  const edgeRight = await scenario('favorites-edge-right', 'home,click:1860:600');
+  const edgeRight = await scenario('favorites-edge-right', 'home,click:1900:905');
   assert.deepEqual(edgeRight.focus, { App: edgeFavorites[6] });
   assert.equal(edgeRight.home_scroll, 0, 'Clicking the fragment must not move it');
   const edgeLeft = await scenario(
     'favorites-edge-left',
-    `home,down,${Array(6).fill('right').join(',')},click:40:600`,
+    `home,down,${Array(6).fill('right').join(',')},click:20:905`,
   );
   assert.deepEqual(edgeLeft.focus, { App: edgeFavorites[0] });
-  assert.ok(
-    Math.abs(edgeLeft.home_scroll - 281.6) < 0.01,
-    'Pointer focus preserves strip position',
-  );
+  assert.ok(Math.abs(edgeLeft.home_scroll - 300) < 0.01, 'Pointer focus preserves strip position');
   await fs.writeFile(preferences, JSON.stringify({ show_weather: false }));
   const gradientDisabled = await scenario(
     'wallpaper-gradient-disabled',
-    'settings,down,down,enter,up,up,right,enter',
+    'settings,down,enter,up,left,enter',
   );
   assert.equal(gradientDisabled.focus, 'WallpaperGradient');
   assert.equal(gradientDisabled.preferences.wallpaper_gradient, false);
@@ -542,18 +539,16 @@ try {
   assert.equal(gradientRestored.preferences.wallpaper_gradient, false);
   const gradientEnabled = await scenario(
     'wallpaper-gradient-enabled',
-    'settings,down,down,enter,up,up,right,enter',
+    'settings,down,enter,up,left,enter',
   );
   assert.equal(gradientEnabled.preferences.wallpaper_gradient, true);
-  const cycleEnabled = await scenario(
-    'wallpaper-cycle-enabled',
-    'settings,down,down,enter,up,up,right,right,enter',
-  );
+  const cycleEnabled = await scenario('wallpaper-cycle-enabled', 'settings,down,enter,up,enter');
   assert.equal(cycleEnabled.subpage, null);
   assert.equal(cycleEnabled.focus, 'WallpaperCycle');
   assert.equal(cycleEnabled.preferences.wallpaper_cycle, true);
   assert.ok(cycleEnabled.ui_text.includes('Rotation'));
-  const cycledAfterRestart = await scenario('wallpaper-cycle-restart', 'down');
+  // Rotation waits until the launch settles, so give the restart time to get there.
+  const cycledAfterRestart = await scenario('wallpaper-cycle-restart', 'down', [], 210);
   assert.equal(
     cycledAfterRestart.preferences.background,
     'san-francisco',
@@ -561,7 +556,8 @@ try {
   );
   const cycleDisabled = await scenario(
     'wallpaper-cycle-disabled',
-    'settings,down,down,enter,up,up,right,right,enter',
+    // San Francisco opens the gallery in its first column, under Gradient.
+    'settings,down,enter,up,up,right,enter',
   );
   assert.equal(cycleDisabled.preferences.wallpaper_cycle, false);
   assert.ok(cycleDisabled.ui_text.includes('Rotation'));

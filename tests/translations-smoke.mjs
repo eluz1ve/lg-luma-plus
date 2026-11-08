@@ -116,7 +116,7 @@ try {
   for (const name of ['English', 'Deutsch', '简体中文', 'Español', 'Português (Brasil)'])
     assert.ok(languages.ui_text.includes(name));
 
-  const german = await scenario('de-home', `${picker},up,enter,home,down`);
+  const german = await scenario('de-home', `${picker},up,enter,home,down,left`);
   assert.equal(german.preferences.language, 'de');
   for (const key of [
     'home',
@@ -134,7 +134,7 @@ try {
 
   const chinese = await scenario(
     'zh-home',
-    `${picker},${Array(10).fill('down').join(',')},enter,home,down`,
+    `${picker},${Array(11).fill('down').join(',')},enter,home,down,left`,
   );
   assert.equal(chinese.preferences.language, 'zh');
   for (const key of [
@@ -183,12 +183,12 @@ try {
     'de',
   );
 
-  const germanDialog = await scenario('de-dialog', 'apps,down,menu');
+  const germanDialog = await scenario('de-dialog', 'apps,menu');
   contains(germanDialog, 'removeFavorite', 'de');
   contains(germanDialog, 'hideApp', 'de');
   const saved = JSON.parse(await fs.readFile(preferences, 'utf8'));
   await fs.writeFile(preferences, JSON.stringify({ ...saved, language: 'zh' }));
-  const chineseDialog = await scenario('zh-dialog', 'apps,down,menu');
+  const chineseDialog = await scenario('zh-dialog', 'apps,menu');
   contains(chineseDialog, 'removeFavorite', 'zh');
   contains(chineseDialog, 'categoryStreaming', 'zh');
   const input = await scenario('zh-input-options', `${inputsPage},enter`);
@@ -222,7 +222,7 @@ try {
   );
   const portuguese = await scenario(
     'pt-home',
-    `${picker},${Array(6).fill('down').join(',')},enter,home,down`,
+    `${picker},${Array(6).fill('down').join(',')},enter,home,down,left`,
   );
   assert.equal(portuguese.preferences.language, 'pt');
   for (const key of [
@@ -235,7 +235,7 @@ try {
     'setWeatherLocation',
   ])
     contains(portuguese, key, 'pt');
-  assert.ok(portuguese.ui_text.includes('QUARTA-FEIRA, 21 DE OUTUBRO'));
+  assert.ok(portuguese.ui_text.includes('Quarta-feira, 21 de outubro'));
   assert.ok(
     portuguese.ui_text.includes('Netflix'),
     'Installed app names stay intact in Portuguese',
@@ -250,7 +250,7 @@ try {
   for (const key of ['language', 'appNames', 'clock']) contains(portugueseSettings, key, 'pt');
   assert.equal(JSON.parse(await fs.readFile(preferences, 'utf8')).language, 'pt');
 
-  const portugueseDialog = await scenario('pt-dialog', 'apps,down,menu');
+  const portugueseDialog = await scenario('pt-dialog', 'apps,menu');
   for (const key of ['removeFavorite', 'hideApp', 'categoryStreaming'])
     contains(portugueseDialog, key, 'pt');
   const portugueseKeyboard = await scenario('pt-keyboard', 'apps,type:Netflix');
@@ -287,7 +287,7 @@ try {
   assert.deepEqual(chineseFocused.focus, { Choice: 11 });
   assert.ok(chineseFocused.scroll > 0, 'Simplified Chinese must scroll fully into view');
   assert.ok(chineseFocused.ui_text.includes('简体中文'));
-  const vietnamese = await scenario('vi-home', `${vietnamesePicker},enter,home,down`);
+  const vietnamese = await scenario('vi-home', `${vietnamesePicker},enter,home,down,left`);
   assert.equal(vietnamese.preferences.language, 'vi');
   for (const key of [
     'home',
@@ -299,7 +299,7 @@ try {
     'setWeatherLocation',
   ])
     contains(vietnamese, key, 'vi');
-  assert.ok(vietnamese.ui_text.includes('THỨ TƯ, 21 THÁNG 10'));
+  assert.ok(vietnamese.ui_text.includes('Thứ tư, 21 tháng 10'));
   assert.ok(vietnamese.ui_text.includes('Netflix'), 'Installed app names stay intact');
   assert.equal(JSON.parse(await fs.readFile(preferences, 'utf8')).language, 'vi');
 
@@ -307,10 +307,10 @@ try {
   assert.equal(vietnameseSettings.preferences.language, 'vi', 'Vietnamese survives a restart');
   assert.ok(vietnameseSettings.ui_text.includes('Tiếng Việt'));
   for (const key of ['language', 'appNames', 'clock']) contains(vietnameseSettings, key, 'vi');
-  const vietnameseOptions = await scenario('vi-app-options', 'apps,down,enter');
+  const vietnameseOptions = await scenario('vi-app-options', 'apps,enter');
   for (const key of ['open', 'removeFavorite', 'hideApp', 'deleteApp'])
     contains(vietnameseOptions, key, 'vi');
-  const deleteConfirmation = 'apps,down,enter,down,down,down,enter';
+  const deleteConfirmation = 'apps,enter,down,down,down,enter';
   const vietnameseDelete = await scenario('vi-delete-confirm', deleteConfirmation);
   assert.equal(vietnameseDelete.focus, 'CancelDelete');
   contains(vietnameseDelete, 'cancel', 'vi');
@@ -346,7 +346,7 @@ try {
   assert.deepEqual(traditionalFocused.focus, { Choice: 12 });
   assert.ok(traditionalFocused.scroll > 0);
   assert.ok(traditionalFocused.ui_text.includes('繁體中文'));
-  const traditional = await scenario('zh-tw-home', `${traditionalPicker},enter,home,down`);
+  const traditional = await scenario('zh-tw-home', `${traditionalPicker},enter,home,down,left`);
   assert.equal(traditional.preferences.language, 'zh-tw');
   for (const key of [
     'home',
