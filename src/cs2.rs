@@ -1,4 +1,4 @@
-//! CS2 Score: Counter-Strike 2 matches for Home from a shared feed built from LiquipediaDB
+//! CS2 Scores: Counter-Strike 2 matches for Home from a shared feed built from LiquipediaDB
 //! (https://github.com/eluz1ve/luma-feeds). The feed holds the API key on its side and is
 //! rebuilt every two minutes; the TV only reads the published file, every minute while Home
 //! shows the widget, and the teams' logos from Liquipedia's commons once each.
@@ -19,6 +19,9 @@ const IMAGE_ORIGINS: [&str; 2] = [
 const LOGO_CACHE: usize = 64;
 /// A feed older than this is shown with when it was last updated, as it may be behind.
 pub const MAX_AGE: i64 = 30 * 60;
+/// How long a finished match stays listed. Counted from the feed's own time, so a wrong clock on
+/// the TV doesn't matter.
+pub const RESULTS_FOR: i64 = 30 * 60;
 /// Matches the row lists; three cards show at a time and Left/Right scroll through the rest.
 pub const SHOWN: usize = 12;
 pub const VISIBLE: usize = 3;
@@ -95,6 +98,8 @@ pub struct Match {
     pub id: String,
     /// Unix seconds.
     pub begins: i64,
+    /// Unix seconds when the feed first saw the match over, if it did.
+    pub finished_at: Option<i64>,
     pub state: State,
     pub best_of: Option<u32>,
     pub tournament: String,
@@ -278,6 +283,7 @@ fn parse_match(value: &Value) -> Option<Match> {
     Some(Match {
         id: text(&value["id"], 64),
         begins,
+        finished_at: value["finished_at"].as_i64(),
         state,
         best_of: value["best_of"]
             .as_u64()
@@ -355,18 +361,27 @@ pub fn parse_feed(value: &Value) -> Result<Feed, String> {
     })
 }
 
-/// The cards Home shows: live matches first, then upcoming ones, then the latest results.
+/// The cards Home shows: live matches, the biggest events first, then those that ended in the
+/// last half hour, then upcoming ones.
 pub fn shown(feed: &Feed, major_only: bool, results: bool) -> Vec<&Match> {
-    let wanted = |m: &&Match| (!major_only || m.major()) && (results || m.state != State::Finished);
-    let mut picked: Vec<&Match> = Vec::new();
-    for state in [State::Live, State::Upcoming, State::Finished] {
-        picked.extend(
-            feed.matches
-                .iter()
-                .filter(|m| m.state == state)
-                .filter(wanted),
-        );
-    }
+    let listed = |state: State| {
+        feed.matches
+            .iter()
+            .filter(move |m| m.state == state && (!major_only || m.major()))
+    };
+    let mut picked: Vec<&Match> = listed(State::Live).collect();
+    // Stable, so matches of one tier keep the feed's order.
+    picked.sort_by_key(|m| m.tier.unwrap_or(u32::MAX));
+    let mut ended: Vec<&Match> = listed(State::Finished)
+        .filter(|m| {
+            results
+                && m.finished_at
+                    .is_some_and(|at| feed.updated - at <= RESULTS_FOR)
+        })
+        .collect();
+    ended.sort_by_key(|m| std::cmp::Reverse(m.finished_at));
+    picked.extend(ended);
+    picked.extend(listed(State::Upcoming));
     picked.truncate(SHOWN);
     picked
 }

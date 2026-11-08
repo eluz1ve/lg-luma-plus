@@ -20,6 +20,7 @@ fn feed() -> Value {
             {"id": "bad", "begin_at": "soon", "state": "upcoming", "teams": [null, null]},
             {"id": "solo", "begin_at": "2026-10-31T08:00:00Z", "state": "upcoming", "teams": [null]},
             {"id": "done", "begin_at": "2026-10-30T15:00:00Z", "state": "finished", "tier": 2,
+             "finished_at": 999_000,
              "teams": [{"name": "NAVI", "short": "NAVI"}, {"name": "G2 Esports", "short": "G2"}],
              "score": [0, 2], "maps": []},
             {"id": "next", "begin_at": "2026-10-31T11:00:00Z", "state": "upcoming", "tier": 1,
@@ -56,9 +57,9 @@ fn cards_put_live_first_and_follow_the_settings() {
             .map(|m| m.id.clone())
             .collect()
     };
-    assert_eq!(ids(true, true), ["live", "next", "done"]);
+    assert_eq!(ids(true, true), ["live", "done", "next"]);
     assert_eq!(ids(true, false), ["live", "next"]);
-    assert_eq!(ids(false, true), ["live", "small", "next", "done"]);
+    assert_eq!(ids(false, true), ["live", "done", "small", "next"]);
 }
 
 #[test]
@@ -212,4 +213,52 @@ fn pictures_may_come_from_liquipedia_or_the_feeds_server() {
     ] {
         assert!(!image_allowed(refused), "{refused}");
     }
+}
+
+fn listed(state: &str, tier: Value, finished_at: Value, id: &str) -> Value {
+    json!({"id": id, "begin_at": "2026-10-30T18:00:00Z", "state": state, "tier": tier,
+           "finished_at": finished_at, "teams": [{"name": "A"}, {"name": "B"}], "maps": []})
+}
+
+fn ids(feed: &Feed, major_only: bool, results: bool) -> Vec<String> {
+    shown(feed, major_only, results)
+        .iter()
+        .map(|m| m.id.clone())
+        .collect()
+}
+
+#[test]
+fn live_matches_put_the_biggest_events_first() {
+    let feed = parse_feed(&json!({"updated": 1000, "matches": [
+        listed("live", json!(4), Value::Null, "small"),
+        listed("live", Value::Null, Value::Null, "unknown"),
+        listed("live", json!(1), Value::Null, "big"),
+        listed("live", json!(2), Value::Null, "mid"),
+        listed("live", json!(1), Value::Null, "big too"),
+    ]}))
+    .unwrap();
+    assert_eq!(
+        ids(&feed, false, false),
+        ["big", "big too", "mid", "small", "unknown"]
+    );
+}
+
+#[test]
+fn results_are_the_last_half_hour_ahead_of_what_is_coming() {
+    let updated = 100_000;
+    let mut matches = vec![
+        listed("finished", json!(1), json!(updated - 1800), "half an hour"),
+        listed("finished", json!(1), json!(updated - 1801), "too old"),
+        listed("finished", json!(1), Value::Null, "no time"),
+        listed("finished", json!(1), json!(updated - 60), "just over"),
+        listed("live", json!(1), Value::Null, "live"),
+    ];
+    // More coming than the row lists: results must not be pushed off its end.
+    matches.extend((0..20).map(|i| listed("upcoming", json!(1), Value::Null, &format!("u{i}"))));
+    let feed = parse_feed(&json!({"updated": updated, "matches": matches})).unwrap();
+    let all = ids(&feed, false, true);
+    assert_eq!(all[..4], ["live", "just over", "half an hour", "u0"]);
+    assert_eq!(all.len(), SHOWN);
+    assert!(!all.iter().any(|id| id == "too old" || id == "no time"));
+    assert_eq!(ids(&feed, false, false)[..2], ["live", "u0"]);
 }

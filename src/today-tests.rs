@@ -34,6 +34,7 @@ fn feed(state: &mut State, matches: &[(&str, &str, i64)]) {
         .map(|(id, kind, begins)| {
             serde_json::json!({
                 "id": id, "begin_at": iso(*begins), "state": kind, "best_of": 3,
+                "finished_at": NOW - 60,
                 "tournament": "IEM", "tier": 1,
                 "teams": [{"name": "Vitality"}, {"name": "FaZe"}], "maps": []
             })
@@ -324,7 +325,7 @@ fn opened_each_widget_has_a_tab_with_all_it_has() {
     assert_eq!(
         tabs(&state, NOW, DATE)[0].1.last().unwrap().0,
         Section::Matches,
-        "results only when CS2 Score shows them"
+        "results only when CS2 Scores shows them"
     );
 }
 
