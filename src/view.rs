@@ -28,6 +28,8 @@ const MAIN_TOP: f32 = 108.8;
 const FACE_HEIGHT: f32 = 154.4;
 const RECENTS_BACKDROP_OPACITY: f32 = 0.86;
 
+#[path = "cs2-icons.rs"]
+mod cs2_icons;
 #[path = "cs2-live-view.rs"]
 mod cs2_live_view;
 #[path = "recents-view.rs"]
@@ -4526,13 +4528,21 @@ fn cs2_dialog(out: &mut Scene, state: &State, assets: &Assets, id: &str, now: Of
     // While the feeds server has the match: its scoreboard; else the lineups.
     if let Some(live) = state.cs2_live.detail(&item.id, now.unix_timestamp()) {
         let top = hero.y + hero.h + 20.;
+        let height = cs2_live_view::height().min(panel.y + 900. - top);
         cs2_live_view::scoreboard(
             out,
             state,
             assets,
             live,
             item,
-            Rect::new(x, top, 760., panel.y + 900. - top),
+            Rect::new(x, top, 760., height),
+        );
+        cs2_live_view::game_log(
+            out,
+            state,
+            assets,
+            live,
+            Rect::new(x + 774., top, inner - 774., height),
         );
         cs2_footer(out, state, x, inner, panel, now);
         return;

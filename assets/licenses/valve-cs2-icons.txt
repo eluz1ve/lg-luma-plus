@@ -1,0 +1,18 @@
+Counter-Strike 2 icons: assets/ui-icons/cs-*.svg
+
+These are Counter-Strike 2's own HUD and kill-feed icons (the game's
+panorama/images/icons/equipment and HUD icons), © Valve Corporation. Counter-Strike
+and Valve are trademarks of Valve Corporation. Luma+ is not affiliated with or
+endorsed by Valve; the icons are used only to show live match events, by the fork
+owner's decision.
+
+Taken as SVG from lexogrine/cs2-react-hud (src/assets/weapons and src/assets/images),
+https://github.com/lexogrine/cs2-react-hud at commit 7874750c97fcecd8f72eb3fad382917e035ec651.
+Names: cs-weapon-<weapon as the game logs it, "_" as "-">; cs-headshot, cs-smoke
+(smoke_kill), cs-wallbang, cs-noscope, cs-blind (flashed_kill), cs-suicide, cs-bomb
+(icon_c4_default), cs-win-elimination (icon_skull_default), cs-win-bomb
+(icon_bomb_explosion_default), cs-win-defuse (icon_defuse_default), cs-win-time
+(icon_timer_default).
+
+Changes: cs-smoke and cs-weapon-flashbang lost a gradient and their group opacity
+(the vector pipeline draws no group opacity); the empty "out" icon was left out.

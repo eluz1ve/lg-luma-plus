@@ -801,3 +801,116 @@ fn a_player_without_health_is_dimmed_even_when_hltv_calls_him_alive() {
         alpha("full")
     );
 }
+
+fn kill(weapon: &str, headshot: bool) -> serde_json::Value {
+    serde_json::json!({"type": "kill", "killer": "a0", "killer_team": 0, "assister": "a1",
+        "victim": "b0", "victim_team": 1, "weapon": weapon, "headshot": headshot,
+        "smoke": false, "wallbang": false, "noscope": false, "blind": false, "air": false})
+}
+
+fn round_over() -> serde_json::Value {
+    serde_json::json!({"type": "round_end", "winner": 0, "score": [12, 10], "reason": "elimination"})
+}
+
+/// Match "a" open with these log events, newest first.
+fn log_page(log: serde_json::Value) -> view::Scene {
+    let mut state = open_match();
+    with_detail(
+        &mut state,
+        serde_json::json!({"players": [team_of("a", 5), team_of("b", 5)], "log": log}),
+    );
+    scene(&state)
+}
+
+/// Where the game log is drawn: right of the scoreboard, under the header.
+fn log_area() -> Rect {
+    Rect::new(296. + 822., 60. + 380., 458., 462.)
+}
+
+fn icons(page: &view::Scene) -> Vec<(String, Rect)> {
+    page.draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::TintedImage(path, rect, ..) if path.contains("ui-icons/cs-") => {
+                Some((path.clone(), *rect))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn a_kill_shows_the_weapon_and_how() {
+    let page = log_page(serde_json::json!([
+        kill("ak47", true),
+        kill("m4a1_silencer", false)
+    ]));
+    let icons = icons(&page);
+    for name in ["cs-weapon-ak47", "cs-weapon-m4a1-silencer", "cs-headshot"] {
+        let (_, rect) = icons
+            .iter()
+            .find(|(path, _)| path.contains(&format!("ui-icons/{name}.lvec")))
+            .unwrap_or_else(|| panic!("{name} in {icons:?}"));
+        assert!(inside(*rect, log_area()), "{name}: {rect:?}");
+    }
+    assert_eq!(
+        icons
+            .iter()
+            .filter(|(p, _)| p.contains("cs-headshot"))
+            .count(),
+        1
+    );
+    line(&page, "a0");
+    line(&page, "b0");
+}
+
+#[test]
+fn a_weapon_without_an_icon_is_named() {
+    let page = log_page(serde_json::json!([kill("zeus_new", false)]));
+    line(&page, "zeus_new");
+    assert!(!icons(&page).iter().any(|(p, _)| p.contains("zeus")));
+}
+
+#[test]
+fn round_lines_share_a_smaller_size_than_kills() {
+    let page = log_page(serde_json::json!([
+        {"type": "round_start"}, round_over(), kill("ak47", false)
+    ]));
+    let started = line(&page, "Round started").1.size;
+    let over = drawn(&page)
+        .into_iter()
+        .rfind(|(text, ..)| text.starts_with("Round over"))
+        .unwrap()
+        .2
+        .size;
+    let killer = line(&page, "a0").1.size;
+    assert_eq!(started, over);
+    assert!(over < killer, "{over} < {killer}");
+}
+
+#[test]
+fn a_long_round_over_wraps_inside_the_log() {
+    let page = log_page(serde_json::json!([round_over()]));
+    let parts: Vec<_> = drawn(&page)
+        .into_iter()
+        .filter(|(_, rect, _)| inside(*rect, log_area()))
+        .filter(|(text, ..)| text.starts_with("Round over") || text == "Enemy eliminated")
+        .collect();
+    assert_eq!(parts.len(), 2, "{parts:?}");
+    assert!(parts[1].1.y > parts[0].1.y);
+}
+
+#[test]
+fn the_log_stops_at_the_bottom_of_its_place() {
+    let events: Vec<_> = (0..40).map(|_| kill("ak47", true)).collect();
+    let page = log_page(serde_json::Value::Array(events));
+    let names: Vec<_> = drawn(&page)
+        .into_iter()
+        .filter(|(text, rect, _)| text == "b0" && rect.x >= log_area().x)
+        .collect();
+    assert!(names.len() > 5 && names.len() < 40, "{}", names.len());
+    let area = log_area();
+    for (_, rect, _) in names {
+        assert!(rect.y + rect.h <= area.y + area.h, "{rect:?}");
+    }
+}

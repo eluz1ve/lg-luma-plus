@@ -1,7 +1,7 @@
 //! The live part of a CS2 match card: HLTV's scoreboard with the round history between the
 //! teams, from the feeds server's file for the open match.
 use super::*;
-use crate::cs2_live::{Live, LivePlayer, RoundState, Side, Win};
+use crate::cs2_live::{Event, Live, LivePlayer, RoundState, Side, Win};
 
 /// The sides' bars and their rows' tint, as HLTV paints them.
 const CT_BAR: u32 = 0x2d4f78;
@@ -318,6 +318,267 @@ fn history(out: &mut Scene, assets: &Assets, live: &Live, rect: Rect) {
             icon,
             cs2_side_color(side_in(live, winner, round), 1.),
         );
+    }
+}
+
+/// How tall the scoreboard is; the game log beside it matches it.
+pub(super) fn height() -> f32 {
+    10. + HEADER + (BAR + (ROW + ROW_GAP) * ROWS as f32) * 2. + HISTORY + 12.
+}
+
+const KILL_SIZE: f32 = 16.;
+const NOTE_SIZE: f32 = 14.;
+const PILL_PAD: f32 = 10.;
+const PILL_GAP: f32 = 4.;
+/// Extra room between one round's events and the last round's.
+const ROUND_GAP: f32 = 8.;
+const KILL_FRAME: u32 = 0x9b2b2b;
+const CT_FRAME: u32 = 0x3d86d6;
+const T_FRAME: u32 = 0xd49a22;
+const START_FRAME: u32 = 0xbdbdbd;
+
+/// A piece of a log line: text in a colour, or one of the game's icons at a height.
+enum Piece {
+    Text(String, Color),
+    /// An icon's name, width and height.
+    Icon(String, f32, f32),
+}
+
+fn icon_piece(name: String, height: f32) -> Option<Piece> {
+    super::cs2_icons::aspect(&name).map(|aspect| Piece::Icon(name, height * aspect, height))
+}
+
+/// The game log in `rect`: one pill an event, newest on top, as many as fit.
+pub(super) fn game_log(out: &mut Scene, state: &State, assets: &Assets, live: &Live, rect: Rect) {
+    let language = state.preferences.language;
+    let mut y = rect.y;
+    // Events are newest first; a round's start ends the events of the round before it.
+    let mut round = live.round.max(1);
+    for event in &live.log {
+        let side = |team: usize| side_in(live, team, round);
+        let (frame, lines, size) = match event {
+            Event::Kill {
+                killer,
+                killer_team,
+                assister,
+                victim,
+                victim_team,
+                weapon,
+                headshot,
+                smoke,
+                wallbang,
+                noscope,
+                blind,
+                air: _,
+            } => {
+                let mut pieces = vec![Piece::Text(
+                    killer.clone(),
+                    cs2_side_color(side(*killer_team), 1.),
+                )];
+                if let Some(assister) = assister {
+                    pieces.push(Piece::Text(
+                        format!("+ {assister}"),
+                        cs2_side_color(side(*killer_team), 0.7),
+                    ));
+                }
+                if *blind {
+                    pieces.extend(icon_piece("cs-blind".into(), 16.));
+                }
+                let weapon_icon = format!("cs-weapon-{}", weapon.replace('_', "-"));
+                pieces.push(
+                    icon_piece(weapon_icon, 18.)
+                        .unwrap_or_else(|| Piece::Text(weapon.clone(), c(0xffffff, 0.8))),
+                );
+                for (on, name) in [
+                    (*noscope, "cs-noscope"),
+                    (*smoke, "cs-smoke"),
+                    (*wallbang, "cs-wallbang"),
+                    (*headshot, "cs-headshot"),
+                ] {
+                    if on {
+                        pieces.extend(icon_piece(name.into(), 16.));
+                    }
+                }
+                pieces.push(Piece::Text(
+                    victim.clone(),
+                    cs2_side_color(side(*victim_team), 1.),
+                ));
+                (KILL_FRAME, vec![pieces], KILL_SIZE)
+            }
+            Event::Suicide {
+                player,
+                team,
+                weapon,
+            } => {
+                let mut pieces = vec![];
+                pieces.extend(icon_piece("cs-suicide".into(), 16.));
+                pieces.extend(icon_piece(
+                    format!("cs-weapon-{}", weapon.replace('_', "-")),
+                    18.,
+                ));
+                pieces.push(Piece::Text(player.clone(), cs2_side_color(side(*team), 1.)));
+                (KILL_FRAME, vec![pieces], KILL_SIZE)
+            }
+            Event::RoundEnd {
+                winner,
+                score,
+                reason,
+            } => {
+                let played = score[0] + score[1];
+                let winner_side = side_in(live, *winner, played.max(1));
+                let side_name = match winner_side {
+                    Side::Ct => "CT",
+                    Side::T => "T",
+                };
+                let team = state
+                    .cs2
+                    .find(&live.id)
+                    .and_then(|item| item.teams[*winner].as_ref())
+                    .map(|team| format!("{} ({side_name})", team.name))
+                    .unwrap_or_else(|| side_name.to_owned());
+                let head = format!(
+                    "{} · {} {} - {}",
+                    language.t("cs2LogRoundOver"),
+                    language.format("cs2LogWinner", &[("team", &team)]),
+                    score[0],
+                    score[1]
+                );
+                let why = language
+                    .t(match reason {
+                        Win::Elimination => "cs2LogEliminated",
+                        Win::Bomb => "cs2LogExploded",
+                        Win::Defuse => "cs2LogDefused",
+                        Win::Time => "cs2LogTime",
+                    })
+                    .to_owned();
+                let ink = c(0xe7e9ee, 0.92);
+                let style = text(NOTE_SIZE, 550, 0.);
+                let whole = format!("{head} · {why}");
+                let lines = if assets.width(&whole, style) <= rect.w - PILL_PAD * 2. {
+                    vec![vec![Piece::Text(whole, ink)]]
+                } else {
+                    vec![vec![Piece::Text(head, ink)], vec![Piece::Text(why, ink)]]
+                };
+                let frame = match winner_side {
+                    Side::Ct => CT_FRAME,
+                    Side::T => T_FRAME,
+                };
+                (frame, lines, NOTE_SIZE)
+            }
+            Event::RoundStart => (
+                START_FRAME,
+                vec![vec![Piece::Text(
+                    language.t("cs2LogRoundStarted").to_owned(),
+                    c(0xe7e9ee, 0.92),
+                )]],
+                NOTE_SIZE,
+            ),
+            Event::BombPlanted { player, team, site } => {
+                let site = site.map(String::from).unwrap_or_default();
+                let mut pieces = vec![];
+                pieces.extend(icon_piece("cs-bomb".into(), 16.));
+                pieces.push(Piece::Text(player.clone(), cs2_side_color(side(*team), 1.)));
+                pieces.push(Piece::Text(
+                    language.t("cs2LogPlanted").to_owned(),
+                    c(0xe7e9ee, 0.92),
+                ));
+                if !site.is_empty() {
+                    pieces.push(Piece::Text(site, WHITE));
+                }
+                (T_FRAME, vec![pieces], NOTE_SIZE)
+            }
+            Event::BombDefused { player, team } => {
+                let mut pieces = vec![];
+                pieces.extend(icon_piece("cs-win-defuse".into(), 16.));
+                pieces.push(Piece::Text(player.clone(), cs2_side_color(side(*team), 1.)));
+                pieces.push(Piece::Text(
+                    language.t("cs2LogDefusedIt").to_owned(),
+                    c(0xe7e9ee, 0.92),
+                ));
+                (CT_FRAME, vec![pieces], NOTE_SIZE)
+            }
+        };
+        let line_h = size + 8.;
+        let height = PILL_PAD + line_h * lines.len() as f32 + 2.;
+        if y + height > rect.y + rect.h {
+            break;
+        }
+        let pill = Rect::new(rect.x, y, rect.w, height);
+        out.shape(pill, 9., c(0x1c2028, 0.92));
+        out.border(pill, 9., 1.5, c(frame, 0.95));
+        for (index, pieces) in lines.into_iter().enumerate() {
+            let line = Rect::new(
+                pill.x + PILL_PAD,
+                pill.y + PILL_PAD / 2. + 1. + index as f32 * line_h,
+                pill.w - PILL_PAD * 2.,
+                line_h,
+            );
+            draw_pieces(out, assets, pieces, line, size);
+        }
+        y += height + PILL_GAP;
+        if matches!(event, Event::RoundStart) {
+            y += ROUND_GAP;
+            round = round.saturating_sub(1).max(1);
+        }
+    }
+}
+
+/// One line of a pill: its pieces left to right, the texts sharing what room is left after the
+/// icons.
+fn draw_pieces(out: &mut Scene, assets: &Assets, pieces: Vec<Piece>, line: Rect, size: f32) {
+    let gap = 7.;
+    let style = text(size, if size >= KILL_SIZE { 650 } else { 550 }, 0.);
+    let icons: f32 = pieces
+        .iter()
+        .map(|piece| match piece {
+            Piece::Icon(_, width, _) => *width,
+            Piece::Text(..) => 0.,
+        })
+        .sum();
+    let texts: f32 = pieces
+        .iter()
+        .map(|piece| match piece {
+            Piece::Text(text, _) => assets.width(text, style),
+            Piece::Icon(..) => 0.,
+        })
+        .sum();
+    let room = line.w - icons - gap * (pieces.len().saturating_sub(1)) as f32;
+    // Too long: every text gives up the same share.
+    let scale = if texts > room && texts > 0. {
+        (room / texts).max(0.)
+    } else {
+        1.
+    };
+    let mut x = line.x;
+    for piece in pieces {
+        match piece {
+            Piece::Text(value, tone) => {
+                let width = assets.width(&value, style) * scale;
+                let fitted = if scale < 1. {
+                    assets.ellipsize(&value, style, width)
+                } else {
+                    value
+                };
+                out.text(
+                    &fitted,
+                    Rect::new(
+                        x,
+                        line.y + (line.h - size * 1.25) / 2.,
+                        width.max(1.),
+                        size * 1.25,
+                    ),
+                    style,
+                    tone,
+                    false,
+                );
+                x += width + gap;
+            }
+            Piece::Icon(name, width, height) => {
+                let rect = Rect::new(x, line.y + (line.h - height) / 2., width, height);
+                out.icon(assets, &name, rect, WHITE);
+                x += width + gap;
+            }
+        }
     }
 }
 
