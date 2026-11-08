@@ -774,3 +774,38 @@ fn a_perf_script_can_focus_the_today_card_before_opening_it() {
     assert_eq!(state.focus, Target::TodayCard);
     assert!(state.overlay.is_none());
 }
+
+#[test]
+fn today_lines_of_a_live_match_add_the_round_score() {
+    let mut state = today_state();
+    super::cs2_ui_tests::with_round(&mut state, "m1", "Mirage", NOW, NOW);
+    let texts = self::texts(&at(&state));
+    assert!(
+        texts.iter().any(|t| t == "NAVI 1–0 FaZe · 9:7"),
+        "{texts:?}"
+    );
+    let mut state = opened();
+    super::cs2_ui_tests::with_round(&mut state, "m1", "Mirage", NOW, NOW);
+    let texts = self::texts(&at(&state));
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.ends_with("Natus Vincere 1–0 FaZe Clan · 9:7")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn today_lines_without_a_round_score_stay_as_they_were() {
+    let mut state = today_state();
+    super::cs2_ui_tests::with_round(
+        &mut state,
+        "m1",
+        "Mirage",
+        NOW - crate::cs2_live::INDEX_MAX_AGE - 1,
+        NOW,
+    );
+    let texts = self::texts(&at(&state));
+    assert!(texts.iter().any(|t| t == "NAVI 1–0 FaZe"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("9:7")), "{texts:?}");
+}

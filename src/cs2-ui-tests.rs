@@ -473,3 +473,98 @@ fn a_lineup_is_headed_by_the_team_alone() {
     let name = line(&page, "ZywOo").0;
     assert!(heading.y + heading.h <= name.y && name.y - heading.y < 60.);
 }
+
+/// The feeds server's round score for match `id`, written at `updated` and received at `now`.
+pub(crate) fn with_round(state: &mut State, id: &str, map: &str, updated: i64, now: i64) {
+    use crate::cs2_live::{LiveCommand, LiveReply, parse_index};
+    let commands = state.cs2_live.sync(true, true, None, false, now);
+    let Some(LiveCommand::Index { id: request }) = commands.into_iter().next() else {
+        panic!("the index is due");
+    };
+    let index = parse_index(&serde_json::json!({
+        "updated": updated,
+        "matches": {id: {"map": map, "round": 17, "score": [9, 7]}}
+    }))
+    .unwrap();
+    assert!(state.cs2_live.accept(
+        LiveReply::Index {
+            id: request,
+            result: Ok(index)
+        },
+        now
+    ));
+}
+
+fn home_texts(state: &State) -> Vec<String> {
+    scene(state)
+        .draw
+        .iter()
+        .filter_map(|draw| match draw {
+            crate::renderer::Draw::Text(text, ..) => Some(text.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn live_card() -> State {
+    let mut state = ready();
+    state.preferences.show_cs2 = true;
+    state.preferences.cs2_today = false;
+    with_feed(&mut state);
+    state
+}
+
+#[test]
+fn the_map_being_played_shows_its_round_score_on_home() {
+    let mut state = live_card();
+    let before = home_texts(&state);
+    assert_eq!(
+        before.iter().filter(|t| *t == "LIVE").count(),
+        2,
+        "{before:?}"
+    );
+    assert!(!before.iter().any(|t| t == "9:7"));
+    with_round(&mut state, "a", "Inferno", 0, 0);
+    let after = home_texts(&state);
+    assert!(after.iter().any(|t| t == "9:7"), "{after:?}");
+    assert_eq!(
+        after.iter().filter(|t| *t == "LIVE").count(),
+        1,
+        "the badge stays: {after:?}"
+    );
+    assert_eq!(
+        after.iter().filter(|t| *t == "Inferno").count(),
+        1,
+        "{after:?}"
+    );
+}
+
+#[test]
+fn a_map_liquipedia_has_not_reached_yet_takes_the_live_tile() {
+    let mut state = live_card();
+    with_round(&mut state, "a", "Anubis", 0, 0);
+    let texts = home_texts(&state);
+    assert!(texts.iter().any(|t| t == "Anubis"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "9:7"), "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t == "Inferno"),
+        "no second live tile: {texts:?}"
+    );
+}
+
+#[test]
+fn an_old_round_score_leaves_home_as_it_was() {
+    let mut state = live_card();
+    let before = home_texts(&state);
+    with_round(
+        &mut state,
+        "a",
+        "Inferno",
+        -(crate::cs2_live::INDEX_MAX_AGE + 1),
+        0,
+    );
+    assert_eq!(home_texts(&state), before);
+    let mut state = live_card();
+    with_round(&mut state, "someone-else", "Inferno", 0, 0);
+    assert_eq!(home_texts(&state), before);
+}

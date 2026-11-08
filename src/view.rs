@@ -2907,12 +2907,16 @@ fn today_card(
                         .to_owned()
                 };
                 let live = item.state == crate::cs2::State::Live;
-                let title = match item.score.filter(|_| live) {
+                let round = cs2_round_score(state, item, now.unix_timestamp());
+                let mut title = match item.score.filter(|_| live) {
                     Some([a, b]) => format!("{} {a}–{b} {}", side(0), side(1)),
                     None => format!("{} – {}", side(0), side(1)),
                 };
+                if let Some((_, [a, b], _)) = round {
+                    title = format!("{title} · {a}:{b}");
+                }
                 if live {
-                    let map = item.current_map().map(|(_, map)| map.name.clone());
+                    let map = cs2_live_map(item, round);
                     let when = [Some(language.t("cs2Live").to_owned()), map]
                         .into_iter()
                         .flatten()
@@ -3411,10 +3415,14 @@ fn today_line(
             };
             let live = item.state == crate::cs2::State::Live;
             let finished = item.state == crate::cs2::State::Finished;
-            let title = match item.score.filter(|_| live || finished) {
+            let round = cs2_round_score(state, item, now.unix_timestamp());
+            let mut title = match item.score.filter(|_| live || finished) {
                 Some([a, b]) => format!("{} {a}–{b} {}", side(0), side(1)),
                 None => format!("{} – {}", side(0), side(1)),
             };
+            if let Some((_, [a, b], _)) = round {
+                title = format!("{title} · {a}:{b}");
+            }
             let detail = [
                 Some(item.tournament.clone()),
                 (!item.stage.is_empty()).then(|| item.stage.clone()),
@@ -3425,7 +3433,7 @@ fn today_line(
             .collect::<Vec<_>>()
             .join(" · ");
             if live {
-                let map = item.current_map().map(|(_, map)| map.name.clone());
+                let map = cs2_live_map(item, round);
                 let when = [Some(language.t("cs2Live").to_owned()), map]
                     .into_iter()
                     .flatten()
@@ -3718,6 +3726,44 @@ const CS2_CARD_RADIUS: f32 = 18.4;
 const CS2_CARD_ROSTER: usize = 5;
 /// Maps a card has room for.
 const CS2_CARD_MAPS: usize = 5;
+/// The sides' colours, as the game paints them.
+const CS2_CT: u32 = 0x7fb2ea;
+const CS2_T: u32 = 0xeab05a;
+
+/// The round score of the map a live match is playing, from the feeds server: the map, the
+/// score in the feed's team order and, while its card has the full file, each team's side.
+fn cs2_round_score<'a>(
+    state: &'a State,
+    item: &crate::cs2::Match,
+    now: i64,
+) -> Option<(&'a str, [u32; 2], Option<[crate::cs2_live::Side; 2]>)> {
+    if item.state != crate::cs2::State::Live {
+        return None;
+    }
+    if let Some(live) = state.cs2_live.detail(&item.id, now) {
+        return Some((live.map.as_str(), live.score, Some(live.sides)));
+    }
+    let round = state.cs2_live.round(&item.id, now)?;
+    Some((round.map.as_str(), round.score, None))
+}
+
+/// The map a live match is playing: the live file's when there is one, else Liquipedia's.
+fn cs2_live_map(
+    item: &crate::cs2::Match,
+    round: Option<(&str, [u32; 2], Option<[crate::cs2_live::Side; 2]>)>,
+) -> Option<String> {
+    round
+        .map(|(map, ..)| map.to_owned())
+        .filter(|map| !map.is_empty())
+        .or_else(|| item.current_map().map(|(_, map)| map.name.clone()))
+}
+
+fn cs2_side_color(side: crate::cs2_live::Side, alpha: f32) -> Color {
+    match side {
+        crate::cs2_live::Side::Ct => c(CS2_CT, alpha),
+        crate::cs2_live::Side::T => c(CS2_T, alpha),
+    }
+}
 
 /// Home's CS2 Scores: a heading crediting Liquipedia, then up to three match cards in the inputs'
 /// style, live ones first.
@@ -4019,7 +4065,7 @@ fn cs2_card(
     // Bottom: each map with its score, the one being played marked; before a match its round.
     let strip = Rect::new(x, rect.y + rect.h - 66., rect.w - 44., 48.);
     if item.state != Phase::Upcoming && !item.maps.is_empty() {
-        cs2_card_maps(out, assets, language, item, strip);
+        cs2_card_maps(out, state, assets, item, strip, now.unix_timestamp());
     } else if let Some(round) =
         cs2_round(language, item).or_else(|| (!item.stage.is_empty()).then(|| item.stage.clone()))
     {
@@ -4071,20 +4117,29 @@ fn cs2_card_face(
     }
 }
 
-/// A row of a match's maps: name above, score below. The map being played stands out and says
-/// LIVE until the feed has its score.
+/// A row of a match's maps: name above, score below. The map being played stands out with its
+/// round score from the feeds server, or says LIVE while there is none. Liquipedia can lag a
+/// map behind: the live file's map then takes the tile Liquipedia thinks is being played.
 fn cs2_card_maps(
     out: &mut Scene,
+    state: &State,
     assets: &Assets,
-    language: Language,
     item: &crate::cs2::Match,
     strip: Rect,
+    now: i64,
 ) {
-    let playing = item
-        .current_map()
-        .filter(|_| item.state == crate::cs2::State::Live)
-        .map(|(number, _)| number - 1);
+    let language = state.preferences.language;
     let maps = &item.maps[..item.maps.len().min(CS2_CARD_MAPS)];
+    let round = cs2_round_score(state, item, now).filter(|(map, ..)| !map.is_empty());
+    let named = round.and_then(|(name, ..)| {
+        maps.iter()
+            .position(|map| map.winner.is_none() && map.name.eq_ignore_ascii_case(name))
+    });
+    let playing = named.or_else(|| {
+        item.current_map()
+            .filter(|_| item.state == crate::cs2::State::Live)
+            .map(|(number, _)| number - 1)
+    });
     let gap = 8.;
     let count = maps.len() as f32;
     let width = ((strip.w - gap * (count - 1.)) / count).min(172.);
@@ -4109,10 +4164,14 @@ fn cs2_card_maps(
             out.border(chip, 10., 1., c(0xff5a52, 0.55));
         }
         let room = width - 20.;
+        let name = match round {
+            Some((live, ..)) if current && named.is_none() => live,
+            _ => map.name.as_str(),
+        };
         out.text(
-            &map.name,
+            name,
             Rect::new(chip.x + 10., chip.y + 6., room, 17.),
-            assets.fit_text(&map.name, text(13.6, 500, 0.), room),
+            assets.fit_text(name, text(13.6, 500, 0.), room),
             c(
                 0xf5f5f5,
                 if map.score.is_some() || current {
@@ -4123,18 +4182,39 @@ fn cs2_card_maps(
             ),
             false,
         );
+        let place = Rect::new(chip.x + 10., chip.y + 23., room, 22.);
+        if current && let Some((_, [a, b], sides)) = round {
+            let style = text(18.4, 650, 0.);
+            match sides {
+                // Each team's rounds in the colour of the side it plays.
+                Some(sides) => {
+                    let mut x = place.x;
+                    for (part, tone) in [
+                        (a.to_string(), cs2_side_color(sides[0], 1.)),
+                        (":".to_owned(), c(0xffffff, 0.7)),
+                        (b.to_string(), cs2_side_color(sides[1], 1.)),
+                    ] {
+                        let width = assets.width(&part, style);
+                        out.text(
+                            &part,
+                            Rect::new(x, place.y, width + 2., place.h),
+                            style,
+                            tone,
+                            false,
+                        );
+                        x += width;
+                    }
+                }
+                None => out.text(format!("{a}:{b}"), place, style, c(0xffffff, 0.96), false),
+            }
+            continue;
+        }
         let (value, tone) = match map.score {
             Some([a, b]) => (format!("{a}:{b}"), c(0xffffff, 0.96)),
             None if current => (language.t("cs2Live").to_owned(), c(0xffb4ae, 0.96)),
             None => ("—".to_owned(), c(0xf5f5f5, 0.36)),
         };
-        out.text(
-            value,
-            Rect::new(chip.x + 10., chip.y + 23., room, 22.),
-            text(18.4, 650, 0.),
-            tone,
-            false,
-        );
+        out.text(value, place, text(18.4, 650, 0.), tone, false);
     }
 }
 
