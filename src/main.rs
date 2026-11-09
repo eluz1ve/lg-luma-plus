@@ -955,7 +955,11 @@ fn cs2_tick(state: &mut State, service: &cs2_service::Service, visible: bool) {
             _ => None,
         };
         ids.extend(detail.clone());
-        for (url, backdrop) in state.cs2.wanted_images(&ids, detail.as_deref()) {
+        let live_maps: Vec<String> = detail.as_deref().map_or_else(Vec::new, |id| {
+            let maps = state.cs2_live.maps(id);
+            maps.iter().map(|map| map.name.clone()).collect()
+        });
+        for (url, backdrop) in state.cs2.wanted_images(&ids, detail.as_deref(), &live_maps) {
             service.image(url, backdrop);
         }
     }

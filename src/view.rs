@@ -4422,22 +4422,7 @@ fn cs2_with_live_maps<'a>(
     if live.is_empty() {
         return std::borrow::Cow::Borrowed(item);
     }
-    let image = |name: &str| {
-        let same = |map: &&crate::cs2::Map| map.name == name && map.image.is_some();
-        item.maps
-            .iter()
-            .find(same)
-            .or_else(|| {
-                state
-                    .cs2
-                    .feed
-                    .iter()
-                    .flat_map(|feed| &feed.matches)
-                    .flat_map(|other| &other.maps)
-                    .find(same)
-            })
-            .and_then(|map| map.image.clone())
-    };
+    let image = |name: &str| crate::cs2::map_image(state.cs2.feed.as_ref(), item, name);
     let mut merged = item.clone();
     merged.maps = live
         .iter()

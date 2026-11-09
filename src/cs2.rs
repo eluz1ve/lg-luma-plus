@@ -365,6 +365,22 @@ pub fn parse_feed(value: &Value) -> Result<Feed, String> {
     })
 }
 
+/// The screenshot of the map called `name`: the match's own, else the same map's in any match
+/// of the feed. HLTV's maps come without pictures.
+pub fn map_image(feed: Option<&Feed>, item: &Match, name: &str) -> Option<String> {
+    let same = |map: &&Map| map.name == name && map.image.is_some();
+    item.maps
+        .iter()
+        .find(same)
+        .or_else(|| {
+            feed.into_iter()
+                .flat_map(|feed| &feed.matches)
+                .flat_map(|other| &other.maps)
+                .find(same)
+        })
+        .and_then(|map| map.image.clone())
+}
+
 /// The cards Home shows: live matches, the biggest events first, then those that ended in the
 /// last half hour, then upcoming ones.
 pub fn shown(feed: &Feed, major_only: bool, results: bool) -> Vec<&Match> {
@@ -437,8 +453,14 @@ impl Scores {
         }
     }
     /// Pictures not asked for yet, marked as loading: the given matches' logos and, for the
-    /// match open in detail, its maps' screenshots. Each comes with whether it is a backdrop.
-    pub fn wanted_images(&mut self, ids: &[String], detail: Option<&str>) -> Vec<(String, bool)> {
+    /// match open in detail, the screenshots of its maps and of `live_maps`, the maps HLTV
+    /// lists for it. Each comes with whether it is a backdrop.
+    pub fn wanted_images(
+        &mut self,
+        ids: &[String],
+        detail: Option<&str>,
+        live_maps: &[String],
+    ) -> Vec<(String, bool)> {
         let Some(feed) = &self.feed else {
             return Vec::new();
         };
@@ -446,7 +468,15 @@ impl Scores {
             .matches
             .iter()
             .filter(|m| Some(m.id.as_str()) == detail)
-            .flat_map(|m| m.maps.iter().filter_map(|map| map.image.clone()))
+            .flat_map(|m| {
+                let live = live_maps
+                    .iter()
+                    .filter_map(|name| map_image(Some(feed), m, name));
+                m.maps
+                    .iter()
+                    .filter_map(|map| map.image.clone())
+                    .chain(live)
+            })
             .filter(|url| !self.logos.contains_key(url))
             .collect();
         let mut urls: Vec<String> = feed

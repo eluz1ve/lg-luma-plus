@@ -140,14 +140,14 @@ fn logos_come_only_from_liquipedia_and_load_once() {
     assert_eq!(live.lineups[0][0].flag, "France");
     assert_eq!(live.lineups[1][0].flag, "");
     scores.accept(command.id, Ok(feed), 0);
-    let wanted = scores.wanted_images(&["live".into()], None);
+    let wanted = scores.wanted_images(&["live".into()], None, &[]);
     assert_eq!(wanted, [(live_logo(), false)]);
     assert!(
-        scores.wanted_images(&["live".into()], None).is_empty(),
+        scores.wanted_images(&["live".into()], None, &[]).is_empty(),
         "asked for once"
     );
     // The open match's maps come as backdrops.
-    let maps = scores.wanted_images(&["live".into()], Some("live"));
+    let maps = scores.wanted_images(&["live".into()], Some("live"), &[]);
     assert!(
         maps.iter()
             .all(|(url, backdrop)| *backdrop && url.ends_with("Mirage.jpg"))
@@ -160,6 +160,25 @@ fn logos_come_only_from_liquipedia_and_load_once() {
     );
     let team = scores.find("live").unwrap().teams[0].clone().unwrap();
     assert!(scores.logo(&team).is_none());
+}
+
+#[test]
+fn a_map_only_hltv_lists_borrows_its_picture_from_the_feed() {
+    let mut scores = Scores::default();
+    let (Some(command), _) = scores.sync(true, true, 0) else {
+        panic!();
+    };
+    let mut feed = parse_feed(&feed()).unwrap();
+    feed.updated = 0;
+    scores.accept(command.id, Ok(feed), 0);
+    // "small" has no maps of its own; Mirage's picture belongs to "live".
+    let wanted = scores.wanted_images(&["small".into()], Some("small"), &["Mirage".into()]);
+    assert!(
+        wanted
+            .iter()
+            .any(|(url, backdrop)| *backdrop && url.ends_with("Mirage.jpg")),
+        "{wanted:?}"
+    );
 }
 
 fn live_logo() -> String {
